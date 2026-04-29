@@ -1,0 +1,57 @@
+version: "2" # Use the new v2 schema for Go 1.25+ support
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: standard
+  enable:
+    # --- Performance & Correctness ---
+    - bodyclose # Checks for unclosed HTTP bodies
+    - sqlclosecheck # Checks for unclosed SQL rows/statements
+    - errcheck # Standard error checking
+    - govet # Reports suspicious constructs
+    - staticcheck # "Go vet on steroids"
+    - unused # Finds unused constants/vars/funcs
+
+    # --- Backend Best Practices ---
+    - modernize # NEW: Suggests modern Go 1.2x+ patterns
+    - unqueryvet # NEW: Detects unsafe 'SELECT *' in SQL
+    - sloglint # NEW: Enforces log/slog best practices
+    - nosprintfhostport # Prevents manual URL construction bugs
+
+    # --- Security & Complexity ---
+    - gosec # Security scanner
+    - gocyclo # Keeps function complexity in check (set to 15)
+    - revive # Replacement for the deprecated golint
+    - makezero # Finds slice declarations with non-zero initial length
+
+    # --- Custom ---
+    - noctx
+    - exhaustive
+
+  settings:
+    govet:
+      enable-all: true
+      disable: [fieldalignment] # Too noisy for most backend tasks
+    gocyclo:
+      min-complexity: 15
+    revive:
+      rules:
+        - name: exported
+          arguments: [disableStutteringCheck]
+    depguard:
+      # Use this to prevent importing deprecated or forbidden internal packages
+      rules:
+        main:
+          deny:
+            - pkg: "math/rand"
+              desc: "Use math/rand/v2 instead"
+            - pkg: "github.com/pkg/errors"
+              desc: "Use standard library errors instead"
+    staticcheck:
+      dot-import-whitelist:
+        - maragu.dev/gomponents
+        - maragu.dev/gomponents/components
+        - maragu.dev/gomponents/html

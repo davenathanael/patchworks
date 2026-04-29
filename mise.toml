@@ -1,0 +1,56 @@
+[tools]
+dbmate = "latest"
+go = "latest"
+golangci-lint = "latest"
+sqlc = "latest"
+watchexec = "latest"
+
+[env]
+_.file = ".env"
+
+[tasks.dev]
+run = "watchexec --exts go --restart go run cmd/server/main.go"
+
+[tasks.run]
+run = "go run cmd/server/main.go"
+
+[tasks.test]
+run = "go test ./..."
+
+[tasks.lint]
+run = "golangci-lint run"
+
+[tasks.check]
+depends = ["lint", "test"]
+
+[tasks.migration]
+alias = "mn"
+run = "dbmate new"
+description = "Run database migrations"
+
+[tasks.migrate]
+alias = "mu"
+run = "dbmate up"
+description = "Run database migrations"
+
+[tasks.migrate-reset]
+alias = "mr"
+run = [
+  "dbmate drop",
+  "dbmate up",
+]
+description = "Reset database migrations (drop, create, apply migrations)"
+
+[tasks.sql]
+run = "sqlc generate"
+description = "Generate SQLC code"
+
+[tasks.compose]
+alias = "cu"
+run = "docker compose up -d"
+description = "Start docker compose"
+
+[tasks.compose-stop]
+alias = "cd"
+run = "docker compose down"
+description = "Stop docker compose"
