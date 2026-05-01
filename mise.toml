@@ -54,3 +54,11 @@ description = "Start docker compose"
 alias = "cd"
 run = "docker compose down"
 description = "Stop docker compose"
+
+[tasks.compose-reset]
+alias = "cr"
+run = [
+  "docker compose down",
+  "docker compose up -d",
+]
+description = "Reset docker compose (stop, start)"
