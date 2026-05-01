@@ -29,3 +29,32 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
 	)
 	return i, err
 }
+
+const upsertUser = `-- name: UpsertUser :one
+insert into users (id, email, identity_id, last_login_at)
+values ($1, $2, $3, current_timestamp)
+on conflict (identity_id) do update set
+    email = excluded.email,
+    last_login_at = current_timestamp
+returning id, email, identity_id, created_at, updated_at, last_login_at
+`
+
+type UpsertUserParams struct {
+	ID         uuid.UUID
+	Email      string
+	IdentityID string
+}
+
+func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, upsertUser, arg.ID, arg.Email, arg.IdentityID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.IdentityID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}

@@ -12,3 +12,12 @@ func ToUser(row sqlc.User) core.User {
 		Email: row.Email,
 	}
 }
+
+// ToSession converts a sqlc.Session row to a core.Session struct.
+func ToSession(row sqlc.Session) core.Session {
+	return core.Session{
+		ID:        row.ID,
+		UserID:    row.UserID,
+		ExpiresAt: row.ExpiresAt.Time,
+	}
+}

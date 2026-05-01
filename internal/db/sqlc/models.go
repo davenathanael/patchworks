@@ -9,6 +9,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Session struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	CreatedAt pgtype.Timestamp
+	ExpiresAt pgtype.Timestamp
+}
+
 type User struct {
 	ID          uuid.UUID
 	Email       string

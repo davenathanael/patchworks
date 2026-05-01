@@ -13,7 +13,7 @@ import (
 // DB holds the database connection pool and provides query execution.
 type DB struct {
 	Pool    *pgxpool.Pool
-	querier sqlc.Queries
+	querier *sqlc.Queries
 }
 
 // New creates a new DB instance with the given context and database URL.
@@ -32,7 +32,10 @@ func New(ctx context.Context, url string) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{Pool: pool}, nil
+	return &DB{
+		Pool:    pool,
+		querier: sqlc.New(pool),
+	}, nil
 }
 
 // Close closes the database connection pool.

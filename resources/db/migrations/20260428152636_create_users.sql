@@ -10,7 +10,7 @@ create table if not exists users (
     last_login_at timestamp
 );
 create trigger update_updated_at before update on users
-    for each row execute procedure moddatetime();
+    for each row execute procedure moddatetime(updated_at);
 
 
 -- migrate:down
