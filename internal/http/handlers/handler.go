@@ -16,7 +16,7 @@ func New(comp *components.Components) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RealIP)
-	r.Use(chimw.Logger)
+	r.Use(middleware.Logger(comp.Config.Environment.IsLocal()))
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.CleanPath)
 

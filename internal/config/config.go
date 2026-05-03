@@ -1,14 +1,19 @@
 package config
 
-import "github.com/caarlos0/env/v11"
+import (
+	"strings"
+
+	"github.com/caarlos0/env/v11"
+)
 
 type (
 	// AppConfig holds all application configuration.
 	AppConfig struct {
-		DB         DB
-		HTTPServer HTTPServer
-		OIDC       OIDC
-		Session    Session
+		DB          DB
+		HTTPServer  HTTPServer
+		OIDC        OIDC
+		Session     Session
+		Environment Environment
 	}
 
 	// DB holds database specific values.
@@ -37,6 +42,11 @@ type (
 	Session struct {
 		EncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
 	}
+
+	// Environment holds environment type.
+	Environment struct {
+		Type string `env:"ENVIRONMENT" envDefault:"local"`
+	}
 )
 
 // Load loads the application configuration from environment variables.
@@ -44,4 +54,8 @@ func Load() (AppConfig, error) {
 	return env.ParseAsWithOptions[AppConfig](env.Options{
 		// Prefix: "PATCHWORKS_",
 	})
+}
+
+func (e Environment) IsLocal() bool {
+	return !strings.EqualFold(e.Type, "production")
 }
