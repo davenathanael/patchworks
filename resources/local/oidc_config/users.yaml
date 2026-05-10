@@ -1,0 +1,30 @@
+users:
+  admin:
+    password: "admin"
+    email: "admin@example.org"
+    identity_class: "INTERNAL"
+    entitlements:
+      - "ADMIN_ACCESS"
+      - "USER_MANAGEMENT"
+    roles:
+      - "USER"
+      - "ADMIN"
+    tenant: "default"
+    source_acl:
+      - "ACL_READ"
+      - "ACL_WRITE"
+
+  patch1:
+    password: "patch1"
+    email: "patch1@example.org"
+    identity_class: "INTERNAL"
+    entitlements:
+      - "USER_MANAGEMENT"
+    roles:
+      - "USER"
+    tenant: "default"
+    source_acl:
+      - "ACL_READ"
+      - "ACL_WRITE"
+
+default_user: "patch1"

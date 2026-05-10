@@ -1,0 +1,28 @@
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+oauth:
+  issuer: "http://localhost:8888"
+  audience: "patchworks"
+  token_expiry_minutes: 60
+  clients:
+    - client_id: "patchworks"
+      client_secret: "patchworks-secret"
+      description: "Patchworks Local OIDC"
+
+saml:
+  entity_id: "http://localhost:8000/saml"
+  sso_url: "http://localhost:8000/saml/sso"
+  default_acs_url: "http://localhost:8080/login/saml2/sso/nanoidp"
+  sign_responses: true # Set to false for testing unsigned SAML flows
+
+authority_prefixes:
+  roles: "ROLE_"
+  identity_class: "IDENTITY_"
+  entitlements: "ENT_"
+
+logging:
+  level: DEBUG
+  log_token_requests: true
+  verbose_logging: true # Include usernames/client_ids in logs (default: true)

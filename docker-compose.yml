@@ -10,36 +10,15 @@ services:
     volumes:
       - db_data:/var/lib/postgresql
 
-  pocket-id:
-    image: ghcr.io/pocket-id/pocket-id:v2
-    restart: unless-stopped
-    env_file: .env.pocketid
+  mock-oidc:
+    image: ghcr.io/cdelmonte-zg/nanoidp:latest
+    environment:
+      - NANOIDP_CONFIG_DIR=/app/config
     ports:
-      - 1411:1411
+      - "8888:8000"
     volumes:
-      - "./.pocketid-data:/app/data"
-    # Optional healthcheck
-    healthcheck:
-      test: ["CMD", "/app/pocket-id", "healthcheck"]
-      interval: 1m30s
-      timeout: 5s
-      retries: 2
-      start_period: 10s
-
-  caddy:
-    image: caddy:latest
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp" # HTTP/3
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - pocket-id
+      - ./.nanoidp:/app/data
+      - ./resources/local/oidc_config:/app/config:ro
 
 volumes:
   db_data:
-  caddy_data:
-  caddy_config:
