@@ -20,6 +20,9 @@ func New(comp *components.Components) http.Handler {
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.CleanPath)
 
+	// Static files
+	r.Handle("/static/*", http.StripPrefix("/static", http.FileServer(http.Dir("resources/static/"))))
+
 	// Auth routes (public)
 	r.Get("/auth/login", handleGetLogin(comp.AuthService))
 	r.Get("/auth/callback", handleGetCallback(comp.AuthService))
@@ -37,7 +40,13 @@ func New(comp *components.Components) http.Handler {
 
 func handleGetHome(components *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := views.HomePage().Render(w)
+		user, ok := middleware.UserFromContext(r.Context())
+		if !ok {
+			http.Error(w, "user not found in context", 500)
+			return
+		}
+
+		err := views.HomePage(user).Render(w)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

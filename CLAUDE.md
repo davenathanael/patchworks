@@ -78,10 +78,36 @@ pkg/
 - **fixi.js ecosystem**: No build step, progressive enhancement
 - **Pattern**: Server renders HTML; fixi.js adds smooth interactivity via partial updates
 
-### Styling
-- **OAT CSS**: Minimal, semantic HTML approach
-- **TBD**: Explore alternatives (Pico CSS, OpenProps, vanilla + Pollen) for even lighter footprint
-- **Constraint**: No Tailwind, no build steps
+### Styling Strategy
+- **Design system**: OAT CSS (variables + layout primitives) + OpenProps (fallback values)
+- **Constraint**: No Tailwind, no build steps, no arbitrary values (px/rem)
+- **Priority order**:
+  1. Use OAT utilities first (`.flex`, `.hstack`, `.gap-1`, `.mt-2`, etc.)
+  2. Redefine OAT CSS variables in `app.css` if customization needed
+  3. Use OpenProps variable values when OAT lacks coverage
+  4. Last resort: custom CSS classes in `app.css`
+
+#### OAT Utilities Available
+- **Layout**: `.flex`, `.flex-col`, `.hstack` (horizontal stack), `.vstack` (vertical stack)
+- **Alignment**: `.items-center`, `.justify-center`, `.justify-between`, `.justify-end`, `.align-left`, `.align-center`, `.align-right`
+- **Spacing**: `.gap-1`, `.gap-2`, `.gap-4`, `.mt-2`, `.mt-4`, `.mt-6`, `.mb-2`, `.mb-4`, `.mb-6`, `.p-4`
+- **Other**: `.unstyled` (removes list/link styles), `.text-light`, `.text-lighter`, `.w-100`
+
+#### OAT CSS Variables (all available via `:root`)
+- **Spacing**: `--space-1` through `--space-18` (0.25rem to 4.5rem)
+- **Colors**: `--color-bg-*`, `--color-text-*`, `--color-border`, `--primary`, `--danger`, `--success`
+- **Typography**: `--font-sans`, `--font-mono`, `--text-1` through `--text-8`
+- **Layout**: `--border-radius`, `--radius-small` through `--radius-full`, `--shadow-*`
+- **Animation**: `--transition-fast`, `--transition`
+
+#### Custom Classes in app.css
+Only add when no OAT utility covers the pattern. Current custom classes:
+- `.link-title` — link truncation (overflow ellipsis)
+- `.link-list` — link row container styling
+- `.text-muted` — secondary text color/size (extends OAT color system)
+- `.tag-badge` — compact tag styling
+- `.filter-list` — sidebar filter list (flexbox + hover states)
+- `.dashboard-section` — section spacing + heading typography
 
 ## 7. Testing Patterns
 

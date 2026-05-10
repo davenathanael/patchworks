@@ -1,0 +1,119 @@
+/*
+ * Patchworks Styling
+ *
+ * Strategy: OAT (utilities + variables) + OpenProps (fallback) + custom classes
+ * Priority: OAT utilities > OAT variables > OpenProps values > custom CSS
+ *
+ * OAT utilities: .flex, .hstack, .vstack, .items-center, .gap-*, .mt-*, .mb-*
+ * OAT variables: --space-*, --color-*, --text-*, --border-radius, --shadow-*
+ *
+ * Customize OAT variables below; add custom classes only when no utility covers the pattern.
+ * See CLAUDE.md section 6 for full reference.
+ */
+
+@import "./oat.min.css";
+@import url("https://fonts.bunny.net/css?family=geist:400,500,600");
+@import "/static/css/open-props.min.css";
+
+:root {
+    --font-sans: "Geist", system-ui, sans-serif;
+}
+
+/* Link row truncation */
+.link-title {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Subtle row hover */
+.link-list {
+    li {
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--border-radius);
+        transition: background-color 0.1s;
+
+        &:hover {
+            background-color: var(--color-bg-2);
+        }
+    }
+}
+
+/* Muted secondary text */
+.text-muted {
+    color: var(--color-text-3);
+    font-size: 0.85em;
+}
+
+/* Tag badges — compact */
+.tag-badge {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 0.1em 0.5em;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-2);
+    line-height: 1.6;
+}
+
+/* Sidebar filter list */
+.filter-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li a {
+        display: flex;
+        justify-content: space-between;
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--border-radius);
+        color: var(--color-text-2);
+        text-decoration: none;
+        font-size: 0.9em;
+
+        &:hover,
+        &[aria-current] {
+            background-color: var(--color-bg-2);
+            color: var(--color-text-1);
+        }
+    }
+}
+
+/* Section spacing */
+.dashboard-section {
+    margin-bottom: var(--space-5);
+    & h2 {
+        font-size: 0.8em;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-3);
+        margin-bottom: var(--space-2);
+    }
+}
+
+/* Section heading (sidebar filters, etc.) */
+.section-heading {
+    font-size: 0.75em;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-text-3);
+    margin-bottom: var(--space-2);
+}
+
+/* Link row: 2-col grid (content + date) */
+.link-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-2);
+    align-items: start;
+}
+
+/* Link metadata row: flex with spacing */
+.link-meta {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    font-size: 0.85em;
+}

@@ -9,7 +9,7 @@ watchexec = "latest"
 _.file = ".env"
 
 [tasks.dev]
-run = "watchexec --exts go --restart go run cmd/server/main.go"
+run = "watchexec --exts go --delay-run 200ms --restart go run cmd/server/main.go"
 
 [tasks.run]
 run = "go run cmd/server/main.go"
