@@ -9,11 +9,52 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Bookmark struct {
+	ID         uuid.UUID
+	Url        string
+	Title      string
+	CreatedAt  pgtype.Timestamp
+	UpdatedAt  pgtype.Timestamp
+	ArchivedAt pgtype.Timestamp
+	AuthorID   pgtype.UUID
+}
+
+type BookmarkTag struct {
+	BookmarkID uuid.UUID
+	Tag        string
+}
+
+type Collection struct {
+	ID          uuid.UUID
+	Name        string
+	Description pgtype.Text
+	CreatedAt   pgtype.Timestamp
+	UpdatedAt   pgtype.Timestamp
+}
+
+type CollectionBookmark struct {
+	CollectionID uuid.UUID
+	BookmarkID   uuid.UUID
+	AddedAt      pgtype.Timestamp
+}
+
+type CollectionMember struct {
+	CollectionID uuid.UUID
+	UserID       uuid.UUID
+	Role         string
+	AddedAt      pgtype.Timestamp
+}
+
 type Session struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
 	CreatedAt pgtype.Timestamp
 	ExpiresAt pgtype.Timestamp
+}
+
+type Tag struct {
+	Name     string
+	AuthorID uuid.UUID
 }
 
 type User struct {
