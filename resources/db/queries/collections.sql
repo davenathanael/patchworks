@@ -1,7 +1,22 @@
+-- name: ListUserCollections :many
+SELECT
+    sqlc.embed(collections),
+    (SELECT COUNT(*) FROM collection_bookmarks cb WHERE cb.collection_id = collections.id) AS bookmark_count
+FROM collections
+JOIN collection_members ON collections.id = collection_members.collection_id
+WHERE collection_members.user_id = $1;
+
+-- name: GetMembersByCollectionIds :many
+SELECT sqlc.embed(collection_members), sqlc.embed(users)
+FROM collection_members
+JOIN users ON collection_members.user_id = users.id
+WHERE collection_members.collection_id = ANY(@collection_ids::uuid[]);
+
 -- name: GetCollectionsByUser :many
 SELECT sqlc.embed(collections), sqlc.embed(collection_members)
 FROM collections
 JOIN collection_members ON collections.id = collection_members.collection_id
+JOIN collection_bookmarks ON collections.id = collection_bookmarks.collection_id
 WHERE collection_members.user_id = $1;
 
 -- name: GetCollectionById :one

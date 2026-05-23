@@ -1,6 +1,7 @@
 package views
 
 import (
+	"io"
 	"net/url"
 	"time"
 
@@ -9,6 +10,32 @@ import (
 	_ "maragu.dev/gomponents/components"
 	. "maragu.dev/gomponents/html"
 )
+
+type HomePageViewModel struct {
+	User            core.User
+	Collections     []core.Collection
+	Tags            []core.Tag
+	RecentBookmarks []core.Bookmark
+	AllBookmarks    []core.Bookmark
+}
+
+func (vm *HomePageViewModel) Render(w io.Writer) error {
+	stubPagination := PaginationProps{
+		CurrentPage: 1,
+		TotalPages:  3,
+		BaseURL:     "/",
+	}
+	mainContent := Main(
+		Class("container"),
+		AddLinkBox(),
+		RecentLinks(ToLinkItems(vm.RecentBookmarks)),
+		AllLinksView(ToLinkItems(vm.AllBookmarks), stubPagination),
+	)
+
+	sidebar := SidebarNav(ToCollectionItems(vm.Collections), ToTagItems(vm.Tags))
+
+	return Page("Dashboard — Patchworks", AppShell(vm.User, sidebar, mainContent)).Render(w)
+}
 
 // HomePage is the dashboard home page after login.
 func HomePage(user core.User) Node {

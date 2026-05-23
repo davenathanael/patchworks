@@ -7,12 +7,11 @@ import (
 
 // LinkItem represents a bookmark link with metadata.
 type LinkItem struct {
-	ID           string
-	Title        string
-	URL          *url.URL
-	Tags         []string
-	CollectionID string
-	CreatedAt    time.Time
+	ID        string
+	Title     string
+	URL       *url.URL
+	Tags      []string
+	CreatedAt time.Time
 }
 
 func (l LinkItem) Domain() string {

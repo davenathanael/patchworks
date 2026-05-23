@@ -34,6 +34,68 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: bookmark_tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.bookmark_tags (
+    bookmark_id uuid NOT NULL,
+    tag text NOT NULL,
+    tag_author_id uuid NOT NULL
+);
+
+
+--
+-- Name: bookmarks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.bookmarks (
+    id uuid NOT NULL,
+    url text NOT NULL,
+    title text NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    archived_at timestamp without time zone,
+    author_id uuid
+);
+
+
+--
+-- Name: collection_bookmarks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.collection_bookmarks (
+    collection_id uuid NOT NULL,
+    bookmark_id uuid NOT NULL,
+    added_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: collection_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.collection_members (
+    collection_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role text NOT NULL,
+    added_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
+-- Name: collections; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.collections (
+    id uuid NOT NULL,
+    name text NOT NULL,
+    description text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -55,6 +117,16 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tags (
+    name text NOT NULL,
+    author_id uuid NOT NULL
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -66,6 +138,46 @@ CREATE TABLE public.users (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     last_login_at timestamp without time zone
 );
+
+
+--
+-- Name: bookmark_tags bookmark_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookmark_tags
+    ADD CONSTRAINT bookmark_tags_pkey PRIMARY KEY (bookmark_id, tag, tag_author_id);
+
+
+--
+-- Name: bookmarks bookmarks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookmarks
+    ADD CONSTRAINT bookmarks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: collection_bookmarks collection_bookmarks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_bookmarks
+    ADD CONSTRAINT collection_bookmarks_pkey PRIMARY KEY (collection_id, bookmark_id);
+
+
+--
+-- Name: collection_members collection_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_members
+    ADD CONSTRAINT collection_members_pkey PRIMARY KEY (collection_id, user_id);
+
+
+--
+-- Name: collections collections_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collections
+    ADD CONSTRAINT collections_pkey PRIMARY KEY (id);
 
 
 --
@@ -82,6 +194,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tags tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_pkey PRIMARY KEY (name, author_id);
 
 
 --
@@ -108,10 +228,80 @@ CREATE UNIQUE INDEX users_identity_id_idx ON public.users USING btree (identity_
 
 
 --
+-- Name: bookmarks update_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_updated_at BEFORE UPDATE ON public.bookmarks FOR EACH ROW EXECUTE FUNCTION public.moddatetime('updated_at');
+
+
+--
+-- Name: collections update_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_updated_at BEFORE UPDATE ON public.collections FOR EACH ROW EXECUTE FUNCTION public.moddatetime('updated_at');
+
+
+--
 -- Name: users update_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER update_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.moddatetime('updated_at');
+
+
+--
+-- Name: bookmark_tags bookmark_tags_bookmark_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookmark_tags
+    ADD CONSTRAINT bookmark_tags_bookmark_id_fkey FOREIGN KEY (bookmark_id) REFERENCES public.bookmarks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: bookmark_tags bookmark_tags_tag_tag_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookmark_tags
+    ADD CONSTRAINT bookmark_tags_tag_tag_author_id_fkey FOREIGN KEY (tag, tag_author_id) REFERENCES public.tags(name, author_id) ON DELETE CASCADE;
+
+
+--
+-- Name: bookmarks bookmarks_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookmarks
+    ADD CONSTRAINT bookmarks_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_bookmarks collection_bookmarks_bookmark_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_bookmarks
+    ADD CONSTRAINT collection_bookmarks_bookmark_id_fkey FOREIGN KEY (bookmark_id) REFERENCES public.bookmarks(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_bookmarks collection_bookmarks_collection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_bookmarks
+    ADD CONSTRAINT collection_bookmarks_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES public.collections(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_members collection_members_collection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_members
+    ADD CONSTRAINT collection_members_collection_id_fkey FOREIGN KEY (collection_id) REFERENCES public.collections(id) ON DELETE CASCADE;
+
+
+--
+-- Name: collection_members collection_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.collection_members
+    ADD CONSTRAINT collection_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -120,6 +310,14 @@ CREATE TRIGGER update_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXEC
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: tags tags_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tags
+    ADD CONSTRAINT tags_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -135,4 +333,5 @@ ALTER TABLE ONLY public.sessions
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('20260428152636'),
-    ('20260501120000');
+    ('20260501120000'),
+    ('20260510095913');

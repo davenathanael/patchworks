@@ -20,8 +20,9 @@ type Bookmark struct {
 }
 
 type BookmarkTag struct {
-	BookmarkID uuid.UUID
-	Tag        string
+	BookmarkID  uuid.UUID
+	Tag         string
+	TagAuthorID uuid.UUID
 }
 
 type Collection struct {

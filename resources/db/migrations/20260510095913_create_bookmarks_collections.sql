@@ -19,8 +19,10 @@ create table if not exists tags (
 
 create table if not exists bookmark_tags (
     bookmark_id uuid references bookmarks(id) on delete cascade,
-    tag text references tags(name) on delete cascade,
-    primary key (bookmark_id, tag)
+    tag text not null,
+    tag_author_id uuid not null,
+    foreign key (tag, tag_author_id) references tags(name, author_id) on delete cascade,
+    primary key (bookmark_id, tag, tag_author_id)
 );
 
 create table if not exists collections (

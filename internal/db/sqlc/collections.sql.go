@@ -92,6 +92,7 @@ const getCollectionsByUser = `-- name: GetCollectionsByUser :many
 SELECT collections.id, collections.name, collections.description, collections.created_at, collections.updated_at, collection_members.collection_id, collection_members.user_id, collection_members.role, collection_members.added_at
 FROM collections
 JOIN collection_members ON collections.id = collection_members.collection_id
+JOIN collection_bookmarks ON collections.id = collection_bookmarks.collection_id
 WHERE collection_members.user_id = $1
 `
 
@@ -119,6 +120,90 @@ func (q *Queries) GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([
 			&i.CollectionMember.UserID,
 			&i.CollectionMember.Role,
 			&i.CollectionMember.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMembersByCollectionIds = `-- name: GetMembersByCollectionIds :many
+SELECT collection_members.collection_id, collection_members.user_id, collection_members.role, collection_members.added_at, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+FROM collection_members
+JOIN users ON collection_members.user_id = users.id
+WHERE collection_members.collection_id = ANY($1::uuid[])
+`
+
+type GetMembersByCollectionIdsRow struct {
+	CollectionMember CollectionMember
+	User             User
+}
+
+func (q *Queries) GetMembersByCollectionIds(ctx context.Context, collectionIds []uuid.UUID) ([]GetMembersByCollectionIdsRow, error) {
+	rows, err := q.db.Query(ctx, getMembersByCollectionIds, collectionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMembersByCollectionIdsRow
+	for rows.Next() {
+		var i GetMembersByCollectionIdsRow
+		if err := rows.Scan(
+			&i.CollectionMember.CollectionID,
+			&i.CollectionMember.UserID,
+			&i.CollectionMember.Role,
+			&i.CollectionMember.AddedAt,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.IdentityID,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.User.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserCollections = `-- name: ListUserCollections :many
+SELECT
+    collections.id, collections.name, collections.description, collections.created_at, collections.updated_at,
+    (SELECT COUNT(*) FROM collection_bookmarks cb WHERE cb.collection_id = collections.id) AS bookmark_count
+FROM collections
+JOIN collection_members ON collections.id = collection_members.collection_id
+WHERE collection_members.user_id = $1
+`
+
+type ListUserCollectionsRow struct {
+	Collection    Collection
+	BookmarkCount int64
+}
+
+func (q *Queries) ListUserCollections(ctx context.Context, userID uuid.UUID) ([]ListUserCollectionsRow, error) {
+	rows, err := q.db.Query(ctx, listUserCollections, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserCollectionsRow
+	for rows.Next() {
+		var i ListUserCollectionsRow
+		if err := rows.Scan(
+			&i.Collection.ID,
+			&i.Collection.Name,
+			&i.Collection.Description,
+			&i.Collection.CreatedAt,
+			&i.Collection.UpdatedAt,
+			&i.BookmarkCount,
 		); err != nil {
 			return nil, err
 		}

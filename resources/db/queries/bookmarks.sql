@@ -11,14 +11,33 @@ JOIN users ON bookmarks.author_id = users.id
 WHERE collection_bookmarks.collection_id = $1;
 
 -- name: GetRecentBookmarksByUserId :many
-
-SELECT
-    sqlc.embed(bookmarks),
-    sqlc.embed(users),
-    bookmark_tags.tag as tag
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
-JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
-WHERE bookmarks.author_id = $1
+WHERE bookmarks.author_id = @author_id::uuid
 ORDER BY bookmarks.created_at DESC
 LIMIT 10;
+
+
+-- name: GetAllBookmarksByUserId :many
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = @author_id::uuid
+ORDER BY bookmarks.created_at DESC
+LIMIT 10;
+
+
+-- name: GetTagsByBookmarkIds :many
+SELECT bookmark_id, tag
+FROM bookmark_tags
+WHERE bookmark_id = ANY(@bookmark_ids::uuid[]);
+
+
+-- name: GetTagsByUserId :many
+SELECT
+    tag,
+    COUNT(*) as bookmark_count
+FROM bookmark_tags
+WHERE tag_author_id = $1
+GROUP BY tag;
