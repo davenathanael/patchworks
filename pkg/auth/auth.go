@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	stateParamKey         = "state"
-	stateCookieName       = "oauth_state"
-	verifierCookieName    = "oauth_verifier"
-	stateCookieMaxAge     = 300 // 5 minutes
-	sessionDuration       = 30 * 24 * time.Hour
+	stateParamKey      = "state"
+	stateCookieName    = "oauth_state"
+	verifierCookieName = "oauth_verifier"
+	stateCookieMaxAge  = 300 // 5 minutes
+	sessionDuration    = 30 * 24 * time.Hour
 )
 
 // sessionStore defines the methods needed to manage sessions.

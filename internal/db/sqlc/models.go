@@ -20,9 +20,9 @@ type Bookmark struct {
 }
 
 type BookmarkTag struct {
-	BookmarkID  uuid.UUID
-	Tag         string
-	TagAuthorID uuid.UUID
+	BookmarkID uuid.UUID
+	Tag        string
+	AuthorID   uuid.UUID
 }
 
 type Collection struct {
@@ -51,11 +51,6 @@ type Session struct {
 	UserID    uuid.UUID
 	CreatedAt pgtype.Timestamp
 	ExpiresAt pgtype.Timestamp
-}
-
-type Tag struct {
-	Name     string
-	AuthorID uuid.UUID
 }
 
 type User struct {

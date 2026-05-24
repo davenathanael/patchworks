@@ -7,6 +7,7 @@ import (
 
 	"github.com/davenathanael/patchwork/internal/config"
 	"github.com/davenathanael/patchwork/internal/db"
+	"github.com/davenathanael/patchwork/internal/http/client"
 	"github.com/davenathanael/patchwork/pkg/auth"
 	"github.com/davenathanael/patchwork/pkg/auth/oidc"
 )
@@ -14,6 +15,7 @@ import (
 // Components holds the application dependencies (DB connections, HTTP clients, Configs, etc).
 type Components struct {
 	DB          *db.DB
+	HTTPClient  *client.Client
 	Config      config.AppConfig
 	AuthService *auth.Service
 }
@@ -38,6 +40,7 @@ func New(ctx context.Context) (*Components, error) {
 	// Initialize OIDC provider
 	return &Components{
 		DB:          database,
+		HTTPClient:  client.New(),
 		Config:      cfg,
 		AuthService: authSvc,
 	}, nil

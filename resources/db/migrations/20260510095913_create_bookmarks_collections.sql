@@ -11,18 +11,12 @@ create table if not exists bookmarks (
 create trigger update_updated_at before update on bookmarks
     for each row execute procedure moddatetime(updated_at);
 
-create table if not exists tags (
-	name text not null,
-	author_id uuid references users(id) on delete cascade,
-	primary key (name, author_id)
-);
-
 create table if not exists bookmark_tags (
     bookmark_id uuid references bookmarks(id) on delete cascade,
     tag text not null,
-    tag_author_id uuid not null,
-    foreign key (tag, tag_author_id) references tags(name, author_id) on delete cascade,
-    primary key (bookmark_id, tag, tag_author_id)
+    author_id uuid references users(id) on delete cascade,
+    -- foreign key (tag, tag_author_id) references tags(name, author_id) on delete cascade,
+    primary key (bookmark_id, tag, author_id)
 );
 
 create table if not exists collections (
@@ -55,5 +49,4 @@ drop table if exists collection_members;
 drop table if exists collection_bookmarks;
 drop table if exists collections;
 drop table if exists bookmark_tags;
-drop table if exists tags;
 drop table if exists bookmarks;

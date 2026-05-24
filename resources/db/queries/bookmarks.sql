@@ -39,5 +39,19 @@ SELECT
     tag,
     COUNT(*) as bookmark_count
 FROM bookmark_tags
-WHERE tag_author_id = $1
+WHERE author_id = $1
 GROUP BY tag;
+
+-- name: CreateBookmark :one
+INSERT INTO bookmarks (id, url, title, author_id)
+VALUES ($1, $2, $3, @author_id::uuid)
+RETURNING *;
+
+-- name: CreateBookmarkTags :copyfrom
+INSERT INTO bookmark_tags (bookmark_id, tag, author_id)
+VALUES ($1, $2, $3);
+
+-- name: CreateCollectionBookmark :one
+INSERT INTO collection_bookmarks (collection_id, bookmark_id)
+VALUES ($1, $2)
+RETURNING *;

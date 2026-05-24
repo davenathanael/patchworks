@@ -75,6 +75,20 @@ func ToBookmarks(rows []sqlc.GetRecentBookmarksByUserIdRow, tagRows []sqlc.GetTa
 	return bookmarks
 }
 
+func ToBookmark(createdBookmark sqlc.Bookmark, tags []string, user core.User) core.Bookmark {
+	parsedUrl, _ := url.Parse(createdBookmark.Url) // TODO: handle invalid URL? but DB should not contain any invalid URLs to begin with
+	return core.Bookmark{
+		ID:         createdBookmark.ID,
+		URL:        parsedUrl,
+		Title:      createdBookmark.Title,
+		CreatedAt:  createdBookmark.CreatedAt.Time,
+		UpdatedAt:  createdBookmark.UpdatedAt.Time,
+		ArchivedAt: createdBookmark.ArchivedAt.Time,
+		Author:     user,
+		Tags:       tags,
+	}
+}
+
 func ToBookmarksFromAllBookmarks(rows []sqlc.GetAllBookmarksByUserIdRow, tagRows []sqlc.GetTagsByBookmarkIdsRow) []core.Bookmark {
 	rowsAsRecentBookmarks := make([]sqlc.GetRecentBookmarksByUserIdRow, 0, len(rows))
 	for _, row := range rows {

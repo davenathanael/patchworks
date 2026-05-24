@@ -3,6 +3,7 @@ module github.com/davenathanael/patchwork
 go 1.26.2
 
 require (
+	github.com/ajg/form v1.7.1
 	github.com/caarlos0/env/v11 v11.4.0
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/go-chi/chi/v5 v5.2.5

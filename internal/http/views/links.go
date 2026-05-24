@@ -17,6 +17,8 @@ func AddLinkBox() Node {
 		Class("card mb-4"),
 		H2(Text("Add a link")),
 		Form(
+			Method("POST"),
+			Action("/bookmarks"),
 			FieldSet(Class("group"), urlInput, submitBtn),
 			Details(
 				Class("mt-2"),
@@ -26,7 +28,7 @@ func AddLinkBox() Node {
 					Label(
 						Span(Text("Collection")),
 						Select(
-							Name("collection"),
+							Name("collection_id"),
 							Option(Value(""), Text("— Select —")),
 							Option(Value("reading"), Text("Reading")),
 							Option(Value("work"), Text("Work")),

@@ -32,6 +32,8 @@ func New(comp *components.Components) http.Handler {
 		r.Use(middleware.Auth(comp.AuthService, authToCoreUser))
 
 		r.Get("/", handleGetHome(comp))
+
+		r.Post("/bookmarks", handlePostBookmarks(comp))
 	})
 
 	return r

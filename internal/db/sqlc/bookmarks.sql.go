@@ -12,6 +12,63 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createBookmark = `-- name: CreateBookmark :one
+INSERT INTO bookmarks (id, url, title, author_id)
+VALUES ($1, $2, $3, $4::uuid)
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id
+`
+
+type CreateBookmarkParams struct {
+	ID       uuid.UUID
+	Url      string
+	Title    string
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) (Bookmark, error) {
+	row := q.db.QueryRow(ctx, createBookmark,
+		arg.ID,
+		arg.Url,
+		arg.Title,
+		arg.AuthorID,
+	)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+		&i.AuthorID,
+	)
+	return i, err
+}
+
+type CreateBookmarkTagsParams struct {
+	BookmarkID uuid.UUID
+	Tag        string
+	AuthorID   uuid.UUID
+}
+
+const createCollectionBookmark = `-- name: CreateCollectionBookmark :one
+INSERT INTO collection_bookmarks (collection_id, bookmark_id)
+VALUES ($1, $2)
+RETURNING collection_id, bookmark_id, added_at
+`
+
+type CreateCollectionBookmarkParams struct {
+	CollectionID uuid.UUID
+	BookmarkID   uuid.UUID
+}
+
+func (q *Queries) CreateCollectionBookmark(ctx context.Context, arg CreateCollectionBookmarkParams) (CollectionBookmark, error) {
+	row := q.db.QueryRow(ctx, createCollectionBookmark, arg.CollectionID, arg.BookmarkID)
+	var i CollectionBookmark
+	err := row.Scan(&i.CollectionID, &i.BookmarkID, &i.AddedAt)
+	return i, err
+}
+
 const getAllBookmarksByUserId = `-- name: GetAllBookmarksByUserId :many
 SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
 FROM bookmarks
@@ -200,7 +257,7 @@ SELECT
     tag,
     COUNT(*) as bookmark_count
 FROM bookmark_tags
-WHERE tag_author_id = $1
+WHERE author_id = $1
 GROUP BY tag
 `
 
@@ -209,8 +266,8 @@ type GetTagsByUserIdRow struct {
 	BookmarkCount int64
 }
 
-func (q *Queries) GetTagsByUserId(ctx context.Context, tagAuthorID uuid.UUID) ([]GetTagsByUserIdRow, error) {
-	rows, err := q.db.Query(ctx, getTagsByUserId, tagAuthorID)
+func (q *Queries) GetTagsByUserId(ctx context.Context, authorID uuid.UUID) ([]GetTagsByUserIdRow, error) {
+	rows, err := q.db.Query(ctx, getTagsByUserId, authorID)
 	if err != nil {
 		return nil, err
 	}

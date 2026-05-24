@@ -40,7 +40,7 @@ SET default_table_access_method = heap;
 CREATE TABLE public.bookmark_tags (
     bookmark_id uuid NOT NULL,
     tag text NOT NULL,
-    tag_author_id uuid NOT NULL
+    author_id uuid NOT NULL
 );
 
 
@@ -117,16 +117,6 @@ CREATE TABLE public.sessions (
 
 
 --
--- Name: tags; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.tags (
-    name text NOT NULL,
-    author_id uuid NOT NULL
-);
-
-
---
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -145,7 +135,7 @@ CREATE TABLE public.users (
 --
 
 ALTER TABLE ONLY public.bookmark_tags
-    ADD CONSTRAINT bookmark_tags_pkey PRIMARY KEY (bookmark_id, tag, tag_author_id);
+    ADD CONSTRAINT bookmark_tags_pkey PRIMARY KEY (bookmark_id, tag, author_id);
 
 
 --
@@ -197,14 +187,6 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- Name: tags tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tags
-    ADD CONSTRAINT tags_pkey PRIMARY KEY (name, author_id);
-
-
---
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -249,19 +231,19 @@ CREATE TRIGGER update_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXEC
 
 
 --
+-- Name: bookmark_tags bookmark_tags_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.bookmark_tags
+    ADD CONSTRAINT bookmark_tags_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: bookmark_tags bookmark_tags_bookmark_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.bookmark_tags
     ADD CONSTRAINT bookmark_tags_bookmark_id_fkey FOREIGN KEY (bookmark_id) REFERENCES public.bookmarks(id) ON DELETE CASCADE;
-
-
---
--- Name: bookmark_tags bookmark_tags_tag_tag_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.bookmark_tags
-    ADD CONSTRAINT bookmark_tags_tag_tag_author_id_fkey FOREIGN KEY (tag, tag_author_id) REFERENCES public.tags(name, author_id) ON DELETE CASCADE;
 
 
 --
@@ -310,14 +292,6 @@ ALTER TABLE ONLY public.collection_members
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
--- Name: tags tags_author_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.tags
-    ADD CONSTRAINT tags_author_id_fkey FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
