@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/davenathanael/patchwork/internal/components"
 	"github.com/davenathanael/patchwork/internal/config"
 	"github.com/davenathanael/patchwork/internal/http/handlers"
+	"github.com/davenathanael/patchwork/pkg/logger"
 )
 
 // Run starts the HTTP server.
@@ -25,8 +27,14 @@ func Run() {
 		}
 	}()
 
+	if comp.Config.Environment.IsLocal() {
+		logger.ConfigureLocalLogger()
+	}
+
 	handler := handlers.New(comp)
 	server := newServer(comp.Config.HTTPServer, handler)
+
+	slog.Info("Starting Patchwork server...")
 
 	if err := server.ListenAndServe(); err != nil {
 		panic(err)

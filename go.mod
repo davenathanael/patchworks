@@ -10,6 +10,7 @@ require (
 	github.com/go-chi/httplog/v3 v3.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
+	github.com/lmittmann/tint v1.1.3
 	github.com/vgarvardt/pgx-google-uuid/v5 v5.6.0
 	golang.org/x/oauth2 v0.36.0
 	maragu.dev/gomponents v1.3.0
