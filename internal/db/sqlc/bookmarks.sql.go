@@ -75,7 +75,7 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
 ORDER BY bookmarks.created_at DESC
-LIMIT 10
+LIMIT 20
 `
 
 type GetAllBookmarksByUserIdRow struct {
@@ -92,6 +92,111 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, authorID uuid.UUI
 	var items []GetAllBookmarksByUserIdRow
 	for rows.Next() {
 		var i GetAllBookmarksByUserIdRow
+		if err := rows.Scan(
+			&i.Bookmark.ID,
+			&i.Bookmark.Url,
+			&i.Bookmark.Title,
+			&i.Bookmark.CreatedAt,
+			&i.Bookmark.UpdatedAt,
+			&i.Bookmark.ArchivedAt,
+			&i.Bookmark.AuthorID,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.IdentityID,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.User.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBookmarksByCollection = `-- name: GetBookmarksByCollection :many
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
+WHERE collection_bookmarks.collection_id = $1
+ORDER BY bookmarks.created_at DESC
+LIMIT 20
+`
+
+type GetBookmarksByCollectionRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID) ([]GetBookmarksByCollectionRow, error) {
+	rows, err := q.db.Query(ctx, getBookmarksByCollection, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBookmarksByCollectionRow
+	for rows.Next() {
+		var i GetBookmarksByCollectionRow
+		if err := rows.Scan(
+			&i.Bookmark.ID,
+			&i.Bookmark.Url,
+			&i.Bookmark.Title,
+			&i.Bookmark.CreatedAt,
+			&i.Bookmark.UpdatedAt,
+			&i.Bookmark.ArchivedAt,
+			&i.Bookmark.AuthorID,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.IdentityID,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.User.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBookmarksByCollectionAndTags = `-- name: GetBookmarksByCollectionAndTags :many
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
+JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
+WHERE collection_bookmarks.collection_id = $1
+AND bookmark_tags.tag = ANY($2::text[])
+ORDER BY bookmarks.created_at DESC
+LIMIT 20
+`
+
+type GetBookmarksByCollectionAndTagsParams struct {
+	CollectionID uuid.UUID
+	Tags         []string
+}
+
+type GetBookmarksByCollectionAndTagsRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBookmarksByCollectionAndTagsParams) ([]GetBookmarksByCollectionAndTagsRow, error) {
+	rows, err := q.db.Query(ctx, getBookmarksByCollectionAndTags, arg.CollectionID, arg.Tags)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBookmarksByCollectionAndTagsRow
+	for rows.Next() {
+		var i GetBookmarksByCollectionAndTagsRow
 		if err := rows.Scan(
 			&i.Bookmark.ID,
 			&i.Bookmark.Url,
@@ -162,6 +267,62 @@ func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID u
 			&i.User.LastLoginAt,
 			&i.Tag,
 			&i.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBookmarksByTags = `-- name: GetBookmarksByTags :many
+SELECT DISTINCT ON (bookmarks.id)
+    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
+WHERE bookmark_tags.tag = ANY($1::text[])
+AND bookmarks.author_id = $2::uuid
+ORDER BY bookmarks.id, bookmarks.created_at DESC
+LIMIT 20
+`
+
+type GetBookmarksByTagsParams struct {
+	Tags     []string
+	AuthorID uuid.UUID
+}
+
+type GetBookmarksByTagsRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTagsParams) ([]GetBookmarksByTagsRow, error) {
+	rows, err := q.db.Query(ctx, getBookmarksByTags, arg.Tags, arg.AuthorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBookmarksByTagsRow
+	for rows.Next() {
+		var i GetBookmarksByTagsRow
+		if err := rows.Scan(
+			&i.Bookmark.ID,
+			&i.Bookmark.Url,
+			&i.Bookmark.Title,
+			&i.Bookmark.CreatedAt,
+			&i.Bookmark.UpdatedAt,
+			&i.Bookmark.ArchivedAt,
+			&i.Bookmark.AuthorID,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.IdentityID,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.User.LastLoginAt,
 		); err != nil {
 			return nil, err
 		}

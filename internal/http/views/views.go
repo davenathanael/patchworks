@@ -1,6 +1,9 @@
 package views
 
 import (
+	"io"
+	"net/url"
+
 	"github.com/davenathanael/patchwork/internal/core"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/components"
@@ -57,9 +60,19 @@ func TopNav(user core.User) Node {
 }
 
 // SidebarNav renders collections and tags in the sidebar.
-func SidebarNav(collections []CollectionItem, tags []TagItem) Node {
-	return Nav(
-		CollectionFilter(collections, ""),
-		TagFilter(tags, ""),
+type SidebarNav struct {
+	Collections        []CollectionItem
+	ActiveCollectionID string
+	Tags               []TagItem
+	ActiveTags         []string
+	CurrentQuery       url.Values
+}
+
+func (s SidebarNav) Render(w io.Writer) error {
+	el := Nav(
+		CollectionFilter(s.Collections, s.ActiveCollectionID, s.CurrentQuery),
+		TagFilter(s.Tags, s.ActiveTags, s.CurrentQuery),
 	)
+
+	return el.Render(w)
 }

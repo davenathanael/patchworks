@@ -13,7 +13,7 @@
 
 @import "./oat.min.css";
 @import url("https://fonts.bunny.net/css?family=geist:400,500,600");
-@import "/static/css/open-props.min.css";
+/*@import "/static/css/open-props.min.css";*/
 
 :root {
     --font-sans: "Geist", system-ui, sans-serif;
@@ -58,7 +58,7 @@
 }
 
 /* Sidebar filter list */
-.filter-list {
+/*.filter-list {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -78,7 +78,7 @@
             color: var(--color-text-1);
         }
     }
-}
+}*/
 
 /* Section spacing */
 .dashboard-section {

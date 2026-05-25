@@ -114,3 +114,11 @@ func groupMembersByCollectionID(memberRows []sqlc.GetMembersByCollectionIdsRow) 
 	}
 	return membersByCollection
 }
+
+func Map[T, U any](items []T, f func(T) U) []U {
+	result := make([]U, 0, len(items))
+	for _, item := range items {
+		result = append(result, f(item))
+	}
+	return result
+}

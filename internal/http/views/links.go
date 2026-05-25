@@ -61,11 +61,24 @@ func RecentLinks(links []LinkItem) Node {
 	)
 }
 
-// AllLinksView renders the paginated all-links section.
-func AllLinksView(links []LinkItem, p PaginationProps) Node {
+// BookmarksList renders the paginated all-links section.
+func BookmarksList(links []LinkItem, p PaginationProps) Node {
 	return Section(
 		Class("dashboard-section"),
-		H2(Text("All Links")),
+		H2(Text("Your Bookmarks")),
+		IfElse(
+			len(links) > 0,
+			Group{Links(links), Pagination(p)},
+			P(Text("No bookmarks to display.")),
+		),
+	)
+}
+
+// FilteredLinksView renders the paginated filtered-links section.
+func FilteredLinksView(links []LinkItem, p PaginationProps) Node {
+	return Section(
+		Class("dashboard-section"),
+		H2(Text("Filtered Links")),
 		IfElse(
 			len(links) > 0,
 			Group{Links(links), Pagination(p)},

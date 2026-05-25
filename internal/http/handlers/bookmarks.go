@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/ajg/form"
@@ -32,6 +33,15 @@ type (
 	bookmarkGetter interface {
 		GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
 		GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
+		GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string) ([]core.Bookmark, error)
+		GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID) ([]core.Bookmark, error)
+		GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string) ([]core.Bookmark, error)
+	}
+
+	homeFilters struct {
+		Tags         []string `form:"tags,omitempty"`
+		CollectionID string   `form:"collection_id,omitempty"`
+		Page         int      `form:"page,omitempty"`
 	}
 )
 
@@ -41,6 +51,17 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 	if !ok {
 		http.Error(w, "user not found in context", 500)
 		return
+	}
+
+	qs := r.URL.Query()
+	filterTags := qs["tags"]
+	filterCollectionID, err := uuid.Parse(qs.Get("collection_id"))
+	if err != nil {
+		filterCollectionID = uuid.Nil
+	}
+	filterPage, err := strconv.Atoi(qs.Get("page"))
+	if err != nil {
+		filterPage = 0
 	}
 
 	collections, err := collectionGetter.GetCollectionsByUser(ctx, user.ID)
@@ -55,25 +76,52 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 		return
 	}
 
-	recentBookmarks, err := bookmarkGetter.GetRecentBookmarksByUser(ctx, user.ID)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	allBookmarks, err := bookmarkGetter.GetAllBookmarksByUser(ctx, user.ID)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
 	vm := views.HomePageViewModel{
-		User:            user,
-		Collections:     collections,
-		Tags:            tags,
-		RecentBookmarks: recentBookmarks,
-		AllBookmarks:    allBookmarks,
+		User:         user,
+		Collections:  collections,
+		Tags:         tags,
+		CollectionID: filterCollectionID.String(),
+		TagsFilter:   filterTags,
+		Page:         filterPage,
+		CurrentQuery: qs,
 	}
+	if filterCollectionID != uuid.Nil && len(filterTags) != 0 {
+		bookmarks, err := bookmarkGetter.GetBookmarksByCollectionAndTags(ctx, filterCollectionID, filterTags)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		vm.AllBookmarks = bookmarks
+	} else if filterCollectionID != uuid.Nil {
+		bookmarks, err := bookmarkGetter.GetBookmarksByCollection(ctx, filterCollectionID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		vm.AllBookmarks = bookmarks
+	} else if len(filterTags) != 0 {
+		bookmarks, err := bookmarkGetter.GetBookmarksByTags(ctx, user.ID, filterTags)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		vm.AllBookmarks = bookmarks
+	} else {
+		recentBookmarks, err := bookmarkGetter.GetRecentBookmarksByUser(ctx, user.ID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		vm.RecentBookmarks = recentBookmarks
+
+		allBookmarks, err := bookmarkGetter.GetAllBookmarksByUser(ctx, user.ID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		vm.AllBookmarks = allBookmarks
+	}
+
 	err = vm.Render(w)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
