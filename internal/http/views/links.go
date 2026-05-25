@@ -8,39 +8,38 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// AddLinkBox renders the quick add-link form.
-func AddLinkBox() Node {
+// NewBookmark renders the quick add-link form.
+func NewBookmark(collections []CollectionItem) Node {
 	urlInput := Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required())
 	submitBtn := Button(Type("submit"), Text("Add"))
 
 	return Section(
 		Class("card mb-4"),
-		H2(Text("Add a link")),
+		H6(Text("New Bookmark")),
 		Form(
 			Method("POST"),
 			Action("/bookmarks"),
-			FieldSet(Class("group"), urlInput, submitBtn),
-			Details(
-				Class("mt-2"),
-				Summary(Text("Tags & Collection")),
-				Div(
-					Class("grid gap-2 mt-2"),
-					Label(
-						Span(Text("Collection")),
-						Select(
-							Name("collection_id"),
-							Option(Value(""), Text("— Select —")),
-							Option(Value("reading"), Text("Reading")),
-							Option(Value("work"), Text("Work")),
-						),
+			Label(Attr("data-field"),
+				FieldSet(Class("group"), urlInput, submitBtn),
+			),
+			Div(
+				Label(
+					Attr("data-field"),
+					Span(Text("Collection")),
+					Select(
+						Name("collection_id"),
+						Option(Value(""), Text("Select a collection"), Disabled(), Selected()),
+						Map(collections, func(i CollectionItem) Node {
+							return Option(Value(i.ID), Text(i.Name))
+						}),
 					),
-					Label(
-						Span(Text("Tags")),
-						Input(
-							Type("text"),
-							Name("tags"),
-							Placeholder("comma, separated"),
-						),
+				),
+				Label(
+					Span(Text("Tags")),
+					Input(
+						Type("text"),
+						Name("tags"),
+						Placeholder("comma, separated"),
 					),
 				),
 			),

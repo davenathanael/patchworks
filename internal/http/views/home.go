@@ -28,16 +28,17 @@ func (vm *HomePageViewModel) Render(w io.Writer) error {
 		TotalPages:  3,
 		BaseURL:     "/",
 	}
+	collectionItems := ToCollectionItems(vm.Collections)
 	showRecentLinks := len(vm.RecentBookmarks) > 0
 	mainContent := Main(
 		Class("container"),
-		AddLinkBox(),
+		NewBookmark(collectionItems),
 		If(showRecentLinks, RecentLinks(ToLinkItems(vm.RecentBookmarks))),
 		BookmarksList(ToLinkItems(vm.AllBookmarks), stubPagination),
 	)
 
 	sidebar := SidebarNav{
-		Collections:        ToCollectionItems(vm.Collections),
+		Collections:        collectionItems,
 		ActiveCollectionID: vm.CollectionID,
 		Tags:               ToTagItems(vm.Tags),
 		ActiveTags:         vm.TagsFilter,
