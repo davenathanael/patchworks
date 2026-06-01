@@ -31,17 +31,11 @@ type (
 	}
 
 	bookmarkGetter interface {
-		GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
-		GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
-		GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string) ([]core.Bookmark, error)
-		GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID) ([]core.Bookmark, error)
-		GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string) ([]core.Bookmark, error)
-	}
-
-	homeFilters struct {
-		Tags         []string `form:"tags,omitempty"`
-		CollectionID string   `form:"collection_id,omitempty"`
-		Page         int      `form:"page,omitempty"`
+		GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
+		GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
+		GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
+		GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
+		GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
 	}
 )
 
@@ -63,6 +57,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 	if err != nil {
 		filterPage = 0
 	}
+	filterSearch := qs.Get("search")
 
 	collections, err := collectionGetter.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
@@ -83,38 +78,39 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 		CollectionID: filterCollectionID.String(),
 		TagsFilter:   filterTags,
 		Page:         filterPage,
+		Search:       filterSearch,
 		CurrentQuery: qs,
 	}
 	if filterCollectionID != uuid.Nil && len(filterTags) != 0 {
-		bookmarks, err := bookmarkGetter.GetBookmarksByCollectionAndTags(ctx, filterCollectionID, filterTags)
+		bookmarks, err := bookmarkGetter.GetBookmarksByCollectionAndTags(ctx, filterCollectionID, filterTags, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		vm.AllBookmarks = bookmarks
 	} else if filterCollectionID != uuid.Nil {
-		bookmarks, err := bookmarkGetter.GetBookmarksByCollection(ctx, filterCollectionID)
+		bookmarks, err := bookmarkGetter.GetBookmarksByCollection(ctx, filterCollectionID, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		vm.AllBookmarks = bookmarks
 	} else if len(filterTags) != 0 {
-		bookmarks, err := bookmarkGetter.GetBookmarksByTags(ctx, user.ID, filterTags)
+		bookmarks, err := bookmarkGetter.GetBookmarksByTags(ctx, user.ID, filterTags, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		vm.AllBookmarks = bookmarks
 	} else {
-		recentBookmarks, err := bookmarkGetter.GetRecentBookmarksByUser(ctx, user.ID)
+		recentBookmarks, err := bookmarkGetter.GetRecentBookmarksByUser(ctx, user.ID, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		vm.RecentBookmarks = recentBookmarks
 
-		allBookmarks, err := bookmarkGetter.GetAllBookmarksByUser(ctx, user.ID)
+		allBookmarks, err := bookmarkGetter.GetAllBookmarksByUser(ctx, user.ID, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

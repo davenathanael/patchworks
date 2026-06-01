@@ -14,36 +14,40 @@ func FilterBar(
 	activeCollectionID string,
 	tags []TagItem,
 	activeTags []string,
+	search string,
 	currentQuery url.Values,
 ) Node {
-	hasFilters := activeCollectionID != "" || len(activeTags) > 0
+	hasFilters := activeCollectionID != "" || len(activeTags) > 0 || search != ""
 
-	return Div(
-		Class("filter-bar"),
-		Div(Class("search-field"),
-			Label(
-				Attr("data-field"),
-				Input(
-					Type("search"),
-					Name("q"),
-					Placeholder("Search bookmarks..."),
-					Value(currentQuery.Get("q")),
-					Attr("enterkeyhint", "search"),
+	return Form(
+		Method("GET"),
+		Action("/"),
+		Div(Class("filter-bar"),
+			Div(Class("search-field"),
+				Label(
+					Attr("data-field"),
+					Input(
+						Type("search"),
+						Name("search"),
+						Placeholder("Search bookmarks..."),
+						Value(search),
+						Attr("enterkeyhint", "search"),
+					),
 				),
 			),
-		),
-		Div(Class("pill-group"),
-			CollectionPills(collections, activeCollectionID, currentQuery),
-		),
-		Div(Class("pill-group"),
-			TagPills(tags, activeTags, currentQuery),
-		),
-		If(hasFilters,
-			Div(
-				A(
-					Href("/"),
-					Class("clear-link"),
-					Text("Clear filters"),
+			Div(Class("pill-group"),
+				CollectionPills(collections, activeCollectionID, currentQuery),
+			),
+			Div(Class("pill-group"),
+				TagPills(tags, activeTags, currentQuery),
+			),
+			If(hasFilters,
+				Div(
+					A(
+						Href("/"),
+						Class("clear-link"),
+						Text("Clear filters"),
+					),
 				),
 			),
 		),

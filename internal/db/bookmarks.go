@@ -18,8 +18,11 @@ func (db *DB) GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, 
 	return ToTags(tags), nil
 }
 
-func (db *DB) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error) {
-	rows, err := db.querier.GetRecentBookmarksByUserId(ctx, userID)
+func (db *DB) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
+	rows, err := db.querier.GetRecentBookmarksByUserId(ctx, sqlc.GetRecentBookmarksByUserIdParams{
+		AuthorID: userID,
+		Search:   search,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -27,8 +30,11 @@ func (db *DB) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID) ([
 	return db.toBookmarksWithTags(ctx, rows)
 }
 
-func (db *DB) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error) {
-	rows, err := db.querier.GetAllBookmarksByUserId(ctx, userID)
+func (db *DB) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
+	rows, err := db.querier.GetAllBookmarksByUserId(ctx, sqlc.GetAllBookmarksByUserIdParams{
+		AuthorID: userID,
+		Search:   search,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -39,10 +45,11 @@ func (db *DB) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]co
 	return db.toBookmarksWithTags(ctx, recent)
 }
 
-func (db *DB) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string) ([]core.Bookmark, error) {
+func (db *DB) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error) {
 	rows, err := db.querier.GetBookmarksByCollectionAndTags(ctx, sqlc.GetBookmarksByCollectionAndTagsParams{
 		CollectionID: collectionID,
 		Tags:         tags,
+		Search:       search,
 	})
 	if err != nil {
 		return nil, err
@@ -54,8 +61,11 @@ func (db *DB) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID 
 	return db.toBookmarksWithTags(ctx, recent)
 }
 
-func (db *DB) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID) ([]core.Bookmark, error) {
-	rows, err := db.querier.GetBookmarksByCollection(ctx, collectionID)
+func (db *DB) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error) {
+	rows, err := db.querier.GetBookmarksByCollection(ctx, sqlc.GetBookmarksByCollectionParams{
+		CollectionID: collectionID,
+		Search:       search,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +76,11 @@ func (db *DB) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UU
 	return db.toBookmarksWithTags(ctx, recent)
 }
 
-func (db *DB) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string) ([]core.Bookmark, error) {
+func (db *DB) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error) {
 	rows, err := db.querier.GetBookmarksByTags(ctx, sqlc.GetBookmarksByTagsParams{
 		Tags:     tags,
 		AuthorID: userID,
+		Search:   search,
 	})
 	if err != nil {
 		return nil, err

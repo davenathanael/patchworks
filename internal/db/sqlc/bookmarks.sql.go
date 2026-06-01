@@ -74,17 +74,23 @@ SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookm
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
+AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20
 `
+
+type GetAllBookmarksByUserIdParams struct {
+	AuthorID uuid.UUID
+	Search   string
+}
 
 type GetAllBookmarksByUserIdRow struct {
 	Bookmark Bookmark
 	User     User
 }
 
-func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, authorID uuid.UUID) ([]GetAllBookmarksByUserIdRow, error) {
-	rows, err := q.db.Query(ctx, getAllBookmarksByUserId, authorID)
+func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmarksByUserIdParams) ([]GetAllBookmarksByUserIdRow, error) {
+	rows, err := q.db.Query(ctx, getAllBookmarksByUserId, arg.AuthorID, arg.Search)
 	if err != nil {
 		return nil, err
 	}
@@ -123,17 +129,23 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 WHERE collection_bookmarks.collection_id = $1
+AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20
 `
+
+type GetBookmarksByCollectionParams struct {
+	CollectionID uuid.UUID
+	Search       string
+}
 
 type GetBookmarksByCollectionRow struct {
 	Bookmark Bookmark
 	User     User
 }
 
-func (q *Queries) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID) ([]GetBookmarksByCollectionRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByCollection, collectionID)
+func (q *Queries) GetBookmarksByCollection(ctx context.Context, arg GetBookmarksByCollectionParams) ([]GetBookmarksByCollectionRow, error) {
+	rows, err := q.db.Query(ctx, getBookmarksByCollection, arg.CollectionID, arg.Search)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +186,7 @@ JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 WHERE collection_bookmarks.collection_id = $1
 AND bookmark_tags.tag = ANY($2::text[])
+AND ($3::text = '' OR bookmarks.title ILIKE '%' || $3::text || '%' OR bookmarks.url ILIKE '%' || $3::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20
 `
@@ -181,6 +194,7 @@ LIMIT 20
 type GetBookmarksByCollectionAndTagsParams struct {
 	CollectionID uuid.UUID
 	Tags         []string
+	Search       string
 }
 
 type GetBookmarksByCollectionAndTagsRow struct {
@@ -189,7 +203,7 @@ type GetBookmarksByCollectionAndTagsRow struct {
 }
 
 func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBookmarksByCollectionAndTagsParams) ([]GetBookmarksByCollectionAndTagsRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByCollectionAndTags, arg.CollectionID, arg.Tags)
+	rows, err := q.db.Query(ctx, getBookmarksByCollectionAndTags, arg.CollectionID, arg.Tags, arg.Search)
 	if err != nil {
 		return nil, err
 	}
@@ -286,6 +300,7 @@ JOIN users ON bookmarks.author_id = users.id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 WHERE bookmark_tags.tag = ANY($1::text[])
 AND bookmarks.author_id = $2::uuid
+AND ($3::text = '' OR bookmarks.title ILIKE '%' || $3::text || '%' OR bookmarks.url ILIKE '%' || $3::text || '%')
 ORDER BY bookmarks.id, bookmarks.created_at DESC
 LIMIT 20
 `
@@ -293,6 +308,7 @@ LIMIT 20
 type GetBookmarksByTagsParams struct {
 	Tags     []string
 	AuthorID uuid.UUID
+	Search   string
 }
 
 type GetBookmarksByTagsRow struct {
@@ -301,7 +317,7 @@ type GetBookmarksByTagsRow struct {
 }
 
 func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTagsParams) ([]GetBookmarksByTagsRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByTags, arg.Tags, arg.AuthorID)
+	rows, err := q.db.Query(ctx, getBookmarksByTags, arg.Tags, arg.AuthorID, arg.Search)
 	if err != nil {
 		return nil, err
 	}
@@ -339,17 +355,23 @@ SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookm
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
+AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 10
 `
+
+type GetRecentBookmarksByUserIdParams struct {
+	AuthorID uuid.UUID
+	Search   string
+}
 
 type GetRecentBookmarksByUserIdRow struct {
 	Bookmark Bookmark
 	User     User
 }
 
-func (q *Queries) GetRecentBookmarksByUserId(ctx context.Context, authorID uuid.UUID) ([]GetRecentBookmarksByUserIdRow, error) {
-	rows, err := q.db.Query(ctx, getRecentBookmarksByUserId, authorID)
+func (q *Queries) GetRecentBookmarksByUserId(ctx context.Context, arg GetRecentBookmarksByUserIdParams) ([]GetRecentBookmarksByUserIdRow, error) {
+	rows, err := q.db.Query(ctx, getRecentBookmarksByUserId, arg.AuthorID, arg.Search)
 	if err != nil {
 		return nil, err
 	}

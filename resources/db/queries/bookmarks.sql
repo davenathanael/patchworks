@@ -15,6 +15,7 @@ SELECT sqlc.embed(bookmarks), sqlc.embed(users)
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = @author_id::uuid
+AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 10;
 
@@ -24,6 +25,7 @@ SELECT sqlc.embed(bookmarks), sqlc.embed(users)
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = @author_id::uuid
+AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20;
 
@@ -35,6 +37,7 @@ JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 WHERE collection_bookmarks.collection_id = $1
 AND bookmark_tags.tag = ANY(@tags::text[])
+AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20;
 
@@ -44,6 +47,7 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 WHERE collection_bookmarks.collection_id = $1
+AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20;
 
@@ -55,6 +59,7 @@ JOIN users ON bookmarks.author_id = users.id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 WHERE bookmark_tags.tag = ANY(@tags::text[])
 AND bookmarks.author_id = @author_id::uuid
+AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
 ORDER BY bookmarks.id, bookmarks.created_at DESC
 LIMIT 20;
 

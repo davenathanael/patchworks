@@ -18,6 +18,7 @@ type HomePageViewModel struct {
 	CollectionID    string
 	TagsFilter      []string
 	Page            int
+	Search          string
 	CurrentQuery    url.Values
 }
 
@@ -29,12 +30,12 @@ func (vm *HomePageViewModel) Render(w io.Writer) error {
 	}
 	collectionItems := ToCollectionItems(vm.Collections)
 	tagItems := ToTagItems(vm.Tags)
-	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0
+	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0 || vm.Search != ""
 
 	mainContent := Main(
 		Class("container"),
 		NewBookmark(collectionItems),
-		FilterBar(collectionItems, vm.CollectionID, tagItems, vm.TagsFilter, vm.CurrentQuery),
+		FilterBar(collectionItems, vm.CollectionID, tagItems, vm.TagsFilter, vm.Search, vm.CurrentQuery),
 		If(hasFilters,
 			FilteredLinksView(ToLinkItems(vm.AllBookmarks), stubPagination),
 		),
