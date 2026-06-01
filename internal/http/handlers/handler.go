@@ -18,6 +18,8 @@ func New(comp *components.Components) http.Handler {
 	r.Use(middleware.Logger(comp.Config.Environment.IsLocal()))
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.CleanPath)
+	r.Use(chimw.RedirectSlashes)
+	r.Use(chimw.RequestID)
 
 	// Static files
 	r.Handle("/static/*", http.StripPrefix("/static", http.FileServer(http.Dir("resources/static/"))))
@@ -32,8 +34,19 @@ func New(comp *components.Components) http.Handler {
 		r.Use(middleware.Auth(comp.AuthService, authToCoreUser))
 
 		r.Get("/", handleGetHome(comp))
-
 		r.Post("/bookmarks", handlePostBookmarks(comp))
+
+		r.Get("/collections", handleGetCollections(comp))
+		r.Get("/collections/new", handleGetCollectionCreation(comp))
+		r.Post("/collections", handlePostCollection(comp))
+		r.Get("/collections/{id}", handleGetCollectionById(comp))
+		r.Get("/collections/{id}/edit", handleGetCollectionEdit(comp))
+		r.Post("/collections/{id}/edit", handlePutCollectionById(comp))
+		r.Delete("/collections/{id}", handleDeleteCollectionById(comp))
+		r.Post("/collections/{id}/delete", handleDeleteCollectionById(comp))
+		r.Post("/collections/{id}/members", handlePostCollectionMember(comp))
+		r.Delete("/collections/{collectionId}/members/{userId}", handleDeleteCollectionMember(comp))
+		r.Post("/collections/{collectionId}/members/{userId}/delete", handleDeleteCollectionMember(comp))
 	})
 
 	return r

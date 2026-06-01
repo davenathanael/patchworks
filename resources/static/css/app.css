@@ -1,22 +1,131 @@
 /*
  * Patchworks Styling
  *
- * Strategy: OAT (utilities + variables) + OpenProps (fallback) + custom classes
- * Priority: OAT utilities > OAT variables > OpenProps values > custom CSS
- *
- * OAT utilities: .flex, .hstack, .vstack, .items-center, .gap-*, .mt-*, .mb-*
- * OAT variables: --space-*, --color-*, --text-*, --border-radius, --shadow-*
- *
- * Customize OAT variables below; add custom classes only when no utility covers the pattern.
- * See CLAUDE.md section 6 for full reference.
+ * Strategy: OAT utilities + variables + minimal custom classes
+ * Priority: OAT utilities > OAT variables > custom CSS
  */
 
 @import "./oat.min.css";
-@import url("https://fonts.bunny.net/css?family=geist:400,500,600");
-/*@import "/static/css/open-props.min.css";*/
+@import url("https://fonts.bunny.net/css?family=geist:400,500,600&display=swap");
 
 :root {
     --font-sans: "Geist", system-ui, sans-serif;
+    --border-radius: 2px;
+    --radius-small: 2px;
+    --radius-medium: 2px;
+    --radius-large: 4px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    text-wrap: balance;
+}
+
+p {
+    text-wrap: pretty;
+}
+
+[data-sidebar-layout] {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+[data-topnav] {
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-3) var(--space-6);
+
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+    }
+
+    .nav-link {
+        color: var(--color-text-1);
+        text-decoration: none;
+
+        &:hover {
+            color: var(--primary);
+        }
+    }
+
+    .nav-user {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        justify-content: flex-end;
+    }
+}
+
+main {
+    padding: var(--space-6) var(--space-6) 0;
+    max-width: 900px;
+    width: 100%;
+    margin-inline: auto;
+}
+
+.page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: var(--space-4);
+
+    h4 {
+        margin: 0;
+    }
+}
+
+.back-link {
+    display: inline-block;
+    font-size: var(--text-8);
+    color: var(--color-text-2);
+    text-decoration: none;
+    margin-bottom: var(--space-2);
+
+    &:hover {
+        color: var(--color-text-1);
+    }
+}
+
+.collection-detail-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h4 {
+        margin: 0;
+    }
+
+    .actions {
+        display: flex;
+        gap: var(--space-2);
+    }
+}
+
+/* Add bookmark collapsible */
+.add-bookmark {
+    margin-bottom: var(--space-4);
+
+    summary {
+        cursor: pointer;
+        user-select: none;
+        color: var(--color-text-2);
+        font-size: var(--text-8);
+
+        &:hover {
+            color: var(--color-text-1);
+        }
+    }
+
+    .add-form {
+        margin-top: var(--space-3);
+    }
 }
 
 /* Link row truncation */
@@ -27,10 +136,10 @@
     white-space: nowrap;
 }
 
-/* Subtle row hover */
+/* Link list with hover */
 .link-list {
     li {
-        padding: var(--space-1) var(--space-2);
+        padding: var(--space-1) 0;
         border-radius: var(--border-radius);
         transition: background-color 0.1s;
 
@@ -46,62 +155,6 @@
     font-size: 0.85em;
 }
 
-/* Tag badges — compact */
-.tag-badge {
-    display: inline-block;
-    font-size: 0.75em;
-    padding: 0.1em 0.5em;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-2);
-    line-height: 1.6;
-}
-
-/* Sidebar filter list */
-/*.filter-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-
-    li a {
-        display: flex;
-        justify-content: space-between;
-        padding: var(--space-1) var(--space-2);
-        border-radius: var(--border-radius);
-        color: var(--color-text-2);
-        text-decoration: none;
-        font-size: 0.9em;
-
-        &:hover,
-        &[aria-current] {
-            background-color: var(--color-bg-2);
-            color: var(--color-text-1);
-        }
-    }
-}*/
-
-/* Section spacing */
-.dashboard-section {
-    margin-bottom: var(--space-5);
-    & h2 {
-        font-size: 0.8em;
-        font-weight: 600;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--color-text-3);
-        margin-bottom: var(--space-2);
-    }
-}
-
-/* Section heading (sidebar filters, etc.) */
-.section-heading {
-    font-size: 0.75em;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--color-text-3);
-    margin-bottom: var(--space-2);
-}
-
 /* Link row: 2-col grid (content + date) */
 .link-row {
     display: grid;
@@ -110,10 +163,207 @@
     align-items: start;
 }
 
-/* Link metadata row: flex with spacing */
+/* Link metadata row */
 .link-meta {
     display: flex;
     gap: var(--space-2);
     align-items: center;
     font-size: 0.85em;
+}
+
+/* Collection row (on /collections page) */
+.collection-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) var(--space-2);
+    border-radius: var(--border-radius);
+    transition: background-color 0.1s;
+
+    &:hover {
+        background-color: var(--color-bg-2);
+    }
+
+    .collection-info {
+        .collection-name {
+            color: var(--color-text-1);
+            text-decoration: underline;
+
+            &:hover {
+                color: var(--primary);
+            }
+        }
+
+        .collection-desc {
+            color: var(--color-text-3);
+            margin-bottom: 0;
+        }
+
+        .bookmark-count {
+            color: var(--color-text-3);
+            font-size: 0.65rem;
+        }
+    }
+}
+
+/* Section heading — small uppercase */
+.section-heading {
+    font-size: var(--text-8);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-3);
+    margin-bottom: var(--space-2);
+}
+
+/* Filter toolbar — compact, no card */
+.filter-bar {
+    margin-bottom: var(--space-4);
+
+    .search-field {
+        margin-bottom: var(--space-2);
+    }
+
+    .pill-group {
+        margin-bottom: var(--space-2);
+
+        &:last-of-type {
+            margin-bottom: 0;
+        }
+    }
+
+    .clear-link {
+        font-size: var(--text-8);
+        color: var(--color-text-3);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+
+        &:hover {
+            color: var(--color-text-1);
+        }
+    }
+}
+
+/* Collection pills — outlined, toggle style */
+.filter-pill {
+    display: inline-block;
+    font-size: var(--text-8);
+    padding: 0.15em 0.6em;
+    border-radius: var(--radius-small);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-2);
+    text-decoration: none;
+    margin: 0 var(--space-1) var(--space-1) 0;
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast);
+
+    &:hover {
+        background-color: var(--color-bg-2);
+        color: var(--color-text-1);
+    }
+
+    &[aria-current="page"] {
+        background-color: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+    }
+}
+
+/* Tag pills — badge style, smaller */
+.tag-pill {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 0.1em 0.5em;
+    border-radius: var(--radius-small);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-2);
+    text-decoration: none;
+    margin: 0 var(--space-1) var(--space-1) 0;
+    transition:
+        background-color var(--transition-fast),
+        color var(--transition-fast);
+
+    &:hover {
+        background-color: var(--color-bg-2);
+        color: var(--color-text-1);
+    }
+
+    &[aria-current="page"] {
+        background-color: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+    }
+}
+
+/* Tag badges — compact */
+.tag-badge {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 0.1em 0.5em;
+    border-radius: var(--radius-small);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-2);
+    line-height: 1.6;
+}
+
+/* See more toggle for tags */
+.filter-details {
+    summary {
+        font-size: var(--text-8);
+        color: var(--color-text-2);
+        cursor: pointer;
+        padding: var(--space-1) 0;
+        user-select: none;
+
+        &:hover {
+            color: var(--color-text-1);
+        }
+    }
+}
+
+/* Member row in collection detail */
+.member-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--border);
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    .member-info {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+
+        .member-email {
+            font-size: var(--text-7);
+        }
+
+        .member-role {
+            font-size: var(--text-8);
+            color: var(--color-text-3);
+        }
+
+        .member-added {
+            font-size: var(--text-8);
+            color: var(--color-text-3);
+        }
+    }
+}
+
+/* Compact add member form */
+.add-member-form {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    margin-bottom: var(--space-3);
+
+    input,
+    select {
+        margin: 0;
+    }
 }

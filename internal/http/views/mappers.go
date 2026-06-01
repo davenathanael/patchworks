@@ -16,10 +16,10 @@ func ToLinkItems(items []core.Bookmark) []LinkItem {
 	return result
 }
 
-func ToCollectionItems(items []core.Collection) []CollectionItem {
-	result := make([]CollectionItem, 0, len(items))
+func ToCollectionItems(items []core.Collection) []CollectionFilterItem {
+	result := make([]CollectionFilterItem, 0, len(items))
 	for _, item := range items {
-		result = append(result, CollectionItem{
+		result = append(result, CollectionFilterItem{
 			ID:    item.ID.String(),
 			Name:  item.Name,
 			Count: item.BookmarkCount,

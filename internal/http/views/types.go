@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const TopTagCount = 15
+
 // LinkItem represents a bookmark link with metadata.
 type LinkItem struct {
 	ID        string
@@ -18,8 +20,8 @@ func (l LinkItem) Domain() string {
 	return l.URL.Host
 }
 
-// CollectionItem represents a collection of links.
-type CollectionItem struct {
+// CollectionFilterItem represents a collection of links.
+type CollectionFilterItem struct {
 	ID    string
 	Name  string
 	Count int

@@ -2,6 +2,10 @@
 select * from users
 where id = $1 limit 1;
 
+-- name: GetUserByEmail :one
+select * from users
+where email = $1 limit 1;
+
 -- name: UpsertUser :one
 insert into users (id, email, identity_id, last_login_at)
 values ($1, $2, $3, current_timestamp)

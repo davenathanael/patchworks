@@ -6,7 +6,6 @@ import (
 
 	"github.com/davenathanael/patchwork/internal/core"
 	. "maragu.dev/gomponents"
-	_ "maragu.dev/gomponents/components"
 	. "maragu.dev/gomponents/html"
 )
 
@@ -29,21 +28,23 @@ func (vm *HomePageViewModel) Render(w io.Writer) error {
 		BaseURL:     "/",
 	}
 	collectionItems := ToCollectionItems(vm.Collections)
-	showRecentLinks := len(vm.RecentBookmarks) > 0
+	tagItems := ToTagItems(vm.Tags)
+	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0
+
 	mainContent := Main(
 		Class("container"),
 		NewBookmark(collectionItems),
-		If(showRecentLinks, RecentLinks(ToLinkItems(vm.RecentBookmarks))),
-		BookmarksList(ToLinkItems(vm.AllBookmarks), stubPagination),
+		FilterBar(collectionItems, vm.CollectionID, tagItems, vm.TagsFilter, vm.CurrentQuery),
+		If(hasFilters,
+			FilteredLinksView(ToLinkItems(vm.AllBookmarks), stubPagination),
+		),
+		If(!hasFilters,
+			Group{
+				If(len(vm.RecentBookmarks) > 0, RecentLinks(ToLinkItems(vm.RecentBookmarks))),
+				BookmarksList(ToLinkItems(vm.AllBookmarks), stubPagination),
+			},
+		),
 	)
 
-	sidebar := SidebarNav{
-		Collections:        collectionItems,
-		ActiveCollectionID: vm.CollectionID,
-		Tags:               ToTagItems(vm.Tags),
-		ActiveTags:         vm.TagsFilter,
-		CurrentQuery:       vm.CurrentQuery,
-	}
-
-	return Page("Dashboard — Patchworks", AppShell(vm.User, sidebar, mainContent)).Render(w)
+	return Page("Dashboard — Patchworks", AppShell(vm.User, mainContent)).Render(w)
 }

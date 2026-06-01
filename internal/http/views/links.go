@@ -8,38 +8,42 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// NewBookmark renders the quick add-link form.
-func NewBookmark(collections []CollectionItem) Node {
-	urlInput := Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required())
+func NewBookmark(collections []CollectionFilterItem) Node {
+	urlInput := Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required(), Attr("inputmode", "url"), Attr("enterkeyhint", "go"))
 	submitBtn := Button(Type("submit"), Text("Add"))
 
-	return Section(
-		Class("card mb-4"),
-		H6(Text("New Bookmark")),
-		Form(
-			Method("POST"),
-			Action("/bookmarks"),
-			Label(Attr("data-field"),
-				FieldSet(Class("group"), urlInput, submitBtn),
-			),
-			Div(
-				Label(
-					Attr("data-field"),
-					Span(Text("Collection")),
-					Select(
-						Name("collection_id"),
-						Option(Value(""), Text("Select a collection"), Disabled(), Selected()),
-						Map(collections, func(i CollectionItem) Node {
-							return Option(Value(i.ID), Text(i.Name))
-						}),
+	return Details(
+		Class("add-bookmark"),
+		Summary(Text("+ Add Bookmark")),
+		Div(
+			Class("add-form"),
+			Form(
+				Method("POST"),
+				Action("/bookmarks"),
+				Div(
+					Label(
+						Attr("data-field"),
+						FieldSet(Class("group w-100"), urlInput, submitBtn),
 					),
 				),
-				Label(
-					Span(Text("Tags")),
-					Input(
-						Type("text"),
-						Name("tags"),
-						Placeholder("comma, separated"),
+				Div(
+					Label(
+						Attr("data-field"),
+						Select(
+							Name("collection_id"),
+							Option(Value(""), Text("Collection"), Disabled(), Selected()),
+							Map(collections, func(i CollectionFilterItem) Node {
+								return Option(Value(i.ID), Text(i.Name))
+							}),
+						),
+					),
+					Label(
+						Attr("data-field"),
+						Input(
+							Type("text"),
+							Name("tags"),
+							Placeholder("Tags"),
+						),
 					),
 				),
 			),
@@ -47,41 +51,38 @@ func NewBookmark(collections []CollectionItem) Node {
 	)
 }
 
-// RecentLinks renders a section of the most recently added links.
 func RecentLinks(links []LinkItem) Node {
 	return Section(
-		Class("dashboard-section"),
-		H2(Text("Recent")),
+		Class("mb-6"),
+		H5(Class("section-heading"), Text("Recent")),
 		IfElse(
 			len(links) > 0,
 			Links(links),
-			P(Text("No links yet. Add one above to get started.")),
+			P(Class("text-muted"), Text("No links yet. Add one above to get started.")),
 		),
 	)
 }
 
-// BookmarksList renders the paginated all-links section.
 func BookmarksList(links []LinkItem, p PaginationProps) Node {
 	return Section(
-		Class("dashboard-section"),
-		H2(Text("Your Bookmarks")),
+		Class("mb-6"),
+		H5(Class("section-heading"), Text("Your Bookmarks")),
 		IfElse(
 			len(links) > 0,
 			Group{Links(links), Pagination(p)},
-			P(Text("No bookmarks to display.")),
+			P(Class("text-muted"), Text("No bookmarks to display.")),
 		),
 	)
 }
 
-// FilteredLinksView renders the paginated filtered-links section.
 func FilteredLinksView(links []LinkItem, p PaginationProps) Node {
 	return Section(
-		Class("dashboard-section"),
-		H2(Text("Filtered Links")),
+		Class("mb-6"),
+		H5(Class("section-heading"), Text("Filtered Links")),
 		IfElse(
 			len(links) > 0,
 			Group{Links(links), Pagination(p)},
-			P(Text("No links to display.")),
+			P(Class("text-muted"), Text("No links to display.")),
 		),
 	)
 }
@@ -94,10 +95,9 @@ func IfElse(condition bool, trueNode, falseNode Node) Node {
 }
 
 func Links(links []LinkItem) Node {
-	return Ul(Class("unstyled"), Map(links, LinkRow))
+	return Ul(Class("link-list unstyled"), Map(links, LinkRow))
 }
 
-// LinkRow renders a single link row (used in RecentLinks and AllLinksView).
 func LinkRow(link LinkItem) Node {
 	relTime := relativeTime(link.CreatedAt)
 
@@ -131,7 +131,6 @@ func LinkRow(link LinkItem) Node {
 	)
 }
 
-// Pagination renders numbered pagination controls.
 func Pagination(p PaginationProps) Node {
 	if p.TotalPages <= 1 {
 		return Div()
@@ -162,7 +161,6 @@ func Pagination(p PaginationProps) Node {
 	)
 }
 
-// relativeTime formats a time as a relative string (e.g., "2h ago").
 func relativeTime(t time.Time) string {
 	now := time.Now()
 	diff := now.Sub(t)

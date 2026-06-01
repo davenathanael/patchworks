@@ -16,7 +16,31 @@
 ## Styling (OAT CSS + OpenProps)
 
 - No Tailwind, no build step, no arbitrary values (px/rem)
-- **Priority**: OAT utilities → override OAT vars in `app.css` → OpenProps vars → custom CSS in `app.css`
+- **Priority**: OAT utilities → OAT variables → custom CSS in `app.css`
+- **No inline styles** unless explicitly requested
+- **Nested CSS** with a top-level class naming the component (e.g., `.filter-bar`, `.collection-row`), then nested sub-classes for parts (e.g., `.filter-bar .search-field`, `.collection-row .collection-info`)
+- **Limit utility classes** to 1–3 per element. Beyond that, define a component class in `app.css` or use element/data selectors (like OAT does)
+
+### Modern CSS Principles
+
+Follow [modern-css.com](https://modern-css.com/) guidelines. Key patterns already in use or to prefer:
+
+- **`gap` on flex** — not just grid
+- **`margin-inline` / `padding-inline`** — logical properties, direction-aware
+- **`inset` shorthand** — instead of `top/right/bottom/left`
+- **`text-wrap: balance`** — on headings for better line breaks
+- **`text-wrap: pretty`** — on prose/descriptions to avoid orphan words
+- **`font-display: swap`** — prevent invisible text during font load
+- **`color-scheme: light dark`** — OAT handles this
+- **`@layer`** — OAT uses `theme, base, components, animations, utilities`
+- **`prefers-reduced-motion`** — OAT handles this
+- **`:where()`** — zero-specificity resets (OAT uses it)
+- **`content-visibility: auto`** — for long lists in the future
+- **`field-sizing: content`** — auto-growing textareas when available
+- **`inputmode` / `enterkeyhint`** — better mobile keyboard UX
+- **`loading="lazy"`** — for images below the fold
+
+When OAT CSS contradicts a modern-css recommendation, defer to OAT for consistency.
 
 ### OAT Layout
 
