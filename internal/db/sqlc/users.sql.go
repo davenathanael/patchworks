@@ -9,10 +9,37 @@ import (
 	"context"
 
 	uuid "github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createUser = `-- name: CreateUser :one
+insert into users (id, email, password_hash)
+values ($1, $2, $3)
+returning id, email, created_at, updated_at, last_login_at, password_hash
+`
+
+type CreateUserParams struct {
+	ID           uuid.UUID
+	Email        string
+	PasswordHash pgtype.Text
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastLoginAt,
+		&i.PasswordHash,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-select id, email, identity_id, created_at, updated_at, last_login_at from users
+select id, email, created_at, updated_at, last_login_at, password_hash from users
 where email = $1 limit 1
 `
 
@@ -22,16 +49,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.IdentityID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLoginAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }
 
 const getUserById = `-- name: GetUserById :one
-select id, email, identity_id, created_at, updated_at, last_login_at from users
+select id, email, created_at, updated_at, last_login_at, password_hash from users
 where id = $1 limit 1
 `
 
@@ -41,39 +68,10 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.IdentityID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLoginAt,
-	)
-	return i, err
-}
-
-const upsertUser = `-- name: UpsertUser :one
-insert into users (id, email, identity_id, last_login_at)
-values ($1, $2, $3, current_timestamp)
-on conflict (identity_id) do update set
-    email = excluded.email,
-    last_login_at = current_timestamp
-returning id, email, identity_id, created_at, updated_at, last_login_at
-`
-
-type UpsertUserParams struct {
-	ID         uuid.UUID
-	Email      string
-	IdentityID string
-}
-
-func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, upsertUser, arg.ID, arg.Email, arg.IdentityID)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.IdentityID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.LastLoginAt,
+		&i.PasswordHash,
 	)
 	return i, err
 }

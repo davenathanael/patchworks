@@ -11,6 +11,5 @@
 
 - **HTTPServer**: host, port, timeouts
 - **DB**: connection URL
-- **OIDC**: issuer, client ID/secret, redirect URL
 - **Session**: encryption key (base64-encoded)
 - **Environment**: local, production, etc.

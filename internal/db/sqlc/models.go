@@ -54,10 +54,10 @@ type Session struct {
 }
 
 type User struct {
-	ID          uuid.UUID
-	Email       string
-	IdentityID  string
-	CreatedAt   pgtype.Timestamp
-	UpdatedAt   pgtype.Timestamp
-	LastLoginAt pgtype.Timestamp
+	ID           uuid.UUID
+	Email        string
+	CreatedAt    pgtype.Timestamp
+	UpdatedAt    pgtype.Timestamp
+	LastLoginAt  pgtype.Timestamp
+	PasswordHash pgtype.Text
 }

@@ -132,7 +132,7 @@ func (q *Queries) GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([
 }
 
 const getMembersByCollectionIds = `-- name: GetMembersByCollectionIds :many
-SELECT collection_members.collection_id, collection_members.user_id, collection_members.role, collection_members.added_at, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+SELECT collection_members.collection_id, collection_members.user_id, collection_members.role, collection_members.added_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM collection_members
 JOIN users ON collection_members.user_id = users.id
 WHERE collection_members.collection_id = ANY($1::uuid[])
@@ -159,10 +159,10 @@ func (q *Queries) GetMembersByCollectionIds(ctx context.Context, collectionIds [
 			&i.CollectionMember.AddedAt,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 		); err != nil {
 			return nil, err
 		}

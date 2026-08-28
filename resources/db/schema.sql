@@ -123,7 +123,7 @@ CREATE TABLE public.sessions (
 CREATE TABLE public.users (
     id uuid NOT NULL,
     email text NOT NULL,
-    identity_id text NOT NULL,
+    password_hash text,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     last_login_at timestamp without time zone
@@ -202,11 +202,6 @@ ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
 
---
--- Name: users_identity_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX users_identity_id_idx ON public.users USING btree (identity_id);
 
 
 --

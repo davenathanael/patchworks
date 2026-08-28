@@ -2,10 +2,13 @@ package db
 
 import (
 	"context"
+	"errors"
 
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/db/sqlc"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // GetUserByID retrieves a user by their ID.
@@ -17,12 +20,25 @@ func (db *DB) GetUserByID(ctx context.Context, id uuid.UUID) (core.User, error) 
 	return ToUser(row), nil
 }
 
-// UpsertUser inserts or updates a user by identity_id, returning the user.
-func (db *DB) UpsertUser(ctx context.Context, id uuid.UUID, email, identityID string) (core.User, error) {
-	row, err := db.querier.UpsertUser(ctx, sqlc.UpsertUserParams{
-		ID:         id,
-		Email:      email,
-		IdentityID: identityID,
+// GetUserByEmail retrieves a user and their password hash by email.
+// Returns (zero User, "", false, nil) when no user matches.
+func (db *DB) GetUserByEmail(ctx context.Context, email string) (core.User, string, bool, error) {
+	row, err := db.querier.GetUserByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return core.User{}, "", false, nil
+	}
+	if err != nil {
+		return core.User{}, "", false, err
+	}
+	return ToUser(row), row.PasswordHash.String, true, nil
+}
+
+// CreateUser creates a new user with the given password hash.
+func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (core.User, error) {
+	row, err := db.querier.CreateUser(ctx, sqlc.CreateUserParams{
+		ID:           uuid.New(),
+		Email:        email,
+		PasswordHash: pgtype.Text{String: passwordHash, Valid: true},
 	})
 	if err != nil {
 		return core.User{}, err

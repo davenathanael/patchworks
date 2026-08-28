@@ -6,8 +6,7 @@
 cmd/server/                 # Entry point (minimal, wires components)
 internal/
   ├─ core/                  # Domain types, interfaces, business logic
-  ├─ auth/                  # OIDC service, private interfaces
-  │  └─ oidc/               # OIDC provider integration
+  ├─ auth/                  # Password auth service, private interfaces
   ├─ http/
   │  ├─ handlers/           # Local interfaces + pure handlers
   │  ├─ middleware/         # Auth, logging chi middleware
@@ -26,7 +25,7 @@ internal/
 - **http/views/**: Gomponents HTML components. `views.go` has Page(), AppShell(); topic files for specific pages
 - **db/**: SQLC-generated query code in `db/sqlc/`, plus repository adapter in `db/` that wraps sqlc queries
 - **components/**: One `New(ctx)` constructor that builds and wires all deps
-- **internal/auth/**: `Service` struct with private interfaces (`sessionStore`, `userStore`, `oidcClient`)
+- **internal/auth/**: `Service` struct with private interfaces (`sessionStore`, `userStore`)
 
 ## Handler Pattern
 

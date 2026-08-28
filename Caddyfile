@@ -1,9 +1,0 @@
-# Pocket ID UI/API
-pocketid.localhost {
-    reverse_proxy pocket-id:1411
-}
-
-# Local Patchworks instance
-patchworks.localhost {
-    reverse_proxy host.docker.internal:8080
-}

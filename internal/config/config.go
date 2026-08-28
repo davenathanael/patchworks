@@ -11,7 +11,6 @@ type (
 	AppConfig struct {
 		DB          DB
 		HTTPServer  HTTPServer
-		OIDC        OIDC
 		Session     Session
 		Environment Environment
 	}
@@ -28,14 +27,6 @@ type (
 
 		ReadTimeout  int `env:"READ_TIMEOUT_SECONDS" envDefault:"5"`
 		WriteTimeout int `env:"WRITE_TIMEOUT_SECONDS" envDefault:"10"`
-	}
-
-	// OIDC holds OIDC provider configuration.
-	OIDC struct {
-		IssuerURL    string `env:"OIDC_ISSUER_URL"`
-		ClientID     string `env:"OIDC_CLIENT_ID"`
-		ClientSecret string `env:"OIDC_CLIENT_SECRET"`
-		RedirectURL  string `env:"OIDC_REDIRECT_URL"`
 	}
 
 	// Session holds session encryption configuration.

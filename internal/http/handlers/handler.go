@@ -25,8 +25,10 @@ func New(comp *components.Components) http.Handler {
 	r.Handle("/static/*", http.StripPrefix("/static", http.FileServer(http.Dir("resources/static/"))))
 
 	// Auth routes (public)
-	r.Get("/auth/login", handleGetLogin(comp.AuthService))
-	r.Get("/auth/callback", handleGetCallback(comp.AuthService))
+	r.Get("/auth/login", handleGetLogin())
+	r.Post("/auth/login", handlePostLogin(comp.AuthService))
+	r.Get("/auth/register", handleGetRegister())
+	r.Post("/auth/register", handlePostRegister(comp.AuthService))
 	r.Get("/auth/logout", handleGetLogout(comp.AuthService))
 
 	// Protected routes

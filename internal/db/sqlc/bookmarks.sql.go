@@ -70,7 +70,7 @@ func (q *Queries) CreateCollectionBookmark(ctx context.Context, arg CreateCollec
 }
 
 const getAllBookmarksByUserId = `-- name: GetAllBookmarksByUserId :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
@@ -108,10 +108,10 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmar
 			&i.Bookmark.AuthorID,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 		); err != nil {
 			return nil, err
 		}
@@ -124,7 +124,7 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmar
 }
 
 const getBookmarksByCollection = `-- name: GetBookmarksByCollection :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
@@ -163,10 +163,10 @@ func (q *Queries) GetBookmarksByCollection(ctx context.Context, arg GetBookmarks
 			&i.Bookmark.AuthorID,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 		); err != nil {
 			return nil, err
 		}
@@ -179,7 +179,7 @@ func (q *Queries) GetBookmarksByCollection(ctx context.Context, arg GetBookmarks
 }
 
 const getBookmarksByCollectionAndTags = `-- name: GetBookmarksByCollectionAndTags :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
@@ -221,10 +221,10 @@ func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBo
 			&i.Bookmark.AuthorID,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 		); err != nil {
 			return nil, err
 		}
@@ -239,7 +239,7 @@ func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBo
 const getBookmarksByCollectionId = `-- name: GetBookmarksByCollectionId :many
 SELECT
     bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id,
-    users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at,
+    users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash,
     bookmark_tags.tag as tag,
     collection_bookmarks.added_at as added_at
 FROM bookmarks
@@ -275,10 +275,10 @@ func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID u
 			&i.Bookmark.AuthorID,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 			&i.Tag,
 			&i.AddedAt,
 		); err != nil {
@@ -294,7 +294,7 @@ func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID u
 
 const getBookmarksByTags = `-- name: GetBookmarksByTags :many
 SELECT DISTINCT ON (bookmarks.id)
-    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
@@ -335,10 +335,10 @@ func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTags
 			&i.Bookmark.AuthorID,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 		); err != nil {
 			return nil, err
 		}
@@ -351,7 +351,7 @@ func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTags
 }
 
 const getRecentBookmarksByUserId = `-- name: GetRecentBookmarksByUserId :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.identity_id, users.created_at, users.updated_at, users.last_login_at
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
@@ -389,10 +389,10 @@ func (q *Queries) GetRecentBookmarksByUserId(ctx context.Context, arg GetRecentB
 			&i.Bookmark.AuthorID,
 			&i.User.ID,
 			&i.User.Email,
-			&i.User.IdentityID,
 			&i.User.CreatedAt,
 			&i.User.UpdatedAt,
 			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
 		); err != nil {
 			return nil, err
 		}

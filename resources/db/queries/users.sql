@@ -6,10 +6,7 @@ where id = $1 limit 1;
 select * from users
 where email = $1 limit 1;
 
--- name: UpsertUser :one
-insert into users (id, email, identity_id, last_login_at)
-values ($1, $2, $3, current_timestamp)
-on conflict (identity_id) do update set
-    email = excluded.email,
-    last_login_at = current_timestamp
+-- name: CreateUser :one
+insert into users (id, email, password_hash)
+values ($1, $2, $3)
 returning *;

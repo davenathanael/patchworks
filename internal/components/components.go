@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/davenathanael/patchwork/internal/auth"
-	"github.com/davenathanael/patchwork/internal/auth/oidc"
 	"github.com/davenathanael/patchwork/internal/config"
 	"github.com/davenathanael/patchwork/internal/db"
 	"github.com/davenathanael/patchwork/internal/http/client"
@@ -32,7 +31,7 @@ func New(ctx context.Context) (*Components, error) {
 		return nil, err
 	}
 
-	authSvc, err := createOIDCAuthService(ctx, cfg, database)
+	authSvc, err := createAuthService(cfg, database)
 	if err != nil {
 		return nil, err
 	}
@@ -54,17 +53,7 @@ func (c *Components) Close(ctx context.Context) error {
 	return nil
 }
 
-func createOIDCAuthService(ctx context.Context, cfg config.AppConfig, database *db.DB) (*auth.Service, error) {
-	oidcProvider, err := oidc.NewProvider(ctx,
-		cfg.OIDC.IssuerURL,
-		cfg.OIDC.ClientID,
-		cfg.OIDC.ClientSecret,
-		cfg.OIDC.RedirectURL,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("oidc provider init: %w", err)
-	}
-
+func createAuthService(cfg config.AppConfig, database *db.DB) (*auth.Service, error) {
 	// Decode session encryption key from base64
 	cookieKey, err := base64.StdEncoding.DecodeString(cfg.Session.EncryptionKey)
 	if err != nil {
@@ -72,7 +61,6 @@ func createOIDCAuthService(ctx context.Context, cfg config.AppConfig, database *
 	}
 
 	return auth.NewService(
-		oidcProvider,
 		database,
 		database,
 		auth.CookieConfig{Key: cookieKey},

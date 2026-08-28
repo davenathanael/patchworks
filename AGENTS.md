@@ -1,6 +1,6 @@
 # Patchwork
 
-Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, OIDC auth (PocketID).
+Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, email/password auth.
 
 ## Quick Reference
 
@@ -22,7 +22,7 @@ DDD-inspired: pure `core/` domain + interface-driven handlers + repository patte
 cmd/server/            # entry point only
 internal/
   core/                # pure domain types + interfaces, no framework deps
-  auth/                # OIDC service, private interfaces
+  auth/                # password auth service, private interfaces
   http/handlers/       # local interfaces + pure handler funcs
   http/middleware/     # chi middleware (auth, request logging)
   http/views/          # gomponents components, layouts, partials
@@ -44,7 +44,7 @@ internal/
 - **DB**: never hand-write query structs — SQLC-generated; repos wrap sqlc in `internal/db/`. See `docs/db.md`.
 - **Config**: env-based via `caarlos0/env`; no secrets in code. See `docs/config.md`.
 - **Logging**: slog, canonical one-line-per-request; error level only for unexpected errors. See `docs/logging.md`.
-- **Auth**: OIDC via PocketID, PKCE S256, encrypted session cookie. See `docs/auth.md`.
+- **Auth**: email/password (argon2id), encrypted session cookie. See `docs/auth.md`.
 - **Error handling**: `fmt.Errorf` wrapping; validate at boundaries; trust internal contracts.
 - **Minimal comments**: explain why, not what.
 
@@ -72,7 +72,7 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 - `docs/frontend.md` — gomponents, Open Props + plain CSS styling
 - `docs/html-css.md` — portable HTML/CSS conventions (classless, semantic, modifiers)
 - `docs/db.md` — SQLC workflow, repository pattern, migrations
-- `docs/auth.md` — OIDC flow, session/cookie details
+- `docs/auth.md` — password auth, session/cookie details
 - `docs/config.md` — env sections
 - `docs/logging.md` — slog conventions
 - `docs/testing.md` — approach, fakes, assertions
