@@ -28,6 +28,10 @@ func NewBookmark(collections []core.Collection) Node {
 			Form(
 				Method("POST"),
 				Action("/bookmarks"),
+				Attr("hx-post", "/bookmarks"),
+				Attr("hx-target", "#bookmarks"),
+				Attr("hx-swap", "innerHTML"),
+				Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
 				FieldSet(
 					Class("input-group"),
 					urlInput,

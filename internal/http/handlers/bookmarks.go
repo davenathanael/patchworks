@@ -115,7 +115,11 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 		vm.AllBookmarks = allBookmarks
 	}
 
-	err = vm.Render(w)
+	if views.IsHtmx(r) {
+		err = vm.RenderBookmarks(w)
+	} else {
+		err = vm.Render(w)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -178,6 +182,28 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, bookmarks BookmarkSto
 
 	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, collectionID, tags); err != nil {
 		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	if views.IsHtmx(r) {
+		recent, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, "")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		all, err := bookmarks.GetAllBookmarksByUser(ctx, user.ID, "")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		vm := views.HomePageViewModel{
+			User:            user,
+			RecentBookmarks: recent,
+			AllBookmarks:    all,
+		}
+		if err := vm.RenderBookmarks(w); err != nil {
+			http.Error(w, err.Error(), 500)
+		}
 		return
 	}
 

@@ -33,6 +33,9 @@ func FilterBar(
 					Placeholder("Search bookmarks..."),
 					Value(search),
 					Attr("enterkeyhint", "search"),
+					Attr("hx-get", searchURL(currentQuery)),
+					Attr("hx-trigger", "input changed delay:500ms"),
+					Attr("hx-target", "#bookmarks"),
 				),
 			),
 			Div(Class("pill-group"),
@@ -46,6 +49,9 @@ func FilterBar(
 					A(
 						Href("/"),
 						Class("clear-link"),
+						Attr("hx-get", "/"),
+						Attr("hx-target", "#bookmarks"),
+						Attr("hx-push-url", "true"),
 						Text("Clear filters"),
 					),
 				),
@@ -66,6 +72,9 @@ func CollectionPills(items []core.Collection, activeID string, currentQuery url.
 			A(
 				Class("filter-pill"),
 				Href(href),
+				Attr("hx-get", href),
+				Attr("hx-target", "#bookmarks"),
+				Attr("hx-push-url", "true"),
 				If(item.ID.String() == activeID, Attr("aria-current", "page")),
 				Text(fmt.Sprintf("%s (%d)", item.Name, item.BookmarkCount)),
 			),
@@ -103,6 +112,9 @@ func TagPillList(items []core.Tag, activeTags []string, currentQuery url.Values)
 			A(
 				Class("tag-pill"),
 				Href(href),
+				Attr("hx-get", href),
+				Attr("hx-target", "#bookmarks"),
+				Attr("hx-push-url", "true"),
 				If(slices.Contains(activeTags, item.Name), Attr("aria-current", "page")),
 				Text(fmt.Sprintf("#%s (%d)", item.Name, item.BookmarkCount)),
 			),
@@ -132,4 +144,18 @@ func BuildQueryString(qs url.Values, key, value string) string {
 		return ""
 	}
 	return "?" + queries.Encode()
+}
+
+// searchURL returns the current filter query without the search param, so the
+// search input's own value is appended fresh by htmx.
+func searchURL(currentQuery url.Values) string {
+	q := make(url.Values, len(currentQuery))
+	for k, v := range currentQuery {
+		q[k] = slices.Clone(v)
+	}
+	q.Del("search")
+	if len(q) == 0 {
+		return "/"
+	}
+	return "/?" + q.Encode()
 }

@@ -3,8 +3,7 @@
 ## Rendering
 
 - **Full pages**: server-rendered HTML via gomponents (`Page()` + `AppShell()`).
-- **Interactivity**: plain HTML form posts + redirects; no client-side framework.
-  - htmx partial updates are planned but not yet implemented.
+- **Interactivity**: htmx 2.x for partial updates (search, filter, add bookmark); forms and links fall back to full-page requests without JS.
 
 ## Gomponents
 

@@ -1,11 +1,18 @@
 package views
 
 import (
+	"net/http"
+
 	"github.com/davenathanael/patchwork/internal/core"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/components"
 	. "maragu.dev/gomponents/html"
 )
+
+// IsHtmx reports whether the request expects a partial HTML response.
+func IsHtmx(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true"
+}
 
 func Page(title string, children ...Node) Node {
 	return HTML5(HTML5Props{
@@ -14,6 +21,7 @@ func Page(title string, children ...Node) Node {
 		Head: []Node{
 			Link(Rel("stylesheet"), Href("https://unpkg.com/open-props")),
 			Link(Rel("stylesheet"), Href("/static/css/app.css")),
+			Script(Src("https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js"), Defer()),
 		},
 		Body: children,
 	})
