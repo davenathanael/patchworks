@@ -27,15 +27,12 @@ func FilterBar(
 		Action("/"),
 		Div(Class("filter-bar"),
 			Div(Class("search-field"),
-				Label(
-					Attr("data-field"),
-					Input(
-						Type("search"),
-						Name("search"),
-						Placeholder("Search bookmarks..."),
-						Value(search),
-						Attr("enterkeyhint", "search"),
-					),
+				Input(
+					Type("search"),
+					Name("search"),
+					Placeholder("Search bookmarks..."),
+					Value(search),
+					Attr("enterkeyhint", "search"),
 				),
 			),
 			Div(Class("pill-group"),

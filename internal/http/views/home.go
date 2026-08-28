@@ -31,7 +31,6 @@ func (vm *HomePageViewModel) Render(w io.Writer) error {
 	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0 || vm.Search != ""
 
 	mainContent := Main(
-		Class("container"),
 		NewBookmark(vm.Collections),
 		FilterBar(vm.Collections, vm.CollectionID, vm.Tags, vm.TagsFilter, vm.Search, vm.CurrentQuery),
 		If(hasFilters,

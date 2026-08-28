@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/google/uuid"
@@ -13,31 +14,28 @@ import (
 
 func ListCollectionsPage(collections []core.Collection, user core.User) Node {
 	collectionItem := func(c core.Collection) Node {
-		return Div(
-			Class("collection-row"),
-			Div(
-				Class("collection-info"),
-				A(
-					Class("collection-name"),
-					Href(fmt.Sprintf("/collections/%s", c.ID.String())),
-					Text(c.Name),
+		return Li(
+			Article(
+				Header(
+					H3(
+						A(Href(fmt.Sprintf("/collections/%s", c.ID.String())), Text(c.Name)),
+					),
+					If(c.Description != "", P(Text(c.Description))),
+					Small(Text(fmt.Sprintf("%d bookmarks", c.BookmarkCount))),
 				),
-				P(Class("collection-desc"), Text(c.Description)),
-				Span(Class("bookmark-count"), Text(fmt.Sprintf("%d bookmarks", c.BookmarkCount))),
-			),
-			Div(
-				Class("collection-meta"),
-				AvatarStack(c.Members),
+				Footer(
+					AvatarStack(c.Members),
+				),
 			),
 		)
 	}
 
-	content := Main(Class("container"),
+	content := Main(
 		Div(Class("page-heading"),
 			H4(Text("Your Collections")),
 			A(Href("/collections/new"), Class("button outline small"), Text("New")),
 		),
-		Div(Map(collections, collectionItem)),
+		Ul(Class("collection-list"), Map(collections, collectionItem)),
 	)
 	return Page("Collections - Patchworks", AppShell(user, content))
 }
@@ -56,9 +54,8 @@ func AvatarStack(members []core.CollectionMember) Node {
 		avatars = append(avatars, Avatar(m.User.Email))
 	}
 
-	return Figure(
-		Data("variant", "avatar"),
-		Class("small"),
+	return Div(
+		Class("avatar-stack"),
 		Attr("role", "group"),
 		Group(avatars),
 	)
@@ -66,9 +63,8 @@ func AvatarStack(members []core.CollectionMember) Node {
 
 func Avatar(email string) Node {
 	initials := initialsFromEmail(email)
-	return Figure(
-		Data("variant", "avatar"),
-		Class("small"),
+	return Div(
+		Class("avatar"),
 		Aria("label", email),
 		Abbr(Title(email), Text(initials)),
 	)
@@ -87,12 +83,12 @@ func initialsFromEmail(email string) string {
 }
 
 func CreateCollectionsPage(user core.User) Node {
-	content := Main(Class("container"),
+	content := Main(
 		backToCollectionsLink(),
 		H4(Text("Create a Collection")),
-		Form(Method("post"), Action("/collections"),
-			Input(Type("text"), Name("name"), Placeholder("Name"), Attr("data-field"), Required()),
-			Textarea(Name("description"), Attr("data-field"), Placeholder("Description")),
+		Form(Class("form"), Method("post"), Action("/collections"),
+			Input(Type("text"), Name("name"), Placeholder("Name"), Required()),
+			Textarea(Name("description"), Placeholder("Description")),
 			Button(Type("submit"), Text("Create")),
 		),
 	)
@@ -100,22 +96,21 @@ func CreateCollectionsPage(user core.User) Node {
 }
 
 func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User) Node {
-	memberSection := Div(
-		Class("mb-6"),
+	memberSection := Section(
 		H6(Text("Members")),
-		Div(Map(collection.Members, func(m core.CollectionMember) Node {
-			return Div(
-				Class("member-row"),
-				Div(
-					Class("member-info"),
-					Avatar(m.User.Email),
-					Span(Class("member-email"), Text(m.User.Email)),
-					Span(Class("member-role"), Text(m.Role)),
-					Span(Class("member-added"), Text(relativeTime(m.AddedAt))),
-				),
-				If(m.User.ID != user.ID,
-					Form(Method("post"), Action(fmt.Sprintf("/collections/%s/members/%s/delete", collection.ID.String(), m.User.ID.String())),
-						Button(Type("submit"), Class("button outline small"), Text("Remove")),
+		Ul(Class("member-list"), Map(collection.Members, func(m core.CollectionMember) Node {
+			return Li(
+				Article(
+					Header(
+						Avatar(m.User.Email),
+						Address(Text(m.User.Email)),
+						Small(Text(m.Role)),
+						Time(Attr("datetime", m.AddedAt.Format(time.RFC3339)), Text(relativeTime(m.AddedAt))),
+					),
+					If(m.User.ID != user.ID,
+						Form(Method("post"), Action(fmt.Sprintf("/collections/%s/members/%s/delete", collection.ID.String(), m.User.ID.String())),
+							Button(Type("submit"), Class("outline small"), Text("Remove")),
+						),
 					),
 				),
 			)
@@ -133,15 +128,15 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 		),
 	)
 
-	bookmarkSection := Div(
+	bookmarkSection := Section(
 		H6(Text("Bookmarks")),
 		IfElse(len(bookmarks) > 0,
 			Links(bookmarks),
-			P(Class("text-muted"), Text("No bookmarks yet.")),
+			P(Class("muted"), Text("No bookmarks yet.")),
 		),
 	)
 
-	content := Main(Class("container"),
+	content := Main(
 		Div(
 			backToCollectionsLink(),
 			Div(
@@ -151,12 +146,12 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 					Class("actions"),
 					A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline small"), Text("Edit")),
 					Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
-						Button(Type("submit"), Class("button outline small"), Text("Delete")),
+						Button(Type("submit"), Class("outline small"), Text("Delete")),
 					),
 				),
 			),
 			If(collection.Description != "",
-				P(Class("text-muted"), Text(collection.Description)),
+				P(Class("muted"), Text(collection.Description)),
 			),
 			memberSection,
 			bookmarkSection,
@@ -166,14 +161,14 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 }
 
 func EditCollectionPage(collection core.Collection, user core.User) Node {
-	content := Main(Class("container"),
+	content := Main(
 		backToCollectionLink(collection.ID),
 		H4(Text("Edit Collection")),
-		Form(Method(http.MethodPost), Action(fmt.Sprintf("/collections/%s/edit", collection.ID.String())),
-			Label(Attr("data-field"), Text("Name"),
+		Form(Class("form"), Method(http.MethodPost), Action(fmt.Sprintf("/collections/%s/edit", collection.ID.String())),
+			Label(Text("Name"),
 				Input(Type("text"), Name("name"), Value(collection.Name), Placeholder("Name"), Required()),
 			),
-			Label(Attr("data-field"), Text("Description"),
+			Label(Text("Description"),
 				Textarea(Name("description"), Placeholder("Description"), Text(collection.Description)),
 			),
 			Button(Type("submit"), Text("Save")),

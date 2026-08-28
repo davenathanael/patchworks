@@ -1,6 +1,6 @@
 # Patchwork
 
-Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, OIDC auth (PocketID), fixi.js.
+Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, OIDC auth (PocketID).
 
 ## Quick Reference
 
@@ -39,7 +39,7 @@ internal/
 - **Pure functions**: prefer pure logic; extract mutable/stateful I/O to boundaries. Sans-IO where possible.
 - **No global state / no `init()`** — everything wired via `components.New()`.
 - **Views**: gomponents server-side HTML; check context flag for full-page vs partial render. Dot-import `maragu.dev/gomponents`, `maragu.dev/gomponents/html`.
-- **Styling**: OAT CSS + OpenProps. Priority: OAT utilities → OAT variables → `app.css`. **No inline styles.** Limit utility classes to 1–3 per element; beyond that define a component class in `app.css`. Nested CSS under a component-class namespace. See `docs/frontend.md`.
+- **Styling**: Open Props tokens (CDN) + plain CSS in `app.css`. No build step. **No inline styles.** Classless base elements, semantic HTML, unprefixed modifiers. See `docs/html-css.md`.
 - **Tests**: `earthboundkid/be` (not testify); local fakes, no mock libs; table-driven only for pure functions. See `docs/testing.md`.
 - **DB**: never hand-write query structs — SQLC-generated; repos wrap sqlc in `internal/db/`. See `docs/db.md`.
 - **Config**: env-based via `caarlos0/env`; no secrets in code. See `docs/config.md`.
@@ -69,7 +69,8 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 ## Reference Docs
 
 - `docs/architecture.md` — layers, handler pattern, key decisions
-- `docs/frontend.md` — gomponents, OAT/OpenProps styling, fixi.js
+- `docs/frontend.md` — gomponents, Open Props + plain CSS styling
+- `docs/html-css.md` — portable HTML/CSS conventions (classless, semantic, modifiers)
 - `docs/db.md` — SQLC workflow, repository pattern, migrations
 - `docs/auth.md` — OIDC flow, session/cookie details
 - `docs/config.md` — env sections

@@ -12,8 +12,8 @@ func Page(title string, children ...Node) Node {
 		Title:    title,
 		Language: "en",
 		Head: []Node{
+			Link(Rel("stylesheet"), Href("https://unpkg.com/open-props")),
 			Link(Rel("stylesheet"), Href("/static/css/app.css")),
-			Script(Src("/static/js/oat.min.js"), Defer()),
 		},
 		Body: children,
 	})
@@ -29,22 +29,16 @@ func AppShell(user core.User, mainContent Node) Node {
 
 func TopNav(user core.User) Node {
 	return Div(
-		Class("row"),
+		Class("topnav-inner"),
 		Div(
-			Class("col-4"),
-			Div(
-				Class("nav-links"),
-				A(Class("nav-link"), Href("/"), Text("Patchworks")),
-				A(Class("nav-link"), Href("/collections"), Text("Collections")),
-			),
+			Class("nav-links"),
+			A(Class("nav-link"), Href("/"), Text("Patchworks")),
+			A(Class("nav-link"), Href("/collections"), Text("Collections")),
 		),
 		Div(
-			Class("col-8"),
-			Div(
-				Class("nav-user"),
-				Span(Class("text-muted"), Text(user.Email)),
-				A(Href("/auth/logout"), Class("button outline small"), Text("Logout")),
-			),
+			Class("nav-user"),
+			Span(Class("muted"), Text(user.Email)),
+			A(Href("/auth/logout"), Class("button outline small"), Text("Logout")),
 		),
 	)
 }
