@@ -5,14 +5,17 @@ import (
 	"net/url"
 	"slices"
 
+	"github.com/davenathanael/patchwork/internal/core"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
+const TopTagCount = 15
+
 func FilterBar(
-	collections []CollectionFilterItem,
+	collections []core.Collection,
 	activeCollectionID string,
-	tags []TagItem,
+	tags []core.Tag,
 	activeTags []string,
 	search string,
 	currentQuery url.Values,
@@ -54,20 +57,20 @@ func FilterBar(
 	)
 }
 
-func CollectionPills(items []CollectionFilterItem, activeID string, currentQuery url.Values) Node {
+func CollectionPills(items []core.Collection, activeID string, currentQuery url.Values) Node {
 	if len(items) == 0 {
 		return Div()
 	}
 
 	pills := make([]Node, 0, len(items))
 	for _, item := range items {
-		href := fmt.Sprintf("/%s", BuildQueryString(currentQuery, "collection_id", item.ID))
+		href := fmt.Sprintf("/%s", BuildQueryString(currentQuery, "collection_id", item.ID.String()))
 		pills = append(pills,
 			A(
 				Class("filter-pill"),
 				Href(href),
-				If(item.ID == activeID, Attr("aria-current", "page")),
-				Text(fmt.Sprintf("%s (%d)", item.Name, item.Count)),
+				If(item.ID.String() == activeID, Attr("aria-current", "page")),
+				Text(fmt.Sprintf("%s (%d)", item.Name, item.BookmarkCount)),
 			),
 		)
 	}
@@ -75,7 +78,7 @@ func CollectionPills(items []CollectionFilterItem, activeID string, currentQuery
 	return Div(pills...)
 }
 
-func TagPills(items []TagItem, activeTags []string, currentQuery url.Values) Node {
+func TagPills(items []core.Tag, activeTags []string, currentQuery url.Values) Node {
 	if len(items) == 0 {
 		return Div()
 	}
@@ -95,7 +98,7 @@ func TagPills(items []TagItem, activeTags []string, currentQuery url.Values) Nod
 	)
 }
 
-func TagPillList(items []TagItem, activeTags []string, currentQuery url.Values) Node {
+func TagPillList(items []core.Tag, activeTags []string, currentQuery url.Values) Node {
 	pills := make([]Node, 0, len(items))
 	for _, item := range items {
 		href := fmt.Sprintf("/%s", BuildQueryString(currentQuery, "tags", item.Name))
@@ -104,7 +107,7 @@ func TagPillList(items []TagItem, activeTags []string, currentQuery url.Values) 
 				Class("tag-pill"),
 				Href(href),
 				If(slices.Contains(activeTags, item.Name), Attr("aria-current", "page")),
-				Text(fmt.Sprintf("#%s (%d)", item.Name, item.Count)),
+				Text(fmt.Sprintf("#%s (%d)", item.Name, item.BookmarkCount)),
 			),
 		)
 	}

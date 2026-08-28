@@ -4,11 +4,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davenathanael/patchwork/internal/core"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-func NewBookmark(collections []CollectionFilterItem) Node {
+// PaginationProps holds pagination metadata.
+type PaginationProps struct {
+	CurrentPage int
+	TotalPages  int
+	BaseURL     string
+}
+
+func NewBookmark(collections []core.Collection) Node {
 	urlInput := Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required(), Attr("inputmode", "url"), Attr("enterkeyhint", "go"))
 	submitBtn := Button(Type("submit"), Text("Add"))
 
@@ -32,8 +40,8 @@ func NewBookmark(collections []CollectionFilterItem) Node {
 						Select(
 							Name("collection_id"),
 							Option(Value(""), Text("Collection"), Disabled(), Selected()),
-							Map(collections, func(i CollectionFilterItem) Node {
-								return Option(Value(i.ID), Text(i.Name))
+							Map(collections, func(i core.Collection) Node {
+								return Option(Value(i.ID.String()), Text(i.Name))
 							}),
 						),
 					),
@@ -51,7 +59,7 @@ func NewBookmark(collections []CollectionFilterItem) Node {
 	)
 }
 
-func RecentLinks(links []LinkItem) Node {
+func RecentLinks(links []core.Bookmark) Node {
 	return Section(
 		Class("mb-6"),
 		H5(Class("section-heading"), Text("Recent")),
@@ -63,7 +71,7 @@ func RecentLinks(links []LinkItem) Node {
 	)
 }
 
-func BookmarksList(links []LinkItem, p PaginationProps) Node {
+func BookmarksList(links []core.Bookmark, p PaginationProps) Node {
 	return Section(
 		Class("mb-6"),
 		H5(Class("section-heading"), Text("Your Bookmarks")),
@@ -75,7 +83,7 @@ func BookmarksList(links []LinkItem, p PaginationProps) Node {
 	)
 }
 
-func FilteredLinksView(links []LinkItem, p PaginationProps) Node {
+func FilteredLinksView(links []core.Bookmark, p PaginationProps) Node {
 	return Section(
 		Class("mb-6"),
 		H5(Class("section-heading"), Text("Filtered Links")),
@@ -94,11 +102,11 @@ func IfElse(condition bool, trueNode, falseNode Node) Node {
 	return falseNode
 }
 
-func Links(links []LinkItem) Node {
+func Links(links []core.Bookmark) Node {
 	return Ul(Class("link-list unstyled"), Map(links, LinkRow))
 }
 
-func LinkRow(link LinkItem) Node {
+func LinkRow(link core.Bookmark) Node {
 	relTime := relativeTime(link.CreatedAt)
 
 	tags := make([]Node, 0, len(link.Tags)+1)
@@ -122,7 +130,7 @@ func LinkRow(link LinkItem) Node {
 				),
 				Div(
 					Class("link-meta"),
-					Span(Class("text-muted"), Text(link.Domain())),
+					Span(Class("text-muted"), Text(link.URL.Host)),
 					tagGroup,
 				),
 			),

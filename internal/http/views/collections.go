@@ -136,7 +136,7 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 	bookmarkSection := Div(
 		H6(Text("Bookmarks")),
 		IfElse(len(bookmarks) > 0,
-			Links(ToLinkItems(bookmarks)),
+			Links(bookmarks),
 			P(Class("text-muted"), Text("No bookmarks yet.")),
 		),
 	)

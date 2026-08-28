@@ -28,21 +28,19 @@ func (vm *HomePageViewModel) Render(w io.Writer) error {
 		TotalPages:  3,
 		BaseURL:     "/",
 	}
-	collectionItems := ToCollectionItems(vm.Collections)
-	tagItems := ToTagItems(vm.Tags)
 	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0 || vm.Search != ""
 
 	mainContent := Main(
 		Class("container"),
-		NewBookmark(collectionItems),
-		FilterBar(collectionItems, vm.CollectionID, tagItems, vm.TagsFilter, vm.Search, vm.CurrentQuery),
+		NewBookmark(vm.Collections),
+		FilterBar(vm.Collections, vm.CollectionID, vm.Tags, vm.TagsFilter, vm.Search, vm.CurrentQuery),
 		If(hasFilters,
-			FilteredLinksView(ToLinkItems(vm.AllBookmarks), stubPagination),
+			FilteredLinksView(vm.AllBookmarks, stubPagination),
 		),
 		If(!hasFilters,
 			Group{
-				If(len(vm.RecentBookmarks) > 0, RecentLinks(ToLinkItems(vm.RecentBookmarks))),
-				BookmarksList(ToLinkItems(vm.AllBookmarks), stubPagination),
+				If(len(vm.RecentBookmarks) > 0, RecentLinks(vm.RecentBookmarks)),
+				BookmarksList(vm.AllBookmarks, stubPagination),
 			},
 		),
 	)
