@@ -15,31 +15,24 @@ import (
 	"github.com/google/uuid"
 )
 
-func handleGetHome(components *components.Components) http.HandlerFunc {
+// BookmarkStore is the interface for bookmark and tag persistence.
+type BookmarkStore interface {
+	GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, error)
+	GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
+	GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
+	GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
+	GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
+	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
+	CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
+}
+
+func handleGetHome(comp *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		getHome(w, r, components.DB, components.DB, components.DB)
+		getHome(w, r, comp.DB, comp.DB)
 	}
 }
 
-type (
-	collectionGetter interface {
-		GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([]core.Collection, error)
-	}
-
-	tagGetter interface {
-		GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, error)
-	}
-
-	bookmarkGetter interface {
-		GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
-		GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
-		GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
-		GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
-		GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
-	}
-)
-
-func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collectionGetter, tagGetter tagGetter, bookmarkGetter bookmarkGetter) {
+func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore, bookmarks BookmarkStore) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -59,13 +52,13 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 	}
 	filterSearch := qs.Get("search")
 
-	collections, err := collectionGetter.GetCollectionsByUser(ctx, user.ID)
+	collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	tags, err := tagGetter.GetTagsByUser(ctx, user.ID)
+	tags, err := bookmarks.GetTagsByUser(ctx, user.ID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -73,7 +66,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 
 	vm := views.HomePageViewModel{
 		User:         user,
-		Collections:  collections,
+		Collections:  collectionsList,
 		Tags:         tags,
 		CollectionID: filterCollectionID.String(),
 		TagsFilter:   filterTags,
@@ -82,35 +75,35 @@ func getHome(w http.ResponseWriter, r *http.Request, collectionGetter collection
 		CurrentQuery: qs,
 	}
 	if filterCollectionID != uuid.Nil && len(filterTags) != 0 {
-		bookmarks, err := bookmarkGetter.GetBookmarksByCollectionAndTags(ctx, filterCollectionID, filterTags, filterSearch)
+		result, err := bookmarks.GetBookmarksByCollectionAndTags(ctx, filterCollectionID, filterTags, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		vm.AllBookmarks = bookmarks
+		vm.AllBookmarks = result
 	} else if filterCollectionID != uuid.Nil {
-		bookmarks, err := bookmarkGetter.GetBookmarksByCollection(ctx, filterCollectionID, filterSearch)
+		result, err := bookmarks.GetBookmarksByCollection(ctx, filterCollectionID, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		vm.AllBookmarks = bookmarks
+		vm.AllBookmarks = result
 	} else if len(filterTags) != 0 {
-		bookmarks, err := bookmarkGetter.GetBookmarksByTags(ctx, user.ID, filterTags, filterSearch)
+		result, err := bookmarks.GetBookmarksByTags(ctx, user.ID, filterTags, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		vm.AllBookmarks = bookmarks
+		vm.AllBookmarks = result
 	} else {
-		recentBookmarks, err := bookmarkGetter.GetRecentBookmarksByUser(ctx, user.ID, filterSearch)
+		recentBookmarks, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		vm.RecentBookmarks = recentBookmarks
 
-		allBookmarks, err := bookmarkGetter.GetAllBookmarksByUser(ctx, user.ID, filterSearch)
+		allBookmarks, err := bookmarks.GetAllBookmarksByUser(ctx, user.ID, filterSearch)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -132,10 +125,6 @@ func handlePostBookmarks(comp *components.Components) http.HandlerFunc {
 }
 
 type (
-	bookmarkSaver interface {
-		CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
-	}
-
 	newBookmarkForm struct {
 		URL          string `form:"url"`
 		CollectionID string `form:"collection_id"`
@@ -147,7 +136,7 @@ type (
 	}
 )
 
-func postBookmarks(w http.ResponseWriter, r *http.Request, saver bookmarkSaver, fetcher titleFetcher) {
+func postBookmarks(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore, fetcher titleFetcher) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -183,7 +172,7 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, saver bookmarkSaver, 
 
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
-	if _, err := saver.CreateBookmark(ctx, parsedURL, title, user.ID, collectionID, tags); err != nil {
+	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, collectionID, tags); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}

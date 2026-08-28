@@ -13,15 +13,24 @@ import (
 	"github.com/google/uuid"
 )
 
+// CollectionStore is the interface for collection persistence and membership.
+type CollectionStore interface {
+	GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([]core.Collection, error)
+	CreateCollection(ctx context.Context, userID uuid.UUID, name, description string) error
+	GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionWithBookmarks, error)
+	UpdateCollection(ctx context.Context, id uuid.UUID, name, description string) (core.Collection, error)
+	AddMember(ctx context.Context, collectionID uuid.UUID, email string, role string) error
+	RemoveMember(ctx context.Context, collectionID uuid.UUID, userID uuid.UUID) error
+	DeleteCollection(ctx context.Context, id uuid.UUID) error
+}
+
 func handleGetCollections(comp *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		getCollections(w, r, comp.DB)
 	}
 }
 
-type ()
-
-func getCollections(w http.ResponseWriter, r *http.Request, collectionGetter collectionGetter) {
+func getCollections(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -29,13 +38,13 @@ func getCollections(w http.ResponseWriter, r *http.Request, collectionGetter col
 		return
 	}
 
-	collections, err := collectionGetter.GetCollectionsByUser(ctx, user.ID)
+	collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	err = views.ListCollectionsPage(collections, user).Render(w)
+	err = views.ListCollectionsPage(collectionsList, user).Render(w)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
@@ -43,13 +52,11 @@ func getCollections(w http.ResponseWriter, r *http.Request, collectionGetter col
 
 func handleGetCollectionCreation(comp *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		getCollectionCreation(w, r, comp.DB)
+		getCollectionCreation(w, r)
 	}
 }
 
-type ()
-
-func getCollectionCreation(w http.ResponseWriter, r *http.Request, collectionGetter collectionGetter) {
+func getCollectionCreation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -69,18 +76,12 @@ func handlePostCollection(comp *components.Components) http.HandlerFunc {
 	}
 }
 
-type (
-	collectionSaver interface {
-		CreateCollection(ctx context.Context, userID uuid.UUID, name, description string) error
-	}
+type newCollectionForm struct {
+	Name        string `form:"name"`
+	Description string `form:"description"`
+}
 
-	newCollectionForm struct {
-		Name        string `form:"name"`
-		Description string `form:"description"`
-	}
-)
-
-func postCollection(w http.ResponseWriter, r *http.Request, collectionSaver collectionSaver) {
+func postCollection(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -94,7 +95,7 @@ func postCollection(w http.ResponseWriter, r *http.Request, collectionSaver coll
 		return
 	}
 
-	err := collectionSaver.CreateCollection(ctx, user.ID, formData.Name, formData.Description)
+	err := collections.CreateCollection(ctx, user.ID, formData.Name, formData.Description)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -109,11 +110,7 @@ func handleGetCollectionById(comp *components.Components) http.HandlerFunc {
 	}
 }
 
-type collectionWithBookmarksGetter interface {
-	GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionWithBookmarks, error)
-}
-
-func getCollectionById(w http.ResponseWriter, r *http.Request, getter collectionWithBookmarksGetter) {
+func getCollectionById(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -127,7 +124,7 @@ func getCollectionById(w http.ResponseWriter, r *http.Request, getter collection
 		return
 	}
 
-	collection, err := getter.GetCollection(ctx, id)
+	collection, err := collections.GetCollection(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -145,7 +142,7 @@ func handleGetCollectionEdit(comp *components.Components) http.HandlerFunc {
 	}
 }
 
-func getCollectionEdit(w http.ResponseWriter, r *http.Request, getter collectionWithBookmarksGetter) {
+func getCollectionEdit(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -159,7 +156,7 @@ func getCollectionEdit(w http.ResponseWriter, r *http.Request, getter collection
 		return
 	}
 
-	collection, err := getter.GetCollection(ctx, id)
+	collection, err := collections.GetCollection(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -169,10 +166,6 @@ func getCollectionEdit(w http.ResponseWriter, r *http.Request, getter collection
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
-}
-
-type collectionUpdater interface {
-	UpdateCollection(ctx context.Context, id uuid.UUID, name, description string) (core.Collection, error)
 }
 
 func handlePutCollectionById(comp *components.Components) http.HandlerFunc {
@@ -186,7 +179,7 @@ type updateCollectionForm struct {
 	Description string `form:"description"`
 }
 
-func putCollectionById(w http.ResponseWriter, r *http.Request, updater collectionUpdater) {
+func putCollectionById(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	if _, ok := middleware.UserFromContext(ctx); !ok {
 		http.Error(w, "user not found in context", 500)
@@ -205,17 +198,13 @@ func putCollectionById(w http.ResponseWriter, r *http.Request, updater collectio
 		return
 	}
 
-	_, err = updater.UpdateCollection(ctx, id, formData.Name, formData.Description)
+	_, err = collections.UpdateCollection(ctx, id, formData.Name, formData.Description)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
 	http.Redirect(w, r, "/collections/"+id.String(), http.StatusSeeOther)
-}
-
-type collectionMemberAdder interface {
-	AddMember(ctx context.Context, collectionID uuid.UUID, email string, role string) error
 }
 
 func handlePostCollectionMember(comp *components.Components) http.HandlerFunc {
@@ -229,7 +218,7 @@ type addMemberForm struct {
 	Role  string `form:"role"`
 }
 
-func postCollectionMember(w http.ResponseWriter, r *http.Request, adder collectionMemberAdder) {
+func postCollectionMember(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	if _, ok := middleware.UserFromContext(ctx); !ok {
 		http.Error(w, "user not found in context", 500)
@@ -252,7 +241,7 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, adder collecti
 		formData.Role = "viewer"
 	}
 
-	err = adder.AddMember(ctx, collectionID, formData.Email, formData.Role)
+	err = collections.AddMember(ctx, collectionID, formData.Email, formData.Role)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -261,17 +250,13 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, adder collecti
 	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther)
 }
 
-type collectionMemberRemover interface {
-	RemoveMember(ctx context.Context, collectionID uuid.UUID, userID uuid.UUID) error
-}
-
 func handleDeleteCollectionMember(comp *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		deleteCollectionMember(w, r, comp.DB)
 	}
 }
 
-func deleteCollectionMember(w http.ResponseWriter, r *http.Request, remover collectionMemberRemover) {
+func deleteCollectionMember(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	if _, ok := middleware.UserFromContext(ctx); !ok {
 		http.Error(w, "user not found in context", 500)
@@ -290,7 +275,7 @@ func deleteCollectionMember(w http.ResponseWriter, r *http.Request, remover coll
 		return
 	}
 
-	err = remover.RemoveMember(ctx, collectionID, memberID)
+	err = collections.RemoveMember(ctx, collectionID, memberID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -299,17 +284,13 @@ func deleteCollectionMember(w http.ResponseWriter, r *http.Request, remover coll
 	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther)
 }
 
-type collectionDeleter interface {
-	DeleteCollection(ctx context.Context, id uuid.UUID) error
-}
-
 func handleDeleteCollectionById(comp *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		deleteCollectionById(w, r, comp.DB)
 	}
 }
 
-func deleteCollectionById(w http.ResponseWriter, r *http.Request, deleter collectionDeleter) {
+func deleteCollectionById(w http.ResponseWriter, r *http.Request, collections CollectionStore) {
 	ctx := r.Context()
 	if _, ok := middleware.UserFromContext(ctx); !ok {
 		http.Error(w, "user not found in context", 500)
@@ -322,7 +303,7 @@ func deleteCollectionById(w http.ResponseWriter, r *http.Request, deleter collec
 		return
 	}
 
-	err = deleter.DeleteCollection(ctx, id)
+	err = collections.DeleteCollection(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
