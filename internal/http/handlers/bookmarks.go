@@ -51,6 +51,10 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 		filterPage = 0
 	}
 	filterSearch := qs.Get("search")
+	collectionID := ""
+	if filterCollectionID != uuid.Nil {
+		collectionID = filterCollectionID.String()
+	}
 
 	collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
@@ -68,7 +72,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 		User:         user,
 		Collections:  collectionsList,
 		Tags:         tags,
-		CollectionID: filterCollectionID.String(),
+		CollectionID: collectionID,
 		TagsFilter:   filterTags,
 		Page:         filterPage,
 		Search:       filterSearch,
