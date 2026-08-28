@@ -23,34 +23,29 @@ func NewBookmark(collections []core.Collection) Node {
 	return Details(
 		Class("add-bookmark"),
 		Summary(Text("+ Add Bookmark")),
-		Div(
-			Class("add-form"),
-			Form(
-				Method("POST"),
-				Action("/bookmarks"),
-				Attr("hx-post", "/bookmarks"),
-				Attr("hx-target", "#bookmarks"),
-				Attr("hx-swap", "innerHTML"),
-				Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
-				FieldSet(
-					Class("input-group"),
-					urlInput,
-					submitBtn,
+		Form(
+			Method("POST"),
+			Action("/bookmarks"),
+			Attr("hx-post", "/bookmarks"),
+			Attr("hx-target", "#bookmarks"),
+			Attr("hx-swap", "innerHTML"),
+			Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
+			FieldSet(
+				urlInput,
+				submitBtn,
+			),
+			FieldSet(
+				Select(
+					Name("collection_id"),
+					Option(Value(""), Text("Collection"), Disabled(), Selected()),
+					Map(collections, func(i core.Collection) Node {
+						return Option(Value(i.ID.String()), Text(i.Name))
+					}),
 				),
-				Div(
-					Class("add-form-row"),
-					Select(
-						Name("collection_id"),
-						Option(Value(""), Text("Collection"), Disabled(), Selected()),
-						Map(collections, func(i core.Collection) Node {
-							return Option(Value(i.ID.String()), Text(i.Name))
-						}),
-					),
-					Input(
-						Type("text"),
-						Name("tags"),
-						Placeholder("Tags"),
-					),
+				Input(
+					Type("text"),
+					Name("tags"),
+					Placeholder("Tags"),
 				),
 			),
 		),
@@ -59,7 +54,7 @@ func NewBookmark(collections []core.Collection) Node {
 
 func RecentLinks(links []core.Bookmark) Node {
 	return Section(
-		H5(Class("section-heading"), Text("Recent")),
+		H2(Text("Recent")),
 		IfElse(
 			len(links) > 0,
 			Links(links),
@@ -70,7 +65,7 @@ func RecentLinks(links []core.Bookmark) Node {
 
 func BookmarksList(links []core.Bookmark, p PaginationProps) Node {
 	return Section(
-		H5(Class("section-heading"), Text("Your Bookmarks")),
+		H2(Text("Your Bookmarks")),
 		IfElse(
 			len(links) > 0,
 			Group{Links(links), Pagination(p)},
@@ -81,7 +76,7 @@ func BookmarksList(links []core.Bookmark, p PaginationProps) Node {
 
 func FilteredLinksView(links []core.Bookmark, p PaginationProps) Node {
 	return Section(
-		H5(Class("section-heading"), Text("Filtered Links")),
+		H2(Text("Filtered Links")),
 		IfElse(
 			len(links) > 0,
 			Group{Links(links), Pagination(p)},

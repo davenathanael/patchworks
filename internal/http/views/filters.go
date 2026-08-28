@@ -24,17 +24,15 @@ func FilterBar(
 		Method("GET"),
 		Action("/"),
 		Div(Class("filter-bar"),
-			Div(Class("search-field"),
-				Input(
-					Type("search"),
-					Name("search"),
-					Placeholder("Search bookmarks..."),
-					Value(search),
-					Attr("enterkeyhint", "search"),
-					Attr("hx-get", searchURL(currentQuery)),
-					Attr("hx-trigger", "input changed delay:500ms"),
-					Attr("hx-target", "#bookmarks"),
-				),
+			Input(
+				Type("search"),
+				Name("search"),
+				Placeholder("Search bookmarks..."),
+				Value(search),
+				Attr("enterkeyhint", "search"),
+				Attr("hx-get", searchURL(currentQuery)),
+				Attr("hx-trigger", "input changed delay:500ms"),
+				Attr("hx-target", "#bookmarks"),
 			),
 			Div(ID("filters"), filterPills(collections, activeCollectionID, tags, activeTags, search, currentQuery)),
 		),
@@ -54,22 +52,16 @@ func filterPills(
 	hasFilters := activeCollectionID != "" || len(activeTags) > 0 || search != ""
 
 	return Group{
-		Div(Class("pill-group"),
-			CollectionPills(collections, activeCollectionID, currentQuery),
-		),
-		Div(Class("pill-group"),
-			TagPills(tags, activeTags, currentQuery),
-		),
+		Nav(CollectionPills(collections, activeCollectionID, currentQuery)),
+		Nav(TagPills(tags, activeTags, currentQuery)),
 		If(hasFilters,
-			Div(
-				A(
-					Href("/"),
-					Class("clear-link"),
-					Attr("hx-get", "/"),
-					Attr("hx-target", "#bookmarks"),
-					Attr("hx-push-url", "true"),
-					Text("Clear filters"),
-				),
+			A(
+				Href("/"),
+				Class("clear-link"),
+				Attr("hx-get", "/"),
+				Attr("hx-target", "#bookmarks"),
+				Attr("hx-push-url", "true"),
+				Text("Clear filters"),
 			),
 		),
 	}
@@ -77,7 +69,7 @@ func filterPills(
 
 func CollectionPills(items []core.Collection, activeID string, currentQuery url.Values) Node {
 	if len(items) == 0 {
-		return Div()
+		return Group{}
 	}
 
 	pills := make([]Node, 0, len(items))
@@ -96,12 +88,12 @@ func CollectionPills(items []core.Collection, activeID string, currentQuery url.
 		)
 	}
 
-	return Div(pills...)
+	return Group(pills)
 }
 
 func TagPills(items []core.Tag, activeTags []string, currentQuery url.Values) Node {
 	if len(items) == 0 {
-		return Div()
+		return Group{}
 	}
 
 	topN := TopTagCount
@@ -109,14 +101,14 @@ func TagPills(items []core.Tag, activeTags []string, currentQuery url.Values) No
 		return TagPillList(items, activeTags, currentQuery)
 	}
 
-	return Div(
+	return Group{
 		TagPillList(items[:topN], activeTags, currentQuery),
 		Details(
 			Class("filter-details"),
 			Summary(Text("See more")),
 			TagPillList(items[topN:], activeTags, currentQuery),
 		),
-	)
+	}
 }
 
 func TagPillList(items []core.Tag, activeTags []string, currentQuery url.Values) Node {
@@ -136,7 +128,7 @@ func TagPillList(items []core.Tag, activeTags []string, currentQuery url.Values)
 		)
 	}
 
-	return Div(pills...)
+	return Group(pills)
 }
 
 func BuildQueryString(qs url.Values, key, value string) string {

@@ -9,8 +9,8 @@ import (
 func LoginPage() Node {
 	return Page("Log in — Patchworks",
 		Main(
-			Form(Class("form"), Method("post"), Action("/auth/login"),
-				H4(Text("Log in")),
+			Form(Method("post"), Action("/auth/login"),
+				H1(Text("Log in")),
 				Label(Text("Email"), Input(Type("email"), Name("email"), Required(), Attr("autocomplete", "email"))),
 				Label(Text("Password"), Input(Type("password"), Name("password"), Required(), Attr("autocomplete", "current-password"))),
 				Button(Type("submit"), Text("Log in")),
@@ -27,8 +27,8 @@ func LoginPage() Node {
 func RegisterPage() Node {
 	return Page("Register — Patchworks",
 		Main(
-			Form(Class("form"), Method("post"), Action("/auth/register"),
-				H4(Text("Register")),
+			Form(Method("post"), Action("/auth/register"),
+				H1(Text("Register")),
 				Label(Text("Email"), Input(Type("email"), Name("email"), Required(), Attr("autocomplete", "email"))),
 				Label(Text("Password"), Input(Type("password"), Name("password"), Required(), Attr("autocomplete", "new-password"))),
 				Button(Type("submit"), Text("Register")),

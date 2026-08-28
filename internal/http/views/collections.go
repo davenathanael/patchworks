@@ -31,8 +31,8 @@ func ListCollectionsPage(collections []core.Collection, user core.User) Node {
 	}
 
 	content := Main(
-		Div(Class("page-heading"),
-			H4(Text("Your Collections")),
+		Header(
+			H1(Text("Your Collections")),
 			A(Href("/collections/new"), Class("button outline small"), Text("New")),
 		),
 		Ul(Class("collection-list"), Map(collections, collectionItem)),
@@ -85,8 +85,8 @@ func initialsFromEmail(email string) string {
 func CreateCollectionsPage(user core.User) Node {
 	content := Main(
 		backToCollectionsLink(),
-		H4(Text("Create a Collection")),
-		Form(Class("form"), Method("post"), Action("/collections"),
+		H1(Text("Create a Collection")),
+		Form(Method("post"), Action("/collections"),
 			Input(Type("text"), Name("name"), Placeholder("Name"), Required()),
 			Textarea(Name("description"), Placeholder("Description")),
 			Button(Type("submit"), Text("Create")),
@@ -97,7 +97,7 @@ func CreateCollectionsPage(user core.User) Node {
 
 func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User) Node {
 	memberSection := Section(
-		H6(Text("Members")),
+		H2(Text("Members")),
 		Ul(Class("member-list"), Map(collection.Members, func(m core.CollectionMember) Node {
 			return Li(
 				Article(
@@ -116,7 +116,6 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 			)
 		})),
 		Form(
-			Class("add-member-form"),
 			Method("post"),
 			Action(fmt.Sprintf("/collections/%s/members", collection.ID.String())),
 			Input(Type("email"), Name("email"), Placeholder("Email"), Required()),
@@ -129,7 +128,7 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 	)
 
 	bookmarkSection := Section(
-		H6(Text("Bookmarks")),
+		H2(Text("Bookmarks")),
 		IfElse(len(bookmarks) > 0,
 			Links(bookmarks),
 			P(Class("muted"), Text("No bookmarks yet.")),
@@ -137,25 +136,19 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 	)
 
 	content := Main(
-		Div(
-			backToCollectionsLink(),
-			Div(
-				Class("collection-detail-heading"),
-				H4(Text(collection.Name)),
-				Div(
-					Class("actions"),
-					A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline small"), Text("Edit")),
-					Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
-						Button(Type("submit"), Class("outline small"), Text("Delete")),
-					),
-				),
+		backToCollectionsLink(),
+		Header(
+			H1(Text(collection.Name)),
+			A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline small"), Text("Edit")),
+			Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
+				Button(Type("submit"), Class("outline small"), Text("Delete")),
 			),
-			If(collection.Description != "",
-				P(Class("muted"), Text(collection.Description)),
-			),
-			memberSection,
-			bookmarkSection,
 		),
+		If(collection.Description != "",
+			P(Class("muted"), Text(collection.Description)),
+		),
+		memberSection,
+		bookmarkSection,
 	)
 	return Page(collection.Name+" - Patchworks", AppShell(user, content))
 }
@@ -163,8 +156,8 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 func EditCollectionPage(collection core.Collection, user core.User) Node {
 	content := Main(
 		backToCollectionLink(collection.ID),
-		H4(Text("Edit Collection")),
-		Form(Class("form"), Method(http.MethodPost), Action(fmt.Sprintf("/collections/%s/edit", collection.ID.String())),
+		H1(Text("Edit Collection")),
+		Form(Method(http.MethodPost), Action(fmt.Sprintf("/collections/%s/edit", collection.ID.String())),
 			Label(Text("Name"),
 				Input(Type("text"), Name("name"), Value(collection.Name), Placeholder("Name"), Required()),
 			),
