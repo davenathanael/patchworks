@@ -20,8 +20,6 @@ func FilterBar(
 	search string,
 	currentQuery url.Values,
 ) Node {
-	hasFilters := activeCollectionID != "" || len(activeTags) > 0 || search != ""
-
 	return Form(
 		Method("GET"),
 		Action("/"),
@@ -38,26 +36,43 @@ func FilterBar(
 					Attr("hx-target", "#bookmarks"),
 				),
 			),
-			Div(Class("pill-group"),
-				CollectionPills(collections, activeCollectionID, currentQuery),
-			),
-			Div(Class("pill-group"),
-				TagPills(tags, activeTags, currentQuery),
-			),
-			If(hasFilters,
-				Div(
-					A(
-						Href("/"),
-						Class("clear-link"),
-						Attr("hx-get", "/"),
-						Attr("hx-target", "#bookmarks"),
-						Attr("hx-push-url", "true"),
-						Text("Clear filters"),
-					),
+			Div(ID("filters"), filterPills(collections, activeCollectionID, tags, activeTags, search, currentQuery)),
+		),
+	)
+}
+
+// filterPills renders the collection/tag pills and the clear-filters link.
+// It is also rendered out-of-band so the pills reflect the current filter state.
+func filterPills(
+	collections []core.Collection,
+	activeCollectionID string,
+	tags []core.Tag,
+	activeTags []string,
+	search string,
+	currentQuery url.Values,
+) Node {
+	hasFilters := activeCollectionID != "" || len(activeTags) > 0 || search != ""
+
+	return Group{
+		Div(Class("pill-group"),
+			CollectionPills(collections, activeCollectionID, currentQuery),
+		),
+		Div(Class("pill-group"),
+			TagPills(tags, activeTags, currentQuery),
+		),
+		If(hasFilters,
+			Div(
+				A(
+					Href("/"),
+					Class("clear-link"),
+					Attr("hx-get", "/"),
+					Attr("hx-target", "#bookmarks"),
+					Attr("hx-push-url", "true"),
+					Text("Clear filters"),
 				),
 			),
 		),
-	)
+	}
 }
 
 func CollectionPills(items []core.Collection, activeID string, currentQuery url.Values) Node {

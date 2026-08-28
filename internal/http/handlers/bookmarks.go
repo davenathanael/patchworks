@@ -116,7 +116,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 	}
 
 	if views.IsHtmx(r) {
-		err = vm.RenderBookmarks(w)
+		err = vm.RenderFiltered(w)
 	} else {
 		err = vm.Render(w)
 	}

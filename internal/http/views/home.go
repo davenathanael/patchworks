@@ -52,3 +52,17 @@ func (vm *HomePageViewModel) Render(w io.Writer) error {
 func (vm *HomePageViewModel) RenderBookmarks(w io.Writer) error {
 	return vm.bookmarks().Render(w)
 }
+
+// RenderFiltered renders the filters (out-of-band) and bookmarks fragments,
+// so the pills reflect the current filter state after an htmx request.
+func (vm *HomePageViewModel) RenderFiltered(w io.Writer) error {
+	filters := Div(
+		ID("filters"),
+		Attr("hx-swap-oob", "true"),
+		filterPills(vm.Collections, vm.CollectionID, vm.Tags, vm.TagsFilter, vm.Search, vm.CurrentQuery),
+	)
+	if err := filters.Render(w); err != nil {
+		return err
+	}
+	return vm.bookmarks().Render(w)
+}
