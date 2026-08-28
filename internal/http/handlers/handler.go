@@ -31,7 +31,7 @@ func New(comp *components.Components) http.Handler {
 
 	// Protected routes
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Auth(comp.AuthService, authToCoreUser))
+		r.Use(middleware.Auth(comp.AuthService))
 
 		r.Get("/", handleGetHome(comp))
 		r.Post("/bookmarks", handlePostBookmarks(comp))

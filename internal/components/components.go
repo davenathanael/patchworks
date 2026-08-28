@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/davenathanael/patchwork/internal/auth"
+	"github.com/davenathanael/patchwork/internal/auth/oidc"
 	"github.com/davenathanael/patchwork/internal/config"
 	"github.com/davenathanael/patchwork/internal/db"
 	"github.com/davenathanael/patchwork/internal/http/client"
-	"github.com/davenathanael/patchwork/pkg/auth"
-	"github.com/davenathanael/patchwork/pkg/auth/oidc"
 )
 
 // Components holds the application dependencies (DB connections, HTTP clients, Configs, etc).
@@ -37,7 +37,6 @@ func New(ctx context.Context) (*Components, error) {
 		return nil, err
 	}
 
-	// Initialize OIDC provider
 	return &Components{
 		DB:          database,
 		HTTPClient:  client.New(),
@@ -72,13 +71,10 @@ func createOIDCAuthService(ctx context.Context, cfg config.AppConfig, database *
 		return nil, fmt.Errorf("decode session encryption key: %w", err)
 	}
 
-	// Create auth adapter (implements auth service's private interfaces)
-	adapter := db.NewAuthAdapter(database)
-
 	return auth.NewService(
 		oidcProvider,
-		adapter,
-		adapter,
+		database,
+		database,
 		auth.CookieConfig{Key: cookieKey},
 	), nil
 }

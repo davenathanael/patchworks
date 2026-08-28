@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	loggerpkg "github.com/davenathanael/patchwork/pkg/logger"
+	"github.com/davenathanael/patchwork/internal/logging"
 	"github.com/go-chi/httplog/v3"
 )
 
@@ -16,9 +16,9 @@ func Logger(isLocal bool) func(http.Handler) http.Handler {
 
 	var logger *slog.Logger
 	if isLocal {
-		logger = loggerpkg.NewLocalLogger()
+		logger = logging.NewLocalLogger()
 	} else {
-		logger = loggerpkg.NewJSONLogger()
+		logger = logging.NewJSONLogger()
 	}
 
 	return httplog.RequestLogger(logger, &httplog.Options{

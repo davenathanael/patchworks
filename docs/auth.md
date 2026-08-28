@@ -11,10 +11,10 @@
 
 ## Structure
 
-- `pkg/auth/oidc/` — OIDC provider wrapper (token exchange, claims parsing)
-- `pkg/auth/` — Service orchestrator (initiate login, handle callback, logout, get user from cookie)
+- `internal/auth/oidc/` — OIDC provider wrapper (token exchange, claims parsing)
+- `internal/auth/` — Service orchestrator (initiate login, handle callback, logout, get user from cookie)
   - Private interfaces: `oidcClient`, `sessionStore`, `userStore`
-  - Implementations wired in `internal/components/` via `db.NewAuthAdapter`
+  - Implementations wired in `internal/components/` via `*db.DB` directly
 - `internal/http/middleware/auth.go` — Extracts session cookie, loads user, injects into context
 
 ## Key Details

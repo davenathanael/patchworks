@@ -22,14 +22,15 @@ DDD-inspired: pure `core/` domain + interface-driven handlers + repository patte
 cmd/server/            # entry point only
 internal/
   core/                # pure domain types + interfaces, no framework deps
+  auth/                # OIDC service, private interfaces
   http/handlers/       # local interfaces + pure handler funcs
   http/middleware/     # chi middleware (auth, request logging)
   http/views/          # gomponents components, layouts, partials
   http/server/         # chi router setup
   db/                  # SQLC-generated + repository wrappers
   config/              # env-based config
+  logging/             # slog logger setup
   components/          # DI container
-pkg/auth/              # OIDC/PocketID service, private interfaces
 ```
 
 ## Conventions (load-bearing for every task)

@@ -10,7 +10,7 @@ import (
 	"github.com/davenathanael/patchwork/internal/components"
 	"github.com/davenathanael/patchwork/internal/config"
 	"github.com/davenathanael/patchwork/internal/http/handlers"
-	"github.com/davenathanael/patchwork/pkg/logger"
+	"github.com/davenathanael/patchwork/internal/logging"
 )
 
 // Run starts the HTTP server.
@@ -28,7 +28,7 @@ func Run() {
 	}()
 
 	if comp.Config.Environment.IsLocal() {
-		logger.ConfigureLocalLogger()
+		logging.ConfigureLocalLogger()
 	}
 
 	handler := handlers.New(comp)

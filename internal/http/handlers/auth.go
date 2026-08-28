@@ -4,8 +4,6 @@ import (
 	"net/http"
 
 	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/pkg/auth"
-	"github.com/google/uuid"
 )
 
 // AuthLoginInitiator is the interface for initiating login.
@@ -15,7 +13,7 @@ type AuthLoginInitiator interface {
 
 // AuthCallbackHandler is the interface for handling OAuth callbacks.
 type AuthCallbackHandler interface {
-	HandleCallback(w http.ResponseWriter, r *http.Request) (auth.User, auth.Session, error)
+	HandleCallback(w http.ResponseWriter, r *http.Request) (core.User, core.Session, error)
 }
 
 // AuthLogoutHandler is the interface for logout.
@@ -51,13 +49,5 @@ func handleGetLogout(svc AuthLogoutHandler) http.HandlerFunc {
 			return
 		}
 		http.Redirect(w, r, "/auth/login", http.StatusFound)
-	}
-}
-
-func authToCoreUser(authUser auth.User) core.User {
-	id, _ := uuid.Parse(authUser.ID)
-	return core.User{
-		ID:    id,
-		Email: authUser.Email,
 	}
 }

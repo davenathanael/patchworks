@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/pkg/auth"
 )
 
 type contextKey struct{}
@@ -14,23 +13,22 @@ var userContextKey contextKey
 
 // SessionReader is the interface that auth services must satisfy for middleware.
 type SessionReader interface {
-	GetUserFromCookie(r *http.Request) (auth.User, bool)
+	GetUserFromCookie(r *http.Request) (core.User, bool)
 }
 
 // Auth returns a middleware that reads the session cookie, validates it, and injects
-// the authenticated user (converted via toUser) into the request context.
+// the authenticated user into the request context.
 // Unauthenticated requests are redirected to /auth/login.
-func Auth(svc SessionReader, toUser func(auth.User) core.User) func(http.Handler) http.Handler {
+func Auth(svc SessionReader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authUser, found := svc.GetUserFromCookie(r)
+			user, found := svc.GetUserFromCookie(r)
 			if !found {
 				http.Redirect(w, r, "/auth/login", http.StatusFound)
 				return
 			}
 
-			coreUser := toUser(authUser)
-			ctx := context.WithValue(r.Context(), userContextKey, coreUser)
+			ctx := context.WithValue(r.Context(), userContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -8,7 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/davenathanael/patchwork/pkg/auth/oidc"
+	"github.com/davenathanael/patchwork/internal/auth/oidc"
+	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
@@ -22,18 +23,18 @@ const (
 )
 
 // sessionStore defines the methods needed to manage sessions.
-// Implemented by AuthAdapter in internal/db.
+// Implemented by *db.DB.
 type sessionStore interface {
-	CreateSession(ctx context.Context, id, userID string, expiresAt time.Time) (Session, error)
-	GetSessionByID(ctx context.Context, id string) (Session, bool, error)
-	DeleteSession(ctx context.Context, id string) error
+	CreateSession(ctx context.Context, id, userID uuid.UUID, expiresAt time.Time) (core.Session, error)
+	GetSessionByID(ctx context.Context, id uuid.UUID) (core.Session, bool, error)
+	DeleteSession(ctx context.Context, id uuid.UUID) error
 }
 
 // userStore defines the methods needed to manage users.
-// Implemented by AuthAdapter in internal/db.
+// Implemented by *db.DB.
 type userStore interface {
-	GetUserByID(ctx context.Context, id string) (User, bool, error)
-	UpsertUser(ctx context.Context, id, email, identityID string) (User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (core.User, error)
+	UpsertUser(ctx context.Context, id uuid.UUID, email, identityID string) (core.User, error)
 }
 
 // oidcClient defines the OIDC provider interface.
@@ -104,28 +105,28 @@ func (s *Service) InitiateLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback validates the state, exchanges the code for tokens, upserts the user, creates a session, and sets the session cookie.
 // Returns the authenticated user and session on success.
-func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) (User, Session, error) {
+func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) (core.User, core.Session, error) {
 	// Read state from query param
 	stateParam := r.URL.Query().Get(stateParamKey)
 	if stateParam == "" {
-		return User{}, Session{}, fmt.Errorf("missing state param")
+		return core.User{}, core.Session{}, fmt.Errorf("missing state param")
 	}
 
 	// Read state from cookie
 	stateCookie, err := r.Cookie(stateCookieName)
 	if err != nil {
-		return User{}, Session{}, fmt.Errorf("missing state cookie: %w", err)
+		return core.User{}, core.Session{}, fmt.Errorf("missing state cookie: %w", err)
 	}
 
 	// Validate state matches
 	if stateParam != stateCookie.Value {
-		return User{}, Session{}, fmt.Errorf("state mismatch")
+		return core.User{}, core.Session{}, fmt.Errorf("state mismatch")
 	}
 
 	// Read PKCE verifier from cookie
 	verifierCookie, err := r.Cookie(verifierCookieName)
 	if err != nil {
-		return User{}, Session{}, fmt.Errorf("missing PKCE verifier cookie: %w", err)
+		return core.User{}, core.Session{}, fmt.Errorf("missing PKCE verifier cookie: %w", err)
 	}
 
 	// Clear the state and verifier cookies immediately
@@ -135,33 +136,33 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) (User, 
 	// Get authorization code
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		return User{}, Session{}, fmt.Errorf("missing authorization code")
+		return core.User{}, core.Session{}, fmt.Errorf("missing authorization code")
 	}
 
 	// Exchange code for tokens with PKCE verifier
 	claims, err := s.oidc.ExchangeWithVerifier(r.Context(), code, verifierCookie.Value)
 	if err != nil {
-		return User{}, Session{}, fmt.Errorf("code exchange failed: %w", err)
+		return core.User{}, core.Session{}, fmt.Errorf("code exchange failed: %w", err)
 	}
 
 	// Upsert user in database
-	userID := uuid.New().String()
+	userID := uuid.New()
 	user, err := s.users.UpsertUser(r.Context(), userID, claims.Email, claims.Subject)
 	if err != nil {
-		return User{}, Session{}, fmt.Errorf("upsert user failed: %w", err)
+		return core.User{}, core.Session{}, fmt.Errorf("upsert user failed: %w", err)
 	}
 
 	// Create session in database
-	sessionID := uuid.New().String()
+	sessionID := uuid.New()
 	expiresAt := time.Now().Add(sessionDuration)
 	session, err := s.sessions.CreateSession(r.Context(), sessionID, user.ID, expiresAt)
 	if err != nil {
-		return User{}, Session{}, fmt.Errorf("create session failed: %w", err)
+		return core.User{}, core.Session{}, fmt.Errorf("create session failed: %w", err)
 	}
 
 	// Set session cookie
-	if err := SetSessionCookie(w, s.cookieCfg, session.ID); err != nil {
-		return User{}, Session{}, fmt.Errorf("set session cookie failed: %w", err)
+	if err := SetSessionCookie(w, s.cookieCfg, session.ID.String()); err != nil {
+		return core.User{}, core.Session{}, fmt.Errorf("set session cookie failed: %w", err)
 	}
 
 	return user, session, nil
@@ -177,8 +178,14 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		DeleteSessionCookie(w)
+		return nil
+	}
+
 	// Delete session from database
-	if err := s.sessions.DeleteSession(r.Context(), sessionID); err != nil {
+	if err := s.sessions.DeleteSession(r.Context(), sessionUUID); err != nil {
 		return fmt.Errorf("delete session failed: %w", err)
 	}
 
@@ -189,30 +196,35 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) error {
 
 // GetUserFromCookie retrieves the authenticated user from the session cookie.
 // Returns (zero User, false) if no valid session exists.
-func (s *Service) GetUserFromCookie(r *http.Request) (User, bool) {
+func (s *Service) GetUserFromCookie(r *http.Request) (core.User, bool) {
 	// Get session ID from cookie
 	sessionID, err := GetSessionCookie(r, s.cookieCfg)
 	if err != nil {
-		return User{}, false
+		return core.User{}, false
+	}
+
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		return core.User{}, false
 	}
 
 	// Fetch session from database
-	session, found, err := s.sessions.GetSessionByID(r.Context(), sessionID)
+	session, found, err := s.sessions.GetSessionByID(r.Context(), sessionUUID)
 	if err != nil || !found {
-		return User{}, false
+		return core.User{}, false
 	}
 
 	// Check expiry
 	if session.IsExpired() {
 		// Clean up expired session (non-blocking, ignore errors)
 		_ = s.sessions.DeleteSession(r.Context(), session.ID)
-		return User{}, false
+		return core.User{}, false
 	}
 
 	// Fetch user from database
-	user, found, err := s.users.GetUserByID(r.Context(), session.UserID)
-	if err != nil || !found {
-		return User{}, false
+	user, err := s.users.GetUserByID(r.Context(), session.UserID)
+	if err != nil {
+		return core.User{}, false
 	}
 
 	return user, true
