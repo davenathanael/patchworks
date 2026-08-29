@@ -128,7 +128,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 
 func handlePostBookmarks(comp *components.Components) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		postBookmarks(w, r, comp.DB, comp.HTTPClient)
+		postBookmarks(w, r, comp.DB, comp.DB, comp.HTTPClient)
 	}
 }
 
@@ -144,7 +144,7 @@ type (
 	}
 )
 
-func postBookmarks(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore, fetcher titleFetcher) {
+func postBookmarks(w http.ResponseWriter, r *http.Request, collections CollectionStore, bookmarks BookmarkStore, fetcher titleFetcher) {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -186,6 +186,16 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, bookmarks BookmarkSto
 	}
 
 	if views.IsHtmx(r) {
+		collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		tags, err := bookmarks.GetTagsByUser(ctx, user.ID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
 		recent, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, "")
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -198,10 +208,13 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, bookmarks BookmarkSto
 		}
 		vm := views.HomePageViewModel{
 			User:            user,
+			Collections:     collectionsList,
+			Tags:            tags,
 			RecentBookmarks: recent,
 			AllBookmarks:    all,
+			CurrentQuery:    url.Values{},
 		}
-		if err := vm.RenderBookmarks(w); err != nil {
+		if err := vm.RenderFiltered(w); err != nil {
 			http.Error(w, err.Error(), 500)
 		}
 		return
