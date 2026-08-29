@@ -39,7 +39,7 @@ internal/
 - **Pure functions**: prefer pure logic; extract mutable/stateful I/O to boundaries. Sans-IO where possible.
 - **No global state / no `init()`** — everything wired via `components.New()`.
 - **Views**: gomponents server-side HTML; check context flag for full-page vs partial render. Dot-import `maragu.dev/gomponents`, `maragu.dev/gomponents/html`.
-- **Styling**: Open Props tokens (CDN) + plain CSS in `app.css`. No build step. **No inline styles.** Classless base elements, semantic HTML, unprefixed modifiers. See `docs/html-css.md`.
+- **Styling**: Open Props tokens (CDN) + plain CSS in `app.css`. No build step. **No inline styles.** Classless base elements, semantic HTML, unprefixed modifiers. See `docs/css-guidelines.md`.
 - **Tests**: `earthboundkid/be` (not testify); local fakes, no mock libs; table-driven only for pure functions. See `docs/testing.md`.
 - **DB**: never hand-write query structs — SQLC-generated; repos wrap sqlc in `internal/db/`. See `docs/db.md`.
 - **Config**: env-based via `caarlos0/env`; no secrets in code. See `docs/config.md`.
@@ -70,7 +70,7 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 
 - `docs/architecture.md` — layers, handler pattern, key decisions
 - `docs/frontend.md` — gomponents, Open Props + plain CSS styling
-- `docs/html-css.md` — portable HTML/CSS conventions (classless, semantic, modifiers)
+- `docs/css-guidelines.md` — modern CSS/HTML guidelines (cascade layers, tokens, layout, support tiers)
 - `docs/db.md` — SQLC workflow, repository pattern, migrations
 - `docs/auth.md` — password auth, session/cookie details
 - `docs/config.md` — env sections

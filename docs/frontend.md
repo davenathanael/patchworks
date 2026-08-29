@@ -15,7 +15,7 @@
 ## Styling
 
 - **Design tokens**: [Open Props](https://open-props.style) loaded from CDN (`https://unpkg.com/open-props`); semantic app tokens in `app.css` `:root`.
-- **Conventions**: classless base elements, semantic HTML structure, unprefixed modifiers — see `docs/html-css.md`.
+- **Conventions**: see `docs/css-guidelines.md` (canonical styling/HTML guideline).
 
 ## Assets
 
