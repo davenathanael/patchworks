@@ -46,7 +46,7 @@ func TopNav(user core.User) Node {
 		Div(
 			Class("nav-user"),
 			Span(Class("muted"), Text(user.Email)),
-			A(Href("/auth/logout"), Class("button outline small"), Text("Logout")),
+			A(Href("/auth/logout"), Class("button outline"), Text("Logout")),
 		),
 	)
 }

@@ -33,7 +33,7 @@ func ListCollectionsPage(collections []core.Collection, user core.User) Node {
 	content := Main(
 		Header(
 			H1(Text("Your Collections")),
-			A(Href("/collections/new"), Class("button outline small"), Text("New")),
+			A(Href("/collections/new"), Class("button outline"), Text("New")),
 		),
 		Ul(Class("collection-list"), Map(collections, collectionItem)),
 	)
@@ -109,7 +109,7 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 					),
 					If(m.User.ID != user.ID,
 						Form(Method("post"), Action(fmt.Sprintf("/collections/%s/members/%s/delete", collection.ID.String(), m.User.ID.String())),
-							Button(Type("submit"), Class("outline small"), Text("Remove")),
+							Button(Type("submit"), Class("outline"), Text("Remove")),
 						),
 					),
 				),
@@ -139,9 +139,9 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 		backToCollectionsLink(),
 		Header(
 			H1(Text(collection.Name)),
-			A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline small"), Text("Edit")),
+			A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline"), Text("Edit")),
 			Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
-				Button(Type("submit"), Class("outline small"), Text("Delete")),
+				Button(Type("submit"), Class("outline"), Text("Delete")),
 			),
 		),
 		If(collection.Description != "",

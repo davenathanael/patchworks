@@ -51,12 +51,12 @@ h2 {
 }
 
 h1 {
-    font-size: var(--font-size-3);
+    font-size: var(--font-size-4);
     font-weight: var(--font-weight-6);
 }
 
 h2 {
-    font-size: var(--font-size-0);
+    font-size: var(--font-size-1);
     font-weight: var(--font-weight-6);
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -120,7 +120,7 @@ textarea {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--background);
-    font-size: var(--font-size-0);
+    font-size: var(--font-size-1);
 }
 
 textarea {
@@ -200,7 +200,7 @@ button,
     border-radius: var(--radius);
     background: var(--primary);
     color: var(--primary-foreground);
-    font-size: var(--font-size-0);
+    font-size: var(--font-size-1);
     line-height: 1;
     text-decoration: none;
     cursor: pointer;
@@ -221,7 +221,7 @@ button,
     }
 
     &.small {
-        font-size: var(--font-size-00);
+        font-size: var(--font-size-0);
         padding: 0.3em 0.6em;
     }
 }
@@ -269,7 +269,7 @@ main > header {
 
     summary {
         color: var(--text-2);
-        font-size: var(--font-size-0);
+        font-size: var(--font-size-1);
 
         &:hover {
             color: var(--text-1);
@@ -455,7 +455,7 @@ main > header {
 
 .filter-pill {
     display: inline-block;
-    font-size: var(--font-size-0);
+    font-size: 0.875rem;
     padding: 0.15em 0.6em;
     border-radius: var(--radius);
     border: 1px solid var(--border);
@@ -478,7 +478,7 @@ main > header {
 
 .tag-pill {
     display: inline-block;
-    font-size: 0.75em;
+    font-size: 0.875em;
     padding: 0.1em 0.5em;
     border-radius: var(--radius);
     border: 1px solid var(--border);
@@ -560,6 +560,17 @@ section > form {
 main > form {
     display: grid;
     gap: var(--size-2);
+}
+
+main > form label {
+    display: grid;
+    gap: var(--size-1);
+    color: var(--text-2);
+}
+
+main > form label input,
+main > form label textarea {
+    color: var(--text-1);
 }
 
 @media (prefers-reduced-motion: reduce) {
