@@ -40,7 +40,7 @@ internal/
 - **No global state / no `init()`** — everything wired via `components.New()`.
 - **Views**: gomponents server-side HTML; check context flag for full-page vs partial render. Dot-import `maragu.dev/gomponents`, `maragu.dev/gomponents/html`.
 - **Styling**: Open Props tokens (CDN) + plain CSS in `app.css`. No build step. **No inline styles.** Classless base elements, semantic HTML, unprefixed modifiers. See `docs/css-guidelines.md`.
-- **Tests**: `earthboundkid/be` (not testify); local fakes, no mock libs; table-driven only for pure functions. See `docs/testing.md`.
+- **Tests**: `github.com/carlmjohnson/be` (not testify); local fakes, no mock libs; table-driven only for pure functions. See `docs/testing.md`.
 - **DB**: never hand-write query structs — SQLC-generated; repos wrap sqlc in `internal/db/`. See `docs/db.md`.
 - **Config**: env-based via `caarlos0/env`; no secrets in code. See `docs/config.md`.
 - **Logging**: slog, canonical one-line-per-request; error level only for unexpected errors. See `docs/logging.md`.

@@ -13,8 +13,8 @@
 
 ## Assertions
 
-- `earthboundkid/be` package (not testify)
-- Example: `be.Nil(t, err)`, `be.Equal(t, expected, actual)`
+- `github.com/carlmjohnson/be` package (not testify)
+- Example: `be.NilErr(t, err)`, `be.Equal(t, expected, actual)`
 
 ## Test Structure
 

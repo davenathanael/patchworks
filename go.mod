@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/ajg/form v1.7.1
 	github.com/caarlos0/env/v11 v11.4.0
+	github.com/carlmjohnson/be v0.25.2
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/httplog/v3 v3.3.0
 	github.com/google/uuid v1.6.0
