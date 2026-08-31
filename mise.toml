@@ -23,6 +23,11 @@ run = "golangci-lint run"
 [tasks.check]
 depends = ["lint", "test"]
 
+[tasks.test-integration]
+alias = "ti"
+run = "go test -tags integration ./internal/db/"
+description = "Run DB integration tests (needs `mise run compose` up; creates+uses patchwork_test)"
+
 [tasks.migration]
 alias = "mn"
 run = "dbmate new"
