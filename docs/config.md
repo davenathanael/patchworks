@@ -11,5 +11,5 @@
 
 - **HTTPServer**: host, port, timeouts
 - **DB**: connection URL
-- **Session**: encryption key (base64-encoded)
+- **Session**: encryption key (base64-encoded). `SESSION_ENCRYPTION_KEY` must decode to exactly 32 bytes (AES-256); generate with `openssl rand -base64 32`. Boot fails fast on a missing or invalid key.
 - **Environment**: local, production, etc.

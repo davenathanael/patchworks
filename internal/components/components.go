@@ -54,10 +54,9 @@ func (c *Components) Close(ctx context.Context) error {
 }
 
 func createAuthService(cfg config.AppConfig, database *db.DB) (*auth.Service, error) {
-	// Decode session encryption key from base64
-	cookieKey, err := base64.StdEncoding.DecodeString(cfg.Session.EncryptionKey)
+	cookieKey, err := decodeSessionKey(cfg.Session.EncryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("decode session encryption key: %w", err)
+		return nil, fmt.Errorf("session encryption key: %w", err)
 	}
 
 	return auth.NewService(
@@ -65,4 +64,17 @@ func createAuthService(cfg config.AppConfig, database *db.DB) (*auth.Service, er
 		database,
 		auth.CookieConfig{Key: cookieKey},
 	), nil
+}
+
+// decodeSessionKey base64-decodes the session encryption key and requires
+// exactly 32 bytes (AES-256). Fails fast at boot instead of on first login.
+func decodeSessionKey(raw string) ([]byte, error) {
+	key, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return nil, fmt.Errorf("decode base64: %w", err)
+	}
+	if len(key) != 32 {
+		return nil, fmt.Errorf("must decode to 32 bytes (AES-256), got %d", len(key))
+	}
+	return key, nil
 }
