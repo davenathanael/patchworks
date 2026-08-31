@@ -15,12 +15,12 @@ const (
 	cookieMaxAge   = 86400 * 30 // 30 days
 	cookiePath     = "/"
 	cookieHttpOnly = true
-	cookieSecure   = true
 )
 
-// CookieConfig holds the encryption key for session cookies.
+// CookieConfig holds the encryption key and cookie attributes for session cookies.
 type CookieConfig struct {
-	Key []byte // 32 bytes for AES-256
+	Key    []byte // 32 bytes for AES-256
+	Secure bool   // only send the cookie over HTTPS (set false for plain HTTP dev)
 }
 
 // SetSessionCookie encrypts the session ID and sets it in an HTTP cookie.
@@ -30,13 +30,13 @@ func SetSessionCookie(w http.ResponseWriter, cfg CookieConfig, sessionID string)
 		return fmt.Errorf("encrypt session: %w", err)
 	}
 
-	cookie := &http.Cookie{
+	cookie := &http.Cookie{ // #nosec G124 -- Secure is env-driven (SESSION_COOKIE_SECURE)
 		Name:     cookieName,
 		Value:    encrypted,
 		Path:     cookiePath,
 		MaxAge:   cookieMaxAge,
 		HttpOnly: cookieHttpOnly,
-		Secure:   cookieSecure,
+		Secure:   cfg.Secure,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, cookie)
@@ -58,14 +58,14 @@ func GetSessionCookie(r *http.Request, cfg CookieConfig) (string, error) {
 }
 
 // DeleteSessionCookie clears the session cookie.
-func DeleteSessionCookie(w http.ResponseWriter) {
-	cookie := &http.Cookie{
+func DeleteSessionCookie(w http.ResponseWriter, cfg CookieConfig) {
+	cookie := &http.Cookie{ // #nosec G124 -- Secure is env-driven (SESSION_COOKIE_SECURE)
 		Name:     cookieName,
 		Value:    "",
 		Path:     cookiePath,
 		MaxAge:   -1,
 		HttpOnly: cookieHttpOnly,
-		Secure:   cookieSecure,
+		Secure:   cfg.Secure,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, cookie)

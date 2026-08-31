@@ -62,7 +62,7 @@ func createAuthService(cfg config.AppConfig, database *db.DB) (*auth.Service, er
 	return auth.NewService(
 		database,
 		database,
-		auth.CookieConfig{Key: cookieKey},
+		auth.CookieConfig{Key: cookieKey, Secure: cfg.Session.CookieSecure},
 	), nil
 }
 

@@ -32,6 +32,7 @@ type (
 	// Session holds session encryption configuration.
 	Session struct {
 		EncryptionKey string `env:"SESSION_ENCRYPTION_KEY"`
+		CookieSecure  bool   `env:"SESSION_COOKIE_SECURE" envDefault:"true"`
 	}
 
 	// Environment holds environment type.

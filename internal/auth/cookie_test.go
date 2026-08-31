@@ -72,13 +72,14 @@ func TestDecryptShortCiphertext(t *testing.T) {
 
 func TestSetSessionCookie(t *testing.T) {
 	w := httptest.NewRecorder()
-	err := SetSessionCookie(w, CookieConfig{Key: testKey(t)}, "session-1")
+	err := SetSessionCookie(w, CookieConfig{Key: testKey(t), Secure: true}, "session-1")
 	be.NilErr(t, err)
 
 	cookies := w.Result().Cookies()
 	be.Equal(t, 1, len(cookies))
 	be.Equal(t, cookieName, cookies[0].Name)
 	be.True(t, cookies[0].HttpOnly)
+	be.True(t, cookies[0].Secure)
 	be.Equal(t, http.SameSiteLaxMode, cookies[0].SameSite)
 }
 
@@ -95,6 +96,28 @@ func TestGetSessionCookieRoundTrip(t *testing.T) {
 	got, err := GetSessionCookie(r, CookieConfig{Key: key})
 	be.NilErr(t, err)
 	be.Equal(t, "session-1", got)
+}
+
+func TestSessionCookieSecureFlag(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		secure bool
+	}{
+		{"secure", true},
+		{"plain http", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			be.NilErr(t, SetSessionCookie(w, CookieConfig{Key: testKey(t), Secure: tc.secure}, "s"))
+			be.Equal(t, tc.secure, w.Result().Cookies()[0].Secure)
+		})
+	}
+}
+
+func TestDeleteSessionCookieSecureFlag(t *testing.T) {
+	w := httptest.NewRecorder()
+	DeleteSessionCookie(w, CookieConfig{Key: testKey(t), Secure: true})
+	be.True(t, w.Result().Cookies()[0].Secure)
 }
 
 // --- helpers ---

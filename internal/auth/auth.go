@@ -90,13 +90,13 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) error {
 	sessionID, err := GetSessionCookie(r, s.cookieCfg)
 	if err != nil {
 		// No session cookie is fine for logout.
-		DeleteSessionCookie(w)
+		DeleteSessionCookie(w, s.cookieCfg)
 		return nil
 	}
 
 	sessionUUID, err := uuid.Parse(sessionID)
 	if err != nil {
-		DeleteSessionCookie(w)
+		DeleteSessionCookie(w, s.cookieCfg)
 		return nil
 	}
 
@@ -104,7 +104,7 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("delete session failed: %w", err)
 	}
 
-	DeleteSessionCookie(w)
+	DeleteSessionCookie(w, s.cookieCfg)
 	return nil
 }
 
