@@ -174,9 +174,13 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 	}
 
 	tags := strings.Split(formData.Tags, ",")
-	for i := range tags {
-		tags[i] = strings.TrimSpace(tags[i])
+	filtered := tags[:0]
+	for _, tag := range tags {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			filtered = append(filtered, tag)
+		}
 	}
+	tags = filtered
 
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
