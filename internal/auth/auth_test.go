@@ -29,6 +29,14 @@ func TestRegisterCreatesUser(t *testing.T) {
 	be.True(t, verifyPassword("password123", f.hashes["a@b.c"]))
 }
 
+func TestRegisterReturnsEmailTaken(t *testing.T) {
+	svc, f, _ := newTestService(t)
+	f.err = core.ErrEmailTaken
+
+	_, err := svc.Register(context.Background(), "taken@test.local", "pw")
+	be.True(t, errors.Is(err, core.ErrEmailTaken))
+}
+
 func TestLoginSuccess(t *testing.T) {
 	svc, f, _ := newTestService(t)
 	u := f.seedUser(t, "a@b.c", "swordfish")
@@ -176,6 +184,9 @@ func newFakeStores() *fakeStores {
 }
 
 func (f *fakeStores) CreateUser(ctx context.Context, email, passwordHash string) (core.User, error) {
+	if f.err != nil {
+		return core.User{}, f.err
+	}
 	u := core.User{ID: uuid.New(), Email: email}
 	f.users[email] = u
 	f.hashes[email] = passwordHash

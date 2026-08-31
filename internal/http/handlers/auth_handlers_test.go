@@ -48,6 +48,15 @@ func TestPostLoginServiceError(t *testing.T) {
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
+func TestPostLoginEmptyCredentials(t *testing.T) {
+	svc := &fakeAuth{}
+	rec := httptest.NewRecorder()
+	handlePostLogin(svc).ServeHTTP(rec, mustFormRequest(t, "email=&password="))
+
+	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, "", svc.loginEmail) // Login not called
+}
+
 func TestPostRegisterEmptyCredentials(t *testing.T) {
 	svc := &fakeAuth{}
 	rec := httptest.NewRecorder()
@@ -65,6 +74,23 @@ func TestPostRegisterSuccess(t *testing.T) {
 	be.Equal(t, http.StatusFound, rec.Code)
 	be.Equal(t, "/auth/login", rec.Header().Get("Location"))
 	be.AllEqual(t, []string{"a@b.c"}, svc.registered)
+}
+
+func TestPostRegisterDuplicateEmail(t *testing.T) {
+	svc := &fakeAuth{registerErr: core.ErrEmailTaken}
+	rec := httptest.NewRecorder()
+	handlePostRegister(svc).ServeHTTP(rec, mustFormRequest(t, "email=a%40b.c&password=pw"))
+
+	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.True(t, containsBody(rec, "already registered"))
+}
+
+func TestPostRegisterServiceError(t *testing.T) {
+	svc := &fakeAuth{registerErr: errors.New("db down")}
+	rec := httptest.NewRecorder()
+	handlePostRegister(svc).ServeHTTP(rec, mustFormRequest(t, "email=a%40b.c&password=pw"))
+
+	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
 func TestGetLogout(t *testing.T) {

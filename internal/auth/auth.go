@@ -57,6 +57,9 @@ func (s *Service) Register(ctx context.Context, email, password string) (core.Us
 
 	user, err := s.users.CreateUser(ctx, email, hash)
 	if err != nil {
+		if errors.Is(err, core.ErrEmailTaken) {
+			return core.User{}, core.ErrEmailTaken
+		}
 		return core.User{}, fmt.Errorf("create user: %w", err)
 	}
 	return user, nil

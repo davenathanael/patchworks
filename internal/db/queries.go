@@ -7,7 +7,9 @@ import (
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/db/sqlc"
 	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -41,6 +43,10 @@ func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (core.
 		PasswordHash: pgtype.Text{String: passwordHash, Valid: true},
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return core.User{}, core.ErrEmailTaken
+		}
 		return core.User{}, err
 	}
 	return ToUser(row), nil

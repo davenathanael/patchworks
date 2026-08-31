@@ -49,6 +49,11 @@ func handlePostLogin(svc AuthLoginHandler) http.HandlerFunc {
 			return
 		}
 
+		if f.Email == "" || f.Password == "" {
+			http.Error(w, "email and password are required", http.StatusBadRequest)
+			return
+		}
+
 		err := svc.Login(w, r, f.Email, f.Password)
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			http.Error(w, "invalid email or password", http.StatusUnauthorized)
@@ -87,7 +92,11 @@ func handlePostRegister(svc AuthRegistrar) http.HandlerFunc {
 		}
 
 		if _, err := svc.Register(r.Context(), f.Email, f.Password); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			if errors.Is(err, core.ErrEmailTaken) {
+				http.Error(w, core.ErrEmailTaken.Error(), http.StatusBadRequest)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
