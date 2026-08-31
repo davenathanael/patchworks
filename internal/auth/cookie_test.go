@@ -78,6 +78,7 @@ func TestSetSessionCookie(t *testing.T) {
 	cookies := w.Result().Cookies()
 	be.Equal(t, 1, len(cookies))
 	be.Equal(t, cookieName, cookies[0].Name)
+	be.Equal(t, 30*24*3600, cookies[0].MaxAge) // 30 days, matches sessionLifetime
 	be.True(t, cookies[0].HttpOnly)
 	be.True(t, cookies[0].Secure)
 	be.Equal(t, http.SameSiteLaxMode, cookies[0].SameSite)

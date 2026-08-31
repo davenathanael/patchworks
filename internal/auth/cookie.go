@@ -8,13 +8,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 const (
 	cookieName     = "session_id"
-	cookieMaxAge   = 86400 * 30 // 30 days
 	cookiePath     = "/"
 	cookieHttpOnly = true
+
+	// sessionLifetime is the length of a login session. Single source of truth;
+	// cookieMaxAge derives from it so the cookie and the DB expiry never drift.
+	sessionLifetime = 30 * 24 * time.Hour
+	cookieMaxAge    = int(sessionLifetime / time.Second)
 )
 
 // CookieConfig holds the encryption key and cookie attributes for session cookies.

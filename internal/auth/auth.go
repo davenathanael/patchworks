@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const sessionDuration = 30 * 24 * time.Hour
-
 // ErrInvalidCredentials is returned when login fails due to a bad email or password.
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
@@ -76,7 +74,7 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, email, password 
 	}
 
 	sessionID := uuid.New()
-	expiresAt := time.Now().Add(sessionDuration)
+	expiresAt := time.Now().Add(sessionLifetime)
 	session, err := s.sessions.CreateSession(r.Context(), sessionID, user.ID, expiresAt)
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
