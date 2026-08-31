@@ -76,6 +76,7 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 - `docs/config.md` — env sections
 - `docs/logging.md` — slog conventions
 - `docs/testing.md` — approach, fakes, assertions
+- `docs/adr/0001-styling-overhaul-mocha.md` — ADR: styling overhaul decisions (palette, variables, exceptions)
 
 ## Token-Saving Tips
 

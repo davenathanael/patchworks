@@ -17,36 +17,33 @@ type PaginationProps struct {
 }
 
 func NewBookmark(collections []core.Collection) Node {
-	urlInput := Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required(), Attr("inputmode", "url"), Attr("enterkeyhint", "go"))
-	submitBtn := Button(Type("submit"), Text("Add"))
-
 	return Details(
-		Class("add-bookmark"),
-		Summary(Text("+ Add Bookmark")),
-		Form(
-			Method("POST"),
-			Action("/bookmarks"),
-			Attr("hx-post", "/bookmarks"),
-			Attr("hx-target", "#bookmarks"),
-			Attr("hx-swap", "innerHTML"),
-			Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
-			FieldSet(
-				urlInput,
-				submitBtn,
-			),
-			FieldSet(
-				Select(
-					Name("collection_id"),
-					Option(Value(""), Text("Collection"), Disabled(), Selected()),
-					Map(collections, func(i core.Collection) Node {
-						return Option(Value(i.ID.String()), Text(i.Name))
-					}),
+		Class("add"),
+		Summary(Text("＋ Add bookmark")),
+		Div(
+			Class("panel"),
+			Form(
+				Method("POST"),
+				Action("/bookmarks"),
+				Attr("hx-post", "/bookmarks"),
+				Attr("hx-target", "#bookmarks"),
+				Attr("hx-swap", "innerHTML"),
+				Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
+				Label(Text("URL"),
+					Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required(), Attr("inputmode", "url"), Attr("enterkeyhint", "go")),
 				),
-				Input(
-					Type("text"),
-					Name("tags"),
-					Placeholder("Tags"),
+				Label(Text("Collection"),
+					Select(Name("collection_id"),
+						Option(Value(""), Text("None"), Selected()),
+						Map(collections, func(i core.Collection) Node {
+							return Option(Value(i.ID.String()), Text(i.Name))
+						}),
+					),
 				),
+				Label(Text("Tags"),
+					Input(Type("text"), Name("tags"), Placeholder("go, css, reading")),
+				),
+				Button(Type("submit"), Text("Save")),
 			),
 		),
 	)

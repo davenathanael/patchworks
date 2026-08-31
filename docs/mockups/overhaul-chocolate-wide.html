@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Chocolate, Compact + Wide (Mockup v3)</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600,700&display=swap">
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=geist:400,500,600&display=swap">
+<style>
+  /* ===== document chrome (presentation only, not the app) ===== */
+  * { box-sizing: border-box; }
+  .doc { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .doc-wrap { width: min(100% - 2rem, 80rem); margin-inline: auto; padding-block: 2rem 5rem; }
+  .doc-wrap h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+  .doc-wrap > p.lede { color: #64748b; max-width: 72ch; }
+  .doc-note { font-size: .85rem; color: #64748b; border-left: 3px solid #e2e8f0; padding: .5rem .9rem; margin: 1.25rem 0; }
+  .doc-note b { color: #334155; }
+  .doc-note ul { margin: .4rem 0 0; padding-left: 1.1rem; }
+  .doc-h2 { margin-top: 3rem; padding-bottom: .5rem; border-bottom: 1px solid #e2e8f0; }
+  .doc-sub { color: #64748b; font-size: .9rem; margin-top: -.5rem; margin-bottom: 1.5rem; }
+
+  /* variant switcher (document chrome — pure CSS, no JS) */
+  .ctrl { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: .75rem 0; }
+  .ctrl fieldset { border: 1px solid #e2e8f0; border-radius: 6px; padding: .35rem .6rem .5rem; margin: 0; }
+  .ctrl legend { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding: 0 .3rem; }
+  .ctrl label { display: inline-flex; align-items: center; gap: .3rem; font-size: .85rem; color: #475569; cursor: pointer; padding: .25rem .55rem; border-radius: 5px; }
+  .ctrl label:hover { background: #f1f5f9; }
+  .ctrl input { accent-color: #92400e; }
+  .ctrl label:has(input:checked) { background: #fef3c7; color: #78350f; font-weight: 600; }
+
+  /* ===== app tokens (the proposal) — defaults: MOCHA variant ===== */
+  .app {
+    color-scheme: light dark;
+    --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --font-sans: "Geist", system-ui, sans-serif;
+    --primary: light-dark(oklch(0.47 0.10 58), oklch(0.80 0.10 82));      /* burnt caramel ~ warm gold */
+    --primary-strong: light-dark(oklch(0.40 0.09 52), oklch(0.86 0.09 86));
+    --on-primary: light-dark(oklch(0.975 0.008 85), oklch(0.22 0.03 45));
+    --danger: light-dark(oklch(0.50 0.17 30), oklch(0.72 0.15 30));
+    --bg: light-dark(oklch(0.972 0.010 85), oklch(0.21 0.02 45));          /* café au lait ~ espresso */
+    --surface: light-dark(oklch(0.992 0.005 88), oklch(0.255 0.022 50));
+    --surface-2: light-dark(oklch(0.945 0.013 82), oklch(0.30 0.024 55));
+    --text-1: light-dark(oklch(0.27 0.03 45), oklch(0.93 0.015 82));       /* espresso ~ cream */
+    --text-2: light-dark(oklch(0.45 0.04 55), oklch(0.76 0.02 72));
+    --text-3: light-dark(oklch(0.58 0.03 62), oklch(0.62 0.016 68));
+    --border: light-dark(oklch(0.875 0.015 80), oklch(0.34 0.018 56));
+    --ring: light-dark(oklch(0.47 0.10 58), oklch(0.80 0.10 82));
+    --radius: 2px;
+    --radius-sm: 1px;
+  }
+
+  /* theme: auto / light / dark */
+  body:has(#thm-light:checked) .app { color-scheme: light; }
+  body:has(#thm-dark:checked) .app { color-scheme: dark; }
+
+  /* corners */
+  body:has(#corner-0:checked) .app { --radius: 0; --radius-sm: 0; }
+  body:has(#corner-4:checked) .app { --radius: 4px; --radius-sm: 2px; }
+
+  /* palette: COCOA — literal browns */
+  body:has(#pal-cocoa:checked) .app {
+    --primary: light-dark(oklch(0.42 0.075 40), oklch(0.72 0.075 60));   /* dark cocoa ~ milk chocolate */
+    --primary-strong: light-dark(oklch(0.36 0.07 35), oklch(0.78 0.07 64));
+    --on-primary: light-dark(oklch(0.97 0.015 80), oklch(0.24 0.04 45));
+    --danger: light-dark(oklch(0.50 0.17 32), oklch(0.70 0.16 30));
+    --bg: light-dark(oklch(0.955 0.02 72), oklch(0.235 0.03 50));
+    --surface: light-dark(oklch(0.985 0.01 76), oklch(0.29 0.03 55));
+    --surface-2: light-dark(oklch(0.925 0.025 70), oklch(0.34 0.03 58));
+    --text-1: light-dark(oklch(0.30 0.04 40), oklch(0.92 0.02 80));
+    --text-2: light-dark(oklch(0.47 0.045 48), oklch(0.75 0.025 70));
+    --text-3: light-dark(oklch(0.58 0.035 55), oklch(0.62 0.02 65));
+    --border: light-dark(oklch(0.86 0.02 70), oklch(0.37 0.025 58));
+    --ring: light-dark(oklch(0.42 0.075 40), oklch(0.72 0.075 60));
+  }
+
+  /* palette: ESPRESSO — dark-first coffee-shop mood, both themes lean dark */
+  body:has(#pal-espresso:checked) .app {
+    --primary: light-dark(oklch(0.80 0.10 80), oklch(0.78 0.10 78));
+    --primary-strong: light-dark(oklch(0.86 0.09 84), oklch(0.84 0.09 82));
+    --on-primary: light-dark(oklch(0.24 0.035 45), oklch(0.22 0.03 42));
+    --danger: light-dark(oklch(0.72 0.15 30), oklch(0.70 0.16 28));
+    --bg: light-dark(oklch(0.30 0.03 48), oklch(0.19 0.02 42));
+    --surface: light-dark(oklch(0.355 0.03 50), oklch(0.24 0.022 48));
+    --surface-2: light-dark(oklch(0.40 0.028 52), oklch(0.29 0.024 52));
+    --text-1: light-dark(oklch(0.93 0.015 80), oklch(0.93 0.015 80));
+    --text-2: light-dark(oklch(0.75 0.02 70), oklch(0.74 0.02 70));
+    --text-3: light-dark(oklch(0.60 0.02 66), oklch(0.59 0.018 66));
+    --border: light-dark(oklch(0.42 0.025 52), oklch(0.32 0.02 50));
+    --ring: light-dark(oklch(0.80 0.10 80), oklch(0.78 0.10 78));
+  }
+
+  /* ===== app surface frame =====
+     Each .frame is a size container: the app layout inside reacts to the
+     frame's own width (container queries), not the viewport — so one mockup
+     can show a 390px "phone" frame and a full-width "desktop" frame, and the
+     real app can reuse the same CSS. */
+  .frame {
+    container-type: inline-size;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-block: 1.5rem;
+    background: var(--bg);
+    box-shadow: 0 1px 3px rgb(0 0 0 / .06);
+  }
+  .frame.phone { width: 390px; max-width: 100%; margin-inline: auto; }
+  .frame.wide  { width: min(100%, 76rem); margin-inline: auto; }
+  .frame-label {
+    font-size: .75rem; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-3); padding: .5rem .9rem; background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .frame-label b { color: var(--text-1); }
+
+  /* ===== the actual app UI (the proposal) ===== */
+  .app {
+    font-family: var(--font-sans);
+    font-size: 1rem; line-height: 1.45; color: var(--text-1); background: var(--bg);
+    accent-color: var(--primary);
+  }
+  .app [data-shell] { min-height: 440px; display: flex; flex-direction: column; }
+
+  /* wide-only: left sidebar (hidden on narrow) */
+  .app .sidenav {
+    display: none;                       /* narrow: sidebar off, topnav on */
+    flex-direction: column; gap: .4rem;
+    width: 15.5rem; flex: none;
+    padding: 1rem .9rem;
+    background: var(--surface);
+    border-inline-end: 1px solid var(--border);
+  }
+  .app .sidenav .brand { font-family: var(--font-display); font-weight: 600; color: var(--text-1); text-decoration: none; font-size: 1.05rem; letter-spacing: -0.01em; margin-bottom: .15rem; }
+  .app .sidenav .brand b { color: var(--primary); }
+  .app .sidenav .button { width: 100%; margin-bottom: .25rem; }
+  .app .sidenav .nav-section { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin: 1rem 0 .3rem; }
+  .app .sidenav .nav-link {
+    display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+    color: var(--text-2); text-decoration: none; padding: .38rem .55rem;
+    border-radius: var(--radius-sm); font-size: .9rem;
+  }
+  .app .sidenav .nav-link:hover { background: var(--surface-2); color: var(--text-1); }
+  .app .sidenav .nav-link[aria-current="page"] { background: var(--surface-2); color: var(--primary-strong); font-weight: 600; }
+  .app .sidenav .count { color: var(--text-3); font-size: .74rem; }
+  .app .sidenav .sid-user {
+    margin-block-start: auto; border-top: 1px solid var(--border); padding-top: .75rem;
+    display: grid; gap: .5rem;
+  }
+  .app .sidenav .sid-user .who { font-size: .8rem; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .app .page { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  .app [data-topnav] {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding-block: .45rem;
+  }
+  .app .topnav-inner {
+    width: min(100% - 2rem, 60ch); margin-inline: auto;
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .app .brand { font-family: var(--font-display); font-weight: 600; color: var(--text-1); text-decoration: none; letter-spacing: -0.01em; font-size: 1.05rem; }
+  .app .brand b { color: var(--primary); }
+  .app .nav-links { display: flex; gap: .25rem; }
+  .app .nav-link { color: var(--text-2); text-decoration: none; padding: .28rem .55rem; border-radius: var(--radius-sm); font-size: .88rem; }
+  .app .nav-link:hover { color: var(--text-1); background: var(--surface-2); }
+  .app .nav-link[aria-current="page"] { color: var(--primary-strong); font-weight: 600; }
+  .app .nav-user { margin-inline-start: auto; display: flex; align-items: center; gap: .5rem; }
+  .app .nav-user .who { font-size: .8rem; color: var(--text-3); }
+
+  .app main.app-main {
+    width: min(100% - 2rem, 60ch); margin-inline: auto;
+    padding-block: 1.1rem 1.75rem; flex: 1;
+  }
+
+  .app h1 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 .2rem; text-wrap: balance; }
+  .app h2.sec {
+    font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text-3); margin: 1.1rem 0 .4rem;
+  }
+
+  /* buttons — compact, sharp corners */
+  .app button, .app .button {
+    display: inline-flex; align-items: center; justify-content: center; gap: .35em;
+    padding: .38em .8em; border-radius: var(--radius); border: 1px solid transparent;
+    font: inherit; font-weight: 500; line-height: 1.2; cursor: pointer;
+    text-decoration: none; white-space: nowrap; min-height: 2.15rem; font-size: .925rem;
+  }
+  .app .button { background: var(--primary); color: var(--on-primary); }
+  .app .button:hover { background: var(--primary-strong); }
+  .app .button.outline { background: transparent; color: var(--text-1); border-color: var(--border); }
+  .app .button.outline:hover { background: var(--surface-2); }
+  .app .button.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+  .app .button.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+  .app .button.ghost { background: transparent; color: var(--text-2); border-color: transparent; }
+  .app .button.ghost:hover { background: var(--surface-2); color: var(--text-1); }
+  .app .button.small { padding: .12em .55em; font-size: .8rem; min-height: 1.8rem; }
+
+  /* forms */
+  .app label.field { display: grid; gap: .25rem; font-size: .82rem; font-weight: 500; color: var(--text-2); }
+  .app input, .app select, .app textarea {
+    font: inherit; color: var(--text-1); background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .38em .55em; width: 100%;
+  }
+  .app textarea { min-height: 3rem; }
+  .app input:focus-visible, .app select:focus-visible, .app textarea:focus-visible {
+    outline: 2px solid var(--ring); outline-offset: 1px; border-color: var(--ring);
+  }
+  .app form.grid { display: grid; gap: .7rem; }
+  .app form.row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: end; }
+  .app form.row > * { flex: 1 1 12rem; }
+
+  /* filter toolbar: stacked on narrow, one row on wide */
+  .app .filter-toolbar { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .9rem; }
+  .app .filter-toolbar input[type="search"] { margin: 0; }
+
+  /* pills & tags — squared-off chips, compact */
+  .app .pills { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; }
+  .app .pill {
+    display: inline-flex; align-items: center; gap: .28rem;
+    padding: .16em .55em; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    color: var(--text-2); text-decoration: none; font-size: .8rem; background: var(--surface);
+  }
+  .app .pill:hover { border-color: var(--text-3); color: var(--text-1); }
+  .app .pill[aria-current="page"] { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 500; }
+  .app .pill .count { opacity: .7; font-size: .78em; }
+
+  /* bookmark list items — compact */
+  .app ul.bookmarks { list-style: none; margin: 0; padding: 0; }
+  .app ul.bookmarks > li { border-bottom: 1px solid var(--border); }
+  .app ul.bookmarks > li:last-child { border-bottom: none; }
+  .app .bookmark { padding: .5rem .15rem; display: flex; flex-direction: column; gap: .25rem; }
+  .app .bookmark .row1 { display: flex; gap: .5rem; align-items: baseline; min-width: 0; }
+  .app .bookmark .title {
+    font-weight: 600; color: var(--text-1); text-decoration: none; min-width: 0; font-size: .95rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+  }
+  .app .bookmark .title:hover { color: var(--primary); text-decoration: underline; }
+  .app .bookmark .ago { color: var(--text-3); font-size: .76rem; white-space: nowrap; }
+  .app .bookmark .row2 { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; font-size: .8rem; color: var(--text-3); }
+  .app .bookmark .host { color: var(--text-2); }
+  .app .tag { font-size: .73rem; padding: .02em .45em; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--text-2); text-decoration: none; }
+  .app .bookmark .actions { margin-inline-start: auto; display: flex; gap: .35rem; align-items: center; }
+
+  /* watch badge */
+  .app .watch {
+    display: inline-flex; align-items: center; gap: .28rem;
+    font-size: .7rem; padding: .08em .45em; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-2); background: var(--surface-2);
+    white-space: nowrap;
+  }
+  .app .watch::before { content: "◉"; font-size: .7em; color: var(--primary); }
+
+  /* notes on a bookmark */
+  .app .bookmark .note {
+    margin-top: .25rem; padding-left: .5rem; border-left: 2px solid var(--border);
+    color: var(--text-2); font-size: .78rem; display: flex; gap: .35rem; align-items: baseline;
+  }
+  .app .bookmark .note .pen { color: var(--text-3); font-size: .68rem; }
+
+  /* updates strip */
+  .app .updates { border: 1px solid var(--border); background: var(--surface); }
+  .app .updates .u-row {
+    display: flex; align-items: center; gap: .55rem; padding: .42rem .6rem;
+    border-bottom: 1px solid var(--border); font-size: .85rem;
+  }
+  .app .updates .u-row:last-child { border-bottom: none; }
+  .app .updates .u-row .u-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-1); text-decoration: none; }
+  .app .updates .u-row .u-title:hover { color: var(--primary); }
+  .app .updates .u-row .u-when { color: var(--text-3); font-size: .76rem; white-space: nowrap; }
+
+  /* details menu */
+  .app details.menu { position: relative; }
+  .app details.menu > summary { list-style: none; cursor: pointer; }
+  .app details.menu > summary::-webkit-details-marker { display: none; }
+  .app details.menu .menu-card {
+    position: absolute; inset-inline-end: 0; top: calc(100% + .25rem); z-index: 20;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 6px 20px rgb(0 0 0 / .12); padding: .4rem; min-width: 13rem; display: grid; gap: .2rem;
+  }
+  .app details.menu .menu-card button { justify-content: flex-start; background: transparent; color: var(--text-1); border-color: transparent; min-height: 2rem; }
+  .app details.menu .menu-card button:hover { background: var(--surface-2); }
+  .app details.menu .menu-card button.danger { color: var(--danger); }
+
+  /* add bookmark */
+  .app details.add { margin-bottom: 1rem; }
+  .app details.add > summary { list-style: none; cursor: pointer; color: var(--primary); font-weight: 600; padding: .35rem .3rem; border-radius: var(--radius); display: inline-flex; gap: .3rem; }
+  .app details.add > summary::-webkit-details-marker { display: none; }
+  .app details.add > summary:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+  .app details.add[open] > summary { color: var(--text-2); }
+  .app details.add .panel { margin-top: .4rem; padding: .8rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+
+  /* collection cards */
+  .app .collection-grid { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+  .app .collection-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .8rem; display: flex; flex-direction: column; gap: .3rem; text-decoration: none; color: var(--text-1);
+  }
+  .app .collection-card:hover { border-color: var(--primary); }
+  .app .collection-card .cname { font-weight: 600; font-size: 1rem; }
+  .app .collection-card .cdesc { color: var(--text-3); font-size: .82rem; }
+  .app .collection-card .cmeta { color: var(--text-3); font-size: .76rem; margin-top: .35rem; }
+
+  /* member rows */
+  .app .member { display: flex; align-items: center; gap: .6rem; padding: .4rem 0; border-bottom: 1px solid var(--border); }
+  .app .member:last-child { border-bottom: none; }
+  .app .avatar {
+    display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem;
+    border-radius: 50%; background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: .75rem; flex: none;
+  }
+  .app .member .who { flex: 1; min-width: 0; }
+  .app .member .email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .88rem; }
+  .app .member .role { font-size: .74rem; color: var(--text-3); }
+
+  /* collection detail: aside on wide */
+  .app .detail-grid { display: grid; gap: 1rem; }
+  .app .detail-side section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem; margin: 0; }
+
+  /* auth (standalone, centered) */
+  .app .auth-wrap { min-height: 440px; display: grid; place-items: center; }
+  .app .auth-card {
+    width: min(100% - 2rem, 23rem); background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.35rem; display: grid; gap: .8rem;
+  }
+  .app .auth-card .auth-brand { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
+  .app .auth-card .auth-brand b { color: var(--primary); }
+  .app .auth-card .auth-sub { color: var(--text-3); font-size: .83rem; margin-top: -.5rem; }
+  .app .auth-card .button { width: 100%; }
+
+  /* swatches */
+  .app .swatches { display: flex; gap: .6rem; flex-wrap: wrap; margin: .8rem 0; }
+  .app .swatch { width: 6.5rem; }
+  .app .swatch .chip { height: 2rem; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .app .swatch .name { font-size: .68rem; color: var(--text-3); margin-top: .2rem; }
+  .app .stack { display: flex; flex-direction: column; gap: .7rem; }
+  .app .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .app .divider { border-top: 1px dashed var(--border); margin: .9rem 0; }
+  .app .kbd { font-size: .7rem; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: .03em .35em; color: var(--text-2); }
+
+  /* type sample */
+  .app .type-sample { display: flex; flex-direction: column; gap: .3rem; }
+  .app .type-sample .display { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+  .app .type-sample .ui { color: var(--text-2); font-size: .88rem; }
+
+  /* ===== WIDE LAYOUT — reacts to the frame's own width (container query) ===== */
+  @container (inline-size > 46rem) {
+    .app [data-shell] { min-height: 480px; flex-direction: row; }
+    .app .sidenav { display: flex; }
+    .app [data-topnav] { display: none; }
+    .app main.app-main { width: min(100% - 2.5rem, 108ch); padding-block: 1.4rem 2.25rem; font-size: 1.02rem; }
+    .app h1 { font-size: 1.45rem; }
+    .app .bookmark { padding: .55rem .15rem; }
+    .app .bookmark .title { font-size: 1rem; }
+    .app .filter-toolbar { flex-direction: row; align-items: center; gap: 1rem; }
+    .app .filter-toolbar input[type="search"] { flex: 1; min-width: 12rem; }
+    .app .detail-grid { grid-template-columns: minmax(0, 1fr) 15.5rem; align-items: start; }
+    .app .detail-side { position: sticky; top: 1rem; display: grid; gap: 1rem; }
+  }
+</style>
+</head>
+<body class="doc">
+<div class="doc-wrap">
+
+  <h1>Patchworks — compact + wide-screen iteration (v3)</h1>
+  <p class="lede">Same chocolate theme and sharp corners as <code>overhaul-chocolate.html</code> (v2, untouched) — retuned for density and for large screens. Padding everywhere is pulled in; and the layout is now responsive by <em>frame width</em>, so the same CSS drives a 390px phone frame and a full-width desktop frame. Use the toggles to flip palettes, themes, and corner radii; resize the window to watch frames switch layouts.</p>
+
+  <div class="ctrl">
+    <fieldset><legend>Palette</legend>
+      <label><input type="radio" name="pal" id="pal-mocha" checked>Mocha</label>
+      <label><input type="radio" name="pal" id="pal-cocoa">Cocoa</label>
+      <label><input type="radio" name="pal" id="pal-espresso">Espresso</label>
+    </fieldset>
+    <fieldset><legend>Theme</legend>
+      <label><input type="radio" name="thm" id="thm-auto" checked>Auto</label>
+      <label><input type="radio" name="thm" id="thm-light">Light</label>
+      <label><input type="radio" name="thm" id="thm-dark">Dark</label>
+    </fieldset>
+    <fieldset><legend>Corners</legend>
+      <label><input type="radio" name="corner" id="corner-0">0</label>
+      <label><input type="radio" name="corner" id="corner-2" checked>2px</label>
+      <label><input type="radio" name="corner" id="corner-4">4px</label>
+    </fieldset>
+  </div>
+
+  <div class="doc-note">
+    <b>What changed vs v2.</b>
+    <ul>
+      <li><b>Compact:</b> button padding ~.5em/.9em → .38em/.8em (min-height 2.15rem; small 1.8rem), inputs .55/.65 → .38/.55, list rows .8rem → .5rem, tighter gaps/margins across the design system. 16px base font kept — density comes from spacing, not smaller text.</li>
+      <li><b>Wide layout:</b> a persistent left sidebar (brand, nav with counts, collections, user) replaces the topnav once a frame is wider than ~46rem; the content column widens to ~108ch for lists. Collection detail becomes two columns with a sticky members/actions aside. Layout is driven by <b>container queries</b> — frames respond to their own width, not the viewport, so this is one source of truth for mobile and desktop (and matches the approach in docs/css-guidelines.md).</li>
+      <li><b>Tradeoff, stated:</b> compact heights (1.8–2.15rem) are below the 44px touch-target guideline. Fine for a personal, mouse-first tool; if touch matters later, keep primary CTAs at ≥2.25rem and only the small/ghost variants compact.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== DESIGN SYSTEM ===================== -->
+  <div class="app">
+    <h2 class="doc-h2">Design system — compact</h2>
+    <p class="doc-sub">Same tokens as v2; every surface pulled in. Below shows the compact button scale, inputs, pills, and a list item.</p>
+
+    <div class="frame">
+      <div class="frame-label">Tokens <b>— chocolate neutrals + accent</b></div>
+      <div class="app-main" style="width:auto;margin:0;padding:1rem">
+        <div class="swatches">
+          <div class="swatch"><div class="chip" style="background:var(--primary)"></div><div class="name">--primary</div></div>
+          <div class="swatch"><div class="chip" style="background:var(--primary-strong)"></div><div class="name">--primary-strong</div></div>
+          <div class="swatch"><div class="chip" style="background:var(--danger)"></div><div class="name">--danger</div></div>
+          <div class="swatch"><div class="chip" style="background:var(--surface);border-color:var(--border)"></div><div class="name">--surface</div></div>
+          <div class="swatch"><div class="chip" style="background:var(--surface-2)"></div><div class="name">--surface-2</div></div>
+          <div class="swatch"><div class="chip" style="background:var(--text-1)"></div><div class="name">--text-1</div></div>
+          <div class="swatch"><div class="chip" style="background:var(--bg);border-color:var(--border)"></div><div class="name">--bg</div></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="type-sample">
+          <div class="display">Fraunces — page titles &amp; brand</div>
+          <div class="ui">Geist — UI text at 16px base. Compactness comes from spacing; text size and contrast are unchanged.</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="stack">
+          <div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-bottom:.35rem">Buttons — compact scale (primary / outline / danger / ghost / small)</div>
+            <div class="row">
+              <button class="button">Add bookmark</button>
+              <button class="button outline">Edit</button>
+              <button class="button danger">Delete</button>
+              <button class="button ghost">⋯</button>
+              <button class="button outline small">Small</button>
+              <button class="button small">Save</button>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-bottom:.35rem">Form inputs (label above)</div>
+            <form class="grid" onsubmit="return false" style="max-width:26rem">
+              <label class="field">URL <input type="url" placeholder="https://example.com"></label>
+              <label class="field">Notes <textarea placeholder="Optional"></textarea></label>
+            </form>
+          </div>
+
+          <div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-bottom:.35rem">Pills &amp; tags</div>
+            <div class="pills">
+              <a class="pill" aria-current="page" href="#">All <span class="count">18</span></a>
+              <a class="pill" href="#">Watching <span class="count">3</span></a>
+              <a class="pill" href="#">#css</a>
+              <a class="pill" href="#">#go</a>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-bottom:.35rem">List item — compact row</div>
+            <ul class="bookmarks">
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Why CSS animations beat JS</a><span class="ago">2d</span></div>
+                <div class="row2"><span class="host">modern-css.com</span><a class="tag" href="#">#css</a><span class="watch">watch</span></div>
+                <div class="note"><span class="pen">✎</span> Check the grid section.</div>
+              </div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 1. HOME — MOBILE ===================== -->
+    <h2 class="doc-h2">1. Home — mobile <code style="font-size:.7em">390px frame</code></h2>
+    <p class="doc-sub">The compact version of v2's home: tighter rows, same stack. The phone frame is a real size container — narrow the window and the desktop frame below collapses to this too.</p>
+
+    <div class="frame phone">
+      <div class="frame-label">Home <b>— phone · compact</b></div>
+      <div data-shell>
+        <div class="sidenav">
+          <a class="brand" href="#">Patch<b>works</b></a>
+          <button class="button">＋ Add bookmark</button>
+          <nav>
+            <a class="nav-link" aria-current="page" href="#">Home</a>
+            <a class="nav-link" href="#">To Read <span class="count">3</span></a>
+            <a class="nav-link" href="#">Collections</a>
+            <a class="nav-link" href="#">Watching <span class="count">3</span></a>
+          </nav>
+          <div>
+            <div class="nav-section">Collections</div>
+            <a class="nav-link" href="#">Work <span class="count">12</span></a>
+            <a class="nav-link" href="#">Reading <span class="count">4</span></a>
+            <a class="nav-link" href="#">Recipes <span class="count">2</span></a>
+          </div>
+          <div class="sid-user">
+            <span class="who">you@example.com</span>
+            <a class="button outline small" href="#">Logout</a>
+          </div>
+        </div>
+        <div class="page">
+          <div data-topnav><div class="topnav-inner">
+            <a class="brand" href="#">Patch<b>works</b></a>
+            <nav class="nav-links"><a class="nav-link" aria-current="page" href="#">Home</a><a class="nav-link" href="#">To&nbsp;Read</a><a class="nav-link" href="#">Collections</a></nav>
+            <div class="nav-user"><span class="avatar">Y</span></div>
+          </div></div>
+          <main class="app-main">
+            <h1>Bookmarks</h1>
+
+            <details class="add">
+              <summary>＋ Add bookmark</summary>
+              <div class="panel">
+                <form class="grid" onsubmit="return false">
+                  <label class="field">URL <input type="url" placeholder="https://example.com" inputmode="url" enterkeyhint="go"></label>
+                  <label class="field">Collection
+                    <select><option>None</option><option>Work</option><option>Reading</option><option>Recipes</option></select>
+                  </label>
+                  <label class="field">Notes <textarea placeholder="Optional"></textarea></label>
+                  <div style="display:flex;gap:.5rem;justify-content:flex-end"><button class="button">Save</button></div>
+                </form>
+              </div>
+            </details>
+
+            <div class="filter-toolbar">
+              <input type="search" placeholder="Search bookmarks  ( / )">
+              <div class="pills">
+                <a class="pill" aria-current="page" href="#">All <span class="count">18</span></a>
+                <a class="pill" href="#">Watching <span class="count">3</span></a>
+                <a class="pill" href="#">#css</a>
+                <a class="pill" href="#">#go</a>
+              </div>
+            </div>
+
+            <h2 class="sec">Updated while you were away</h2>
+            <div class="updates">
+              <div class="u-row"><span class="watch">watching</span><a class="u-title" href="#">Cascade layers in practice</a><span class="u-when">2h</span></div>
+              <div class="u-row"><span class="watch">watching</span><a class="u-title" href="#">Go 1.26 release notes discussion</a><span class="u-when">1d</span></div>
+            </div>
+
+            <h2 class="sec">Recent</h2>
+            <ul class="bookmarks">
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Why CSS animations beat JS</a><span class="ago">2d</span></div>
+                <div class="row2"><span class="host">modern-css.com</span><a class="tag" href="#">#css</a><span class="watch">watch</span><span class="actions"><details class="menu">
+                  <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                  <div class="menu-card">
+                    <button onclick="return false">Add to collection…</button>
+                    <button onclick="return false">Add note</button>
+                    <button onclick="return false">Watch for updates</button>
+                    <button onclick="return false">Archive</button>
+                    <button class="danger" onclick="return false">Delete</button>
+                  </div>
+                </details></span></div>
+              </div></li>
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">On-call runbook</a><span class="ago">1w</span></div>
+                <div class="row2"><span class="host">wiki.internal</span><a class="tag" href="#">#ops</a></div>
+              </div></li>
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Rust ownership in 5 minutes</a><span class="ago">2w</span></div>
+                <div class="row2"><span class="host">youtube.com</span><a class="tag" href="#">#rust</a></div>
+              </div></li>
+            </ul>
+
+            <div class="row" style="justify-content:space-between">
+              <button class="button outline small" onclick="return false">← Older</button>
+              <span style="font-size:.78rem;color:var(--text-3)">page 1 of 3</span>
+              <button class="button outline small" onclick="return false">Newer →</button>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 2. HOME — DESKTOP ===================== -->
+    <h2 class="doc-h2">2. Home — desktop <code style="font-size:.7em">sidebar + wide column</code></h2>
+    <p class="doc-sub">Same components, wide treatment: sidebar nav with counts, inline search + pills, wider reading column. Topnav disappears on wide frames.</p>
+
+    <div class="frame wide">
+      <div class="frame-label">Home <b>— desktop · wide</b></div>
+      <div data-shell>
+        <div class="sidenav">
+          <a class="brand" href="#">Patch<b>works</b></a>
+          <button class="button">＋ Add bookmark</button>
+          <nav>
+            <a class="nav-link" aria-current="page" href="#">Home</a>
+            <a class="nav-link" href="#">To Read <span class="count">3</span></a>
+            <a class="nav-link" href="#">Collections</a>
+            <a class="nav-link" href="#">Watching <span class="count">3</span></a>
+          </nav>
+          <div>
+            <div class="nav-section">Collections</div>
+            <a class="nav-link" href="#">Work <span class="count">12</span></a>
+            <a class="nav-link" href="#">Reading <span class="count">4</span></a>
+            <a class="nav-link" href="#">Recipes <span class="count">2</span></a>
+          </div>
+          <div class="sid-user">
+            <span class="who">you@example.com</span>
+            <a class="button outline small" href="#">Logout</a>
+          </div>
+        </div>
+        <div class="page">
+          <div data-topnav><div class="topnav-inner">
+            <a class="brand" href="#">Patch<b>works</b></a>
+            <nav class="nav-links"><a class="nav-link" aria-current="page" href="#">Home</a><a class="nav-link" href="#">To&nbsp;Read</a><a class="nav-link" href="#">Collections</a></nav>
+            <div class="nav-user"><span class="who">you@example.com</span><span class="avatar">Y</span></div>
+          </div></div>
+          <main class="app-main">
+            <h1>Bookmarks</h1>
+
+            <details class="add">
+              <summary>＋ Add bookmark</summary>
+              <div class="panel">
+                <form class="grid" onsubmit="return false">
+                  <label class="field">URL <input type="url" placeholder="https://example.com"></label>
+                  <label class="field">Collection
+                    <select><option>None</option><option>Work</option><option>Reading</option><option>Recipes</option></select>
+                  </label>
+                  <label class="field">Notes <textarea placeholder="Optional"></textarea></label>
+                  <div style="display:flex;gap:.5rem;justify-content:flex-end"><button class="button">Save</button></div>
+                </form>
+              </div>
+            </details>
+
+            <div class="filter-toolbar">
+              <input type="search" placeholder="Search bookmarks  ( / )">
+              <div class="pills">
+                <a class="pill" aria-current="page" href="#">All <span class="count">18</span></a>
+                <a class="pill" href="#">Work <span class="count">12</span></a>
+                <a class="pill" href="#">Watching <span class="count">3</span></a>
+                <a class="pill" href="#">#css</a>
+                <a class="pill" href="#">#go</a>
+              </div>
+            </div>
+
+            <h2 class="sec">Updated while you were away</h2>
+            <div class="updates">
+              <div class="u-row"><span class="watch">watching</span><a class="u-title" href="#">Cascade layers in practice</a><span class="u-when">updated 2h ago</span><button class="button ghost small" onclick="return false">View</button></div>
+              <div class="u-row"><span class="watch">watching</span><a class="u-title" href="#">Go 1.26 release notes discussion</a><span class="u-when">updated 1d ago</span><button class="button ghost small" onclick="return false">View</button></div>
+            </div>
+
+            <h2 class="sec">Recent</h2>
+            <ul class="bookmarks">
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Why CSS animations beat JS</a><span class="ago">2d</span></div>
+                <div class="row2"><span class="host">modern-css.com</span><a class="tag" href="#">#css</a><span class="watch">watch</span></div>
+                <div class="note"><span class="pen">✎</span> Check the grid section — reuse for our dashboard.</div>
+                <div class="row2"><span class="actions"><details class="menu">
+                  <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                  <div class="menu-card">
+                    <button onclick="return false">Add to collection…</button>
+                    <button onclick="return false">Add note</button>
+                    <button onclick="return false">Watch for updates</button>
+                    <button onclick="return false">Archive</button>
+                    <button class="danger" onclick="return false">Delete</button>
+                  </div>
+                </details></span></div>
+              </div></li>
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Cascade layers in practice</a><span class="ago">3d</span></div>
+                <div class="row2"><span class="host">smashingmagazine.com</span><a class="tag" href="#">#css</a></div>
+              </div></li>
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">On-call runbook</a><span class="ago">1w</span></div>
+                <div class="row2"><span class="host">wiki.internal</span><a class="tag" href="#">#ops</a></div>
+              </div></li>
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Rust ownership in 5 minutes</a><span class="ago">2w</span></div>
+                <div class="row2"><span class="host">youtube.com</span><a class="tag" href="#">#rust</a></div>
+              </div></li>
+            </ul>
+
+            <div class="row" style="justify-content:space-between">
+              <button class="button outline small" onclick="return false">← Older</button>
+              <span style="font-size:.78rem;color:var(--text-3)">page 1 of 3</span>
+              <button class="button outline small" onclick="return false">Newer →</button>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 3. COLLECTIONS — DESKTOP ===================== -->
+    <h2 class="doc-h2">3. Collections <code style="font-size:.7em">/collections</code></h2>
+    <p class="doc-sub">Wide uses a multi-column card grid — three abreast at typical desktop widths.</p>
+
+    <div class="frame wide">
+      <div class="frame-label">Collections <b>— desktop · wide</b></div>
+      <div data-shell>
+        <div class="sidenav">
+          <a class="brand" href="#">Patch<b>works</b></a>
+          <button class="button">＋ Add bookmark</button>
+          <nav>
+            <a class="nav-link" href="#">Home</a>
+            <a class="nav-link" href="#">To Read <span class="count">3</span></a>
+            <a class="nav-link" aria-current="page" href="#">Collections</a>
+            <a class="nav-link" href="#">Watching <span class="count">3</span></a>
+          </nav>
+          <div>
+            <div class="nav-section">Collections</div>
+            <a class="nav-link" href="#">Work <span class="count">12</span></a>
+            <a class="nav-link" href="#">Reading <span class="count">4</span></a>
+            <a class="nav-link" href="#">Recipes <span class="count">2</span></a>
+          </div>
+          <div class="sid-user">
+            <span class="who">you@example.com</span>
+            <a class="button outline small" href="#">Logout</a>
+          </div>
+        </div>
+        <div class="page">
+          <div data-topnav><div class="topnav-inner">
+            <a class="brand" href="#">Patch<b>works</b></a>
+            <nav class="nav-links"><a class="nav-link" href="#">Home</a><a class="nav-link" href="#">To&nbsp;Read</a><a class="nav-link" aria-current="page" href="#">Collections</a></nav>
+            <div class="nav-user"><span class="avatar">Y</span></div>
+          </div></div>
+          <main class="app-main">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+              <h1 style="margin:0">Collections</h1>
+              <button class="button small">＋ New</button>
+            </div>
+            <div class="collection-grid">
+              <a class="collection-card" href="#">
+                <span class="cname">Work</span>
+                <span class="cdesc">Tickets, RFCs, internal docs.</span>
+                <span class="cmeta">12 bookmarks · 3 members</span>
+              </a>
+              <a class="collection-card" href="#">
+                <span class="cname">Reading</span>
+                <span class="cdesc">Long-form articles to get through.</span>
+                <span class="cmeta">4 bookmarks · 1 member</span>
+              </a>
+              <a class="collection-card" href="#">
+                <span class="cname">Recipes</span>
+                <span class="cdesc">Weeknight dinners, mostly.</span>
+                <span class="cmeta">2 bookmarks · 1 member</span>
+              </a>
+              <a class="collection-card" href="#">
+                <span class="cname">Design</span>
+                <span class="cdesc"></span>
+                <span class="cmeta">2 bookmarks · 2 members</span>
+              </a>
+              <a class="collection-card" href="#">
+                <span class="cname">Video</span>
+                <span class="cdesc">Talks and tutorials.</span>
+                <span class="cmeta">1 bookmark · 1 member</span>
+              </a>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 4. COLLECTION DETAIL — DESKTOP ===================== -->
+    <h2 class="doc-h2">4. Collection detail <code style="font-size:.7em">/collections/{id} — two columns on wide</code></h2>
+    <p class="doc-sub">Bookmarks left, sticky actions/members aside right. On narrow frames the aside stacks below.</p>
+
+    <div class="frame wide">
+      <div class="frame-label">Collection <b>— Work</b></div>
+      <div data-shell>
+        <div class="sidenav">
+          <a class="brand" href="#">Patch<b>works</b></a>
+          <button class="button">＋ Add bookmark</button>
+          <nav>
+            <a class="nav-link" href="#">Home</a>
+            <a class="nav-link" href="#">To Read <span class="count">3</span></a>
+            <a class="nav-link" aria-current="page" href="#">Collections</a>
+            <a class="nav-link" href="#">Watching <span class="count">3</span></a>
+          </nav>
+          <div>
+            <div class="nav-section">Collections</div>
+            <a class="nav-link" href="#">Work <span class="count">12</span></a>
+            <a class="nav-link" href="#">Reading <span class="count">4</span></a>
+            <a class="nav-link" href="#">Recipes <span class="count">2</span></a>
+          </div>
+          <div class="sid-user">
+            <span class="who">you@example.com</span>
+            <a class="button outline small" href="#">Logout</a>
+          </div>
+        </div>
+        <div class="page">
+          <div data-topnav><div class="topnav-inner">
+            <a class="brand" href="#">Patch<b>works</b></a>
+            <nav class="nav-links"><a class="nav-link" href="#">Home</a><a class="nav-link" href="#">To&nbsp;Read</a><a class="nav-link" aria-current="page" href="#">Collections</a></nav>
+            <div class="nav-user"><span class="avatar">Y</span></div>
+          </div></div>
+          <main class="app-main">
+            <a class="button ghost small" href="#">← All collections</a>
+            <h1 style="margin-top:.4rem">Work <span style="color:var(--text-3);font-weight:400;font-size:.85rem">· 12 bookmarks</span></h1>
+            <p style="color:var(--text-3);font-size:.88rem;margin:0 0 1rem">We review internal docs here.</p>
+
+            <div class="detail-grid">
+              <div class="detail-main">
+                <h2 class="sec">Bookmarks</h2>
+                <ul class="bookmarks">
+                  <li><div class="bookmark">
+                    <div class="row1"><a class="title" href="#">Internal RFC: storage layer</a><span class="ago">2d</span></div>
+                    <div class="row2"><span class="host">docs.internal</span><a class="tag" href="#">#backend</a><span class="watch">watch</span></div>
+                  </div></li>
+                  <li><div class="bookmark">
+                    <div class="row1"><a class="title" href="#">On-call runbook</a><span class="ago">1w</span></div>
+                    <div class="row2"><span class="host">wiki.internal</span></div>
+                  </div></li>
+                  <li><div class="bookmark">
+                    <div class="row1"><a class="title" href="#">Incident postmortem template</a><span class="ago">3w</span></div>
+                    <div class="row2"><span class="host">docs.internal</span><a class="tag" href="#">#ops</a></div>
+                  </div></li>
+                </ul>
+              </div>
+              <aside class="detail-side">
+                <section>
+                  <h2 class="sec" style="margin-top:0">Actions</h2>
+                  <div class="row">
+                    <button class="button outline small" onclick="return false">Edit</button>
+                    <button class="button danger small" onclick="return false">Leave</button>
+                  </div>
+                </section>
+                <section>
+                  <h2 class="sec" style="margin-top:0">Members</h2>
+                  <div class="member">
+                    <span class="avatar">Y</span>
+                    <span class="who"><span class="email">you@example.com</span><br><span class="role">owner</span></span>
+                  </div>
+                  <div class="member">
+                    <span class="avatar">A</span>
+                    <span class="who"><span class="email">ana@example.com</span><br><span class="role">editor</span></span>
+                    <button class="button danger small" onclick="return false">Remove</button>
+                  </div>
+                  <form class="row" onsubmit="return false" style="margin-top:.5rem;display:flex;gap:.5rem">
+                    <input type="email" placeholder="member@example.com" style="flex:1 1 9rem">
+                    <select style="flex:0 1 7rem"><option>viewer</option><option>editor</option></select>
+                    <button class="button small">Add</button>
+                  </form>
+                </section>
+              </aside>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 5. AUTH ===================== -->
+    <h2 class="doc-h2">5. Auth <code style="font-size:.7em">/auth/login</code></h2>
+    <p class="doc-sub">Standalone (no nav) — centered card, same tokens, compact fields.</p>
+
+    <div class="frame">
+      <div class="frame-label">Sign in <b>— email &amp; password</b></div>
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <div class="auth-brand">Patch<b>works</b></div>
+          <p class="auth-sub">Your bookmarks, saved warm.</p>
+          <form class="grid" onsubmit="return false">
+            <label class="field">Email <input type="email" autocomplete="email" placeholder="you@example.com"></label>
+            <label class="field">Password <input type="password" autocomplete="current-password" placeholder="••••••••"></label>
+            <button class="button">Sign in</button>
+          </form>
+          <p style="font-size:.82rem;color:var(--text-3);margin:0">No account yet? <a href="#" style="color:var(--primary)">Create one</a>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 6. FUTURE — DESKTOP ===================== -->
+    <h2 class="doc-h2">6. Future — To Read, archive, notes, watching <code style="font-size:.7em">wide</code></h2>
+    <p class="doc-sub">FIFO queue, soft-delete archive, inline notes, and watched pages — as before, now in the wide layout.</p>
+
+    <div class="frame wide">
+      <div class="frame-label">To Read <b>— oldest first, mark as read</b></div>
+      <div data-shell>
+        <div class="sidenav">
+          <a class="brand" href="#">Patch<b>works</b></a>
+          <button class="button">＋ Add bookmark</button>
+          <nav>
+            <a class="nav-link" href="#">Home</a>
+            <a class="nav-link" aria-current="page" href="#">To Read <span class="count">3</span></a>
+            <a class="nav-link" href="#">Collections</a>
+            <a class="nav-link" href="#">Watching <span class="count">3</span></a>
+          </nav>
+          <div>
+            <div class="nav-section">Collections</div>
+            <a class="nav-link" href="#">Work <span class="count">12</span></a>
+            <a class="nav-link" href="#">Reading <span class="count">4</span></a>
+            <a class="nav-link" href="#">Recipes <span class="count">2</span></a>
+          </div>
+          <div class="sid-user">
+            <span class="who">you@example.com</span>
+            <a class="button outline small" href="#">Logout</a>
+          </div>
+        </div>
+        <div class="page">
+          <div data-topnav><div class="topnav-inner">
+            <a class="brand" href="#">Patch<b>works</b></a>
+            <nav class="nav-links"><a class="nav-link" href="#">Home</a><a class="nav-link" aria-current="page" href="#">To&nbsp;Read</a><a class="nav-link" href="#">Collections</a></nav>
+            <div class="nav-user"><span class="avatar">Y</span></div>
+          </div></div>
+          <main class="app-main">
+            <h1>To Read <span style="color:var(--text-3);font-weight:400;font-size:.85rem">· 3 queued</span></h1>
+            <p style="color:var(--text-3);font-size:.88rem;margin:0 0 .75rem">FIFO — added first, read first. "Mark as read" removes it from the queue; the bookmark stays saved.</p>
+            <ul class="bookmarks">
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Why CSS animations beat JS</a><span class="ago">queued 5d</span></div>
+                <div class="row2"><span class="host">modern-css.com</span><span class="actions"><button class="button small" onclick="return false">Mark as read</button><button class="button ghost small" onclick="return false">Remove</button></span></div>
+              </div></li>
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Cascade layers in practice</a><span class="ago">queued 2d</span></div>
+                <div class="row2"><span class="host">smashingmagazine.com</span><span class="actions"><button class="button small" onclick="return false">Mark as read</button><button class="button ghost small" onclick="return false">Remove</button></span></div>
+              </div></li>
+            </ul>
+
+            <div class="divider"></div>
+
+            <h2 class="sec">Archived (soft-delete)</h2>
+            <p style="color:var(--text-3);font-size:.88rem;margin:0 0 .5rem">Hidden from lists but kept, searchable, restorable. Delete stays permanent.</p>
+            <ul class="bookmarks">
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Old migration notes</a><span class="ago">archived 1mo</span></div>
+                <div class="row2"><span class="host">gist.github.com</span><span class="actions"><button class="button outline small" onclick="return false">Restore</button><button class="button danger small" onclick="return false">Delete</button></span></div>
+              </div></li>
+            </ul>
+
+            <div class="divider"></div>
+
+            <h2 class="sec">Editing a note — inline, no reload</h2>
+            <ul class="bookmarks">
+              <li><div class="bookmark">
+                <div class="row1"><a class="title" href="#">Rust ownership in 5 minutes</a><span class="ago">2w</span></div>
+                <div class="row2"><span class="host">youtube.com</span></div>
+                <form class="row" onsubmit="return false" style="margin-top:.25rem;display:flex;gap:.5rem;align-items:end">
+                  <input type="text" style="flex:1 1 12rem" placeholder="Add a note…" value="Good refresher before the 1:1.">
+                  <button class="button small">Save</button>
+                  <button class="button ghost small" onclick="return false">Cancel</button>
+                </form>
+              </div></li>
+            </ul>
+
+            <div class="divider"></div>
+
+            <h2 class="sec">Watching — updates surface where you are</h2>
+            <p style="color:var(--text-3);font-size:.88rem;margin:0 0 .5rem">Watched pages show in the sidebar count, the home strip, and here. RSS per list is a later nicety.</p>
+            <div class="updates">
+              <div class="u-row"><span class="watch">watching</span><a class="u-title" href="#">Cascade layers in practice</a><span class="u-when">checked 2h ago</span><button class="button ghost small" onclick="return false">Unwatch</button></div>
+              <div class="u-row"><span class="watch">watching</span><a class="u-title" href="#">Go 1.26 release notes discussion</a><span class="u-when">checked 1d ago</span><button class="button ghost small" onclick="return false">Unwatch</button></div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-note">Keyboard: <span class="kbd">/</span> focuses search, <span class="kbd">n</span> = new bookmark, <span class="kbd">g c</span> = collections, <span class="kbd">g r</span> = to-read. Layout switch is a single <code>@container (inline-size &gt; 46rem)</code> block — topnav swaps for sidebar, content widens. Resize your window: every frame responds on its own. Dark mode + reduced motion come free with <code>light-dark()</code> + <code>color-scheme</code>.</div>
+  </div>
+
+</div>
+</body>
+</html>

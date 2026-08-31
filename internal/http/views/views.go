@@ -30,9 +30,23 @@ func Page(title string, children ...Node) Node {
 func AppShell(user core.User, mainContent Node) Node {
 	return Div(
 		Attr("data-sidebar-layout"),
+		Nav(Class("sidenav"), SideNav(user)),
 		Nav(Attr("data-topnav"), TopNav(user)),
 		mainContent,
 	)
+}
+
+func SideNav(user core.User) Node {
+	return Group{
+		A(Class("brand"), Href("/"), Group{Text("Patch"), B(Text("works"))}),
+		A(Class("nav-link"), Href("/"), Text("Home")),
+		A(Class("nav-link"), Href("/collections"), Text("Collections")),
+		Div(
+			Class("sid-user"),
+			Span(Class("muted"), Text(user.Email)),
+			A(Href("/auth/logout"), Class("button outline small"), Text("Logout")),
+		),
+	}
 }
 
 func TopNav(user core.User) Node {

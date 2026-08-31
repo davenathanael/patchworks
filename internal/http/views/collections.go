@@ -14,18 +14,19 @@ import (
 
 func ListCollectionsPage(collections []core.Collection, user core.User) Node {
 	collectionItem := func(c core.Collection) Node {
+		memberCount := len(c.Members)
+		meta := fmt.Sprintf("%d bookmarks · %d member", c.BookmarkCount, memberCount)
+		if memberCount != 1 {
+			meta += "s"
+		}
+
 		return Li(
-			Article(
-				Header(
-					H3(
-						A(Href(fmt.Sprintf("/collections/%s", c.ID.String())), Text(c.Name)),
-					),
-					If(c.Description != "", P(Text(c.Description))),
-					Small(Text(fmt.Sprintf("%d bookmarks", c.BookmarkCount))),
-				),
-				Footer(
-					AvatarStack(c.Members),
-				),
+			A(
+				Class("collection-card"),
+				Href(fmt.Sprintf("/collections/%s", c.ID.String())),
+				H3(Text(c.Name)),
+				If(c.Description != "", P(Text(c.Description))),
+				Small(Text(meta)),
 			),
 		)
 	}
@@ -33,32 +34,11 @@ func ListCollectionsPage(collections []core.Collection, user core.User) Node {
 	content := Main(
 		Header(
 			H1(Text("Your Collections")),
-			A(Href("/collections/new"), Class("button outline"), Text("New")),
+			A(Href("/collections/new"), Class("button"), Text("＋ New")),
 		),
 		Ul(Class("collection-list"), Map(collections, collectionItem)),
 	)
 	return Page("Collections - Patchworks", AppShell(user, content))
-}
-
-func AvatarStack(members []core.CollectionMember) Node {
-	if len(members) == 0 {
-		return Div()
-	}
-
-	if len(members) == 1 {
-		return Avatar(members[0].User.Email)
-	}
-
-	avatars := make([]Node, 0, len(members))
-	for _, m := range members {
-		avatars = append(avatars, Avatar(m.User.Email))
-	}
-
-	return Div(
-		Class("avatar-stack"),
-		Attr("role", "group"),
-		Group(avatars),
-	)
 }
 
 func Avatar(email string) Node {
@@ -87,8 +67,8 @@ func CreateCollectionsPage(user core.User) Node {
 		backToCollectionsLink(),
 		H1(Text("Create a Collection")),
 		Form(Method("post"), Action("/collections"),
-			Input(Type("text"), Name("name"), Placeholder("Name"), Required()),
-			Textarea(Name("description"), Placeholder("Description")),
+			Label(Text("Name"), Input(Type("text"), Name("name"), Placeholder("e.g. Work"), Required())),
+			Label(Text("Description"), Textarea(Name("description"), Placeholder("What lives here?"))),
 			Button(Type("submit"), Text("Create")),
 		),
 	)
@@ -115,15 +95,21 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 				),
 			)
 		})),
-		Form(
-			Method("post"),
-			Action(fmt.Sprintf("/collections/%s/members", collection.ID.String())),
-			Input(Type("email"), Name("email"), Placeholder("Email"), Required()),
-			Select(Name("role"),
-				Option(Value("viewer"), Text("viewer"), Selected()),
-				Option(Value("editor"), Text("editor")),
+		Div(
+			Class("add-member"),
+			Small(Text("Add member")),
+			Form(
+				Method("post"),
+				Action(fmt.Sprintf("/collections/%s/members", collection.ID.String())),
+				Label(Text("Email"), Input(Type("email"), Name("email"), Required())),
+				Label(Text("Role"),
+					Select(Name("role"),
+						Option(Value("viewer"), Text("viewer"), Selected()),
+						Option(Value("editor"), Text("editor")),
+					),
+				),
+				Button(Type("submit"), Text("Add")),
 			),
-			Button(Type("submit"), Text("Add")),
 		),
 	)
 
@@ -141,14 +127,17 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 			H1(Text(collection.Name)),
 			A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline"), Text("Edit")),
 			Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
-				Button(Type("submit"), Class("outline"), Text("Delete")),
+				Button(Type("submit"), Class("danger"), Text("Delete")),
 			),
 		),
 		If(collection.Description != "",
 			P(Class("muted"), Text(collection.Description)),
 		),
-		memberSection,
-		bookmarkSection,
+		Div(
+			Class("detail-grid"),
+			Div(Class("detail-main"), bookmarkSection),
+			Aside(Class("detail-side"), memberSection),
+		),
 	)
 	return Page(collection.Name+" - Patchworks", AppShell(user, content))
 }
