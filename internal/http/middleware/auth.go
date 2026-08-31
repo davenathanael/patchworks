@@ -34,6 +34,13 @@ func Auth(svc SessionReader) func(http.Handler) http.Handler {
 	}
 }
 
+// WithUser returns a copy of ctx carrying the authenticated user, so that
+// handlers reading UserFromContext see it. Used by Auth; also available to
+// tests that need to exercise protected handlers directly.
+func WithUser(ctx context.Context, user core.User) context.Context {
+	return context.WithValue(ctx, userContextKey, user)
+}
+
 // UserFromContext retrieves the authenticated user from the request context.
 // Returns (zero User, false) if no user is authenticated.
 func UserFromContext(ctx context.Context) (core.User, bool) {
