@@ -25,30 +25,30 @@ func New(comp *components.Components) http.Handler {
 	r.Handle("/static/*", http.StripPrefix("/static", http.FileServer(http.Dir("resources/static/"))))
 
 	// Auth routes (public)
-	r.Get("/auth/login", handleGetLogin())
-	r.Post("/auth/login", handlePostLogin(comp.AuthService))
-	r.Get("/auth/register", handleGetRegister())
-	r.Post("/auth/register", handlePostRegister(comp.AuthService))
-	r.Get("/auth/logout", handleGetLogout(comp.AuthService))
+	r.Method("GET", "/auth/login", handleGetLogin())
+	r.Method("POST", "/auth/login", handlePostLogin(comp.AuthService))
+	r.Method("GET", "/auth/register", handleGetRegister())
+	r.Method("POST", "/auth/register", handlePostRegister(comp.AuthService))
+	r.Method("GET", "/auth/logout", handleGetLogout(comp.AuthService))
 
 	// Protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(comp.AuthService))
 
-		r.Get("/", handleGetHome(comp))
-		r.Post("/bookmarks", handlePostBookmarks(comp))
+		r.Method("GET", "/", handleGetHome(comp))
+		r.Method("POST", "/bookmarks", handlePostBookmarks(comp))
 
-		r.Get("/collections", handleGetCollections(comp))
-		r.Get("/collections/new", handleGetCollectionCreation(comp))
-		r.Post("/collections", handlePostCollection(comp))
-		r.Get("/collections/{id}", handleGetCollectionById(comp))
-		r.Get("/collections/{id}/edit", handleGetCollectionEdit(comp))
-		r.Post("/collections/{id}/edit", handlePutCollectionById(comp))
-		r.Delete("/collections/{id}", handleDeleteCollectionById(comp))
-		r.Post("/collections/{id}/delete", handleDeleteCollectionById(comp))
-		r.Post("/collections/{id}/members", handlePostCollectionMember(comp))
-		r.Delete("/collections/{collectionId}/members/{userId}", handleDeleteCollectionMember(comp))
-		r.Post("/collections/{collectionId}/members/{userId}/delete", handleDeleteCollectionMember(comp))
+		r.Method("GET", "/collections", handleGetCollections(comp))
+		r.Method("GET", "/collections/new", handleGetCollectionCreation(comp))
+		r.Method("POST", "/collections", handlePostCollection(comp))
+		r.Method("GET", "/collections/{id}", handleGetCollectionById(comp))
+		r.Method("GET", "/collections/{id}/edit", handleGetCollectionEdit(comp))
+		r.Method("POST", "/collections/{id}/edit", handlePutCollectionById(comp))
+		r.Method("DELETE", "/collections/{id}", handleDeleteCollectionById(comp))
+		r.Method("POST", "/collections/{id}/delete", handleDeleteCollectionById(comp))
+		r.Method("POST", "/collections/{id}/members", handlePostCollectionMember(comp))
+		r.Method("DELETE", "/collections/{collectionId}/members/{userId}", handleDeleteCollectionMember(comp))
+		r.Method("POST", "/collections/{collectionId}/members/{userId}/delete", handleDeleteCollectionMember(comp))
 	})
 
 	return r

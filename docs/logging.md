@@ -17,6 +17,7 @@ method=GET path=/users status=200 duration=15ms user_id=abc123
 - Normal business logic failures use Info/Warn level
 - Request-scoped logger in context via httplog middleware
 - All request details consolidated into one final log entry
+- Unhandled request errors are logged once by `middleware.HandleError` with `error_id` (fresh uuid) + `request_id` attrs; that `error_id` is also surfaced to the user (error page / toast) for support correlation
 
 ## Configuration
 

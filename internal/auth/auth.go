@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,9 +9,6 @@ import (
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/google/uuid"
 )
-
-// ErrInvalidCredentials is returned when login fails due to a bad email or password.
-var ErrInvalidCredentials = errors.New("invalid email or password")
 
 // sessionStore defines the methods needed to manage sessions.
 // Implemented by *db.DB.
@@ -55,10 +51,7 @@ func (s *Service) Register(ctx context.Context, email, password string) (core.Us
 
 	user, err := s.users.CreateUser(ctx, email, hash)
 	if err != nil {
-		if errors.Is(err, core.ErrEmailTaken) {
-			return core.User{}, core.ErrEmailTaken
-		}
-		return core.User{}, fmt.Errorf("create user: %w", err)
+		return core.User{}, fmt.Errorf("register: %w", err)
 	}
 	return user, nil
 }
@@ -70,7 +63,7 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, email, password 
 		return fmt.Errorf("get user: %w", err)
 	}
 	if !found || !verifyPassword(password, passwordHash) {
-		return ErrInvalidCredentials
+		return core.ErrInvalidCredentials
 	}
 
 	sessionID := uuid.New()

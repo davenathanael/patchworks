@@ -16,36 +16,52 @@ type PaginationProps struct {
 	BaseURL     string
 }
 
-func NewBookmark(collections []core.Collection) Node {
+// BookmarkForm is the shared add-bookmark form view-model: the ajg/form
+// decode target and the render model. Zero value renders a fresh form.
+type BookmarkForm struct {
+	URL          string     `form:"url"`
+	CollectionID string     `form:"collection_id"`
+	Tags         string     `form:"tags"`
+	Errors       FormErrors `form:"-"`
+}
+
+func NewBookmark(form BookmarkForm, collections []core.Collection) Node {
 	return Details(
 		Class("add"),
 		Summary(Text("＋ Add bookmark")),
 		Div(
 			Class("panel"),
-			Form(
-				Method("POST"),
-				Action("/bookmarks"),
-				Attr("hx-post", "/bookmarks"),
-				Attr("hx-target", "#bookmarks"),
-				Attr("hx-swap", "innerHTML"),
-				Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
-				Label(Text("URL"),
-					Input(ID("add-link"), Type("url"), Name("url"), Placeholder("https://example.com"), Required(), Attr("inputmode", "url"), Attr("enterkeyhint", "go")),
-				),
-				Label(Text("Collection"),
-					Select(Name("collection_id"),
-						Option(Value(""), Text("None"), Selected()),
-						Map(collections, func(i core.Collection) Node {
-							return Option(Value(i.ID.String()), Text(i.Name))
-						}),
-					),
-				),
-				Label(Text("Tags"),
-					Input(Type("text"), Name("tags"), Placeholder("go, css, reading")),
-				),
-				Button(Type("submit"), Text("Save")),
+			NewBookmarkForm(form, collections),
+		),
+	)
+}
+
+// NewBookmarkForm renders the add-bookmark form fragment, optionally with
+// field errors. htmx failure responses retarget the swap to
+// #add-bookmark-form (the form's own hx-target is the bookmarks list).
+func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
+	return Form(
+		ID("add-bookmark-form"),
+		Method("POST"),
+		Action("/bookmarks"),
+		Attr("hx-post", "/bookmarks"),
+		Attr("hx-target", "#bookmarks"),
+		Attr("hx-swap", "innerHTML"),
+		Attr("hx-on::after-request", "if(event.detail.successful) this.reset()"),
+		TextInput("URL", "url", "url", form.URL, form.Errors,
+			ID("add-link"), Placeholder("https://example.com"), Required(),
+			Attr("inputmode", "url"), Attr("enterkeyhint", "go"),
+		),
+		Label(Text("Collection"),
+			Select(Name("collection_id"),
+				Option(Value(""), Text("None"), Selected()),
+				Map(collections, func(i core.Collection) Node {
+					return Option(Value(i.ID.String()), Text(i.Name))
+				}),
 			),
 		),
+		TextInput("Tags", "tags", "text", form.Tags, form.Errors, Placeholder("go, css, reading")),
+		Button(Type("submit"), Text("Save")),
 	)
 }
 

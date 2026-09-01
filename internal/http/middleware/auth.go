@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchwork/internal/http/views"
 )
 
 type contextKey struct{}
@@ -24,6 +25,11 @@ func Auth(svc SessionReader) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, found := svc.GetUserFromCookie(r)
 			if !found {
+				if views.IsHtmx(r) {
+					w.Header().Set("HX-Redirect", "/auth/login")
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
 				http.Redirect(w, r, "/auth/login", http.StatusFound)
 				return
 			}

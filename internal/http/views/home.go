@@ -15,6 +15,7 @@ type HomePageViewModel struct {
 	Tags            []core.Tag
 	RecentBookmarks []core.Bookmark
 	AllBookmarks    []core.Bookmark
+	AddBookmark     BookmarkForm
 	CollectionID    string
 	TagsFilter      []string
 	Page            int
@@ -40,7 +41,7 @@ func (vm *HomePageViewModel) bookmarks() Node {
 
 func (vm *HomePageViewModel) Render(w io.Writer) error {
 	mainContent := Main(
-		NewBookmark(vm.Collections),
+		NewBookmark(vm.AddBookmark, vm.Collections),
 		FilterBar(vm.Collections, vm.CollectionID, vm.Tags, vm.TagsFilter, vm.Search, vm.CurrentQuery),
 		Div(ID("bookmarks"), vm.bookmarks()),
 	)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/carlmjohnson/be"
 	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchwork/internal/http/views"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -16,7 +17,7 @@ func TestGetCollections(t *testing.T) {
 	col := &fakeCollectionStore{collections: []core.Collection{{ID: uuid.New(), Name: "Work"}}}
 
 	rec := httptest.NewRecorder()
-	getCollections(rec, mustAuthedRequest(t, http.MethodGet, "/collections", nil), col)
+	be.NilErr(t, getCollections(rec, mustAuthedRequest(t, http.MethodGet, "/collections", nil), col))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 }
@@ -24,8 +25,9 @@ func TestGetCollections(t *testing.T) {
 func TestGetCollectionsStoreError(t *testing.T) {
 	col := &fakeCollectionStore{err: errFake}
 
-	rec := httptest.NewRecorder()
-	getCollections(rec, mustAuthedRequest(t, http.MethodGet, "/collections", nil), col)
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return getCollections(w, r, col)
+	}, mustAuthedRequest(t, http.MethodGet, "/collections", nil))
 
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
@@ -34,7 +36,7 @@ func TestPostCollectionCreatesAndRedirects(t *testing.T) {
 	col := &fakeCollectionStore{}
 
 	rec := httptest.NewRecorder()
-	postCollection(rec, mustFormRequest(t, "name=Work&description=stuff"), col)
+	be.NilErr(t, postCollection(rec, mustFormRequest(t, "name=Work&description=stuff"), col))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, "/collections", rec.Header().Get("Location"))
@@ -45,10 +47,9 @@ func TestPostCollectionCreatesAndRedirects(t *testing.T) {
 }
 
 func TestPostCollectionWithoutUser(t *testing.T) {
-	rec := httptest.NewRecorder()
-	r := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/collections", nil)
-
-	postCollection(rec, r, &fakeCollectionStore{})
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postCollection(w, r, &fakeCollectionStore{})
+	}, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/collections", nil))
 
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
@@ -61,7 +62,7 @@ func TestGetCollectionById(t *testing.T) {
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	getCollectionById(rec, routeRequest(t, http.MethodGet, "/collections/"+id.String(), id.String()), col)
+	be.NilErr(t, getCollectionById(rec, routeRequest(t, http.MethodGet, "/collections/"+id.String(), id.String()), col))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, 1, col.getCalls)
@@ -70,10 +71,11 @@ func TestGetCollectionById(t *testing.T) {
 func TestGetCollectionByIdInvalidID(t *testing.T) {
 	col := &fakeCollectionStore{}
 
-	rec := httptest.NewRecorder()
-	getCollectionById(rec, routeRequest(t, http.MethodGet, "/collections/nope", "nope"), col)
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return getCollectionById(w, r, col)
+	}, routeRequest(t, http.MethodGet, "/collections/nope", "nope"))
 
-	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, http.StatusNotFound, rec.Code) // invalid id classifies as ErrNotFound -> 404 page
 }
 
 func TestPutCollectionById(t *testing.T) {
@@ -81,7 +83,7 @@ func TestPutCollectionById(t *testing.T) {
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	putCollectionById(rec, routeFormRequest(t, id, "name=Renamed&description=new"), col)
+	be.NilErr(t, putCollectionById(rec, routeFormRequest(t, id, "name=Renamed&description=new"), col))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, "/collections/"+id.String(), rec.Header().Get("Location"))
@@ -93,7 +95,7 @@ func TestPostCollectionMemberDefaultsRole(t *testing.T) {
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	postCollectionMember(rec, routeFormRequest(t, id, "email=bob%40x.com"), col)
+	be.NilErr(t, postCollectionMember(rec, routeFormRequest(t, id, "email=bob%40x.com"), col))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, 1, len(col.members))
@@ -106,7 +108,7 @@ func TestDeleteCollectionById(t *testing.T) {
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	deleteCollectionById(rec, routeRequest(t, http.MethodDelete, "/collections/"+id.String(), id.String()), col)
+	be.NilErr(t, deleteCollectionById(rec, routeRequest(t, http.MethodDelete, "/collections/"+id.String(), id.String()), col))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, "/collections", rec.Header().Get("Location"))
@@ -125,13 +127,71 @@ func TestDeleteCollectionMember(t *testing.T) {
 	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
 	rec := httptest.NewRecorder()
-	deleteCollectionMember(rec, r, col)
+	be.NilErr(t, deleteCollectionMember(rec, r, col))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, "/collections/"+colID.String(), rec.Header().Get("Location"))
 	be.Equal(t, 1, len(col.removed))
 	be.Equal(t, colID, col.removed[0].collectionID)
 	be.Equal(t, userID, col.removed[0].userID)
+}
+
+func TestPostCollectionMissingNameRerenders(t *testing.T) {
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, postCollection(rec, mustFormRequest(t, "description=stuff"), col))
+
+	be.Equal(t, http.StatusOK, rec.Code) // re-render create page with inline error
+	be.True(t, containsBody(rec, "name is required"))
+	be.True(t, containsBody(rec, "stuff")) // submitted description preserved
+	be.Equal(t, 0, len(col.created))       // nothing created
+}
+
+func TestPostCollectionInvalidFormData(t *testing.T) {
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, postCollection(rec, mustFormRequest(t, "name=%zz"), col))
+
+	be.Equal(t, http.StatusOK, rec.Code) // re-render create page with top-level alert
+	be.True(t, containsBody(rec, "invalid form data"))
+	be.Equal(t, 0, len(col.created))
+}
+
+func TestPutCollectionByIdMissingNameRerenders(t *testing.T) {
+	col := &fakeCollectionStore{}
+	id := uuid.New()
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, putCollectionById(rec, routeFormRequest(t, id, "name=&description=new"), col))
+
+	be.Equal(t, http.StatusOK, rec.Code) // re-render edit page with inline error
+	be.True(t, containsBody(rec, "name is required"))
+	be.Equal(t, uuid.Nil, col.updatedID) // nothing updated
+}
+
+func TestValidateCollection(t *testing.T) {
+	tests := []struct {
+		name  string
+		form  views.CollectionForm
+		field string // field expected to carry an error; "" = must validate clean
+	}{
+		{"valid form has no errors", views.CollectionForm{Name: "Work", Description: "stuff"}, ""},
+		{"description is optional", views.CollectionForm{Name: "Work"}, ""},
+		{"missing name", views.CollectionForm{Description: "stuff"}, "name"},
+		{"missing both", views.CollectionForm{}, "name"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateCollection(tt.form)
+			if tt.field == "" {
+				be.Equal(t, 0, len(errs))
+				return
+			}
+			be.True(t, errs[tt.field] != "")
+		})
+	}
 }
 
 // --- fakes & helpers ---

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/db/sqlc"
@@ -45,9 +46,9 @@ func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (core.
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			return core.User{}, core.ErrEmailTaken
+			return core.User{}, fmt.Errorf("create user: %w: %v", core.ErrEmailTaken, pgErr)
 		}
-		return core.User{}, err
+		return core.User{}, fmt.Errorf("create user: %w", err)
 	}
 	return toUser(row), nil
 }

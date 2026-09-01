@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,19 +27,39 @@ type BookmarkStore interface {
 	CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
 }
 
-func handleGetHome(comp *components.Components) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		getHome(w, r, comp.DB, comp.DB)
+func handleGetHome(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return getHome(w, r, comp.DB, comp.DB)
 	}
 }
 
-func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore, bookmarks BookmarkStore) {
+func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore, bookmarks BookmarkStore) error {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
-		http.Error(w, "user not found in context", 500)
-		return
+		return fmt.Errorf("user not found in context")
 	}
+
+	vm, err := loadHomeVM(r, user, collections, bookmarks)
+	if err != nil {
+		return err
+	}
+
+	if views.IsHtmx(r) {
+		err = vm.RenderFiltered(w)
+	} else {
+		err = vm.Render(w)
+	}
+	if err != nil {
+		return fmt.Errorf("render home: %w", err)
+	}
+	return nil
+}
+
+// loadHomeVM builds the home view-model from the request's filters and the
+// user's collections, tags and bookmarks.
+func loadHomeVM(r *http.Request, user core.User, collections CollectionStore, bookmarks BookmarkStore) (*views.HomePageViewModel, error) {
+	ctx := r.Context()
 
 	qs := r.URL.Query()
 	filterTags := qs["tags"]
@@ -58,17 +79,15 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 
 	collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("get collections: %w", err)
 	}
 
 	tags, err := bookmarks.GetTagsByUser(ctx, user.ID)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("get tags: %w", err)
 	}
 
-	vm := views.HomePageViewModel{
+	vm := &views.HomePageViewModel{
 		User:         user,
 		Collections:  collectionsList,
 		Tags:         tags,
@@ -80,21 +99,11 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 	}
 	recent, all, err := loadBookmarks(ctx, bookmarks, user.ID, filterCollectionID, filterTags, filterSearch)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("load bookmarks: %w", err)
 	}
 	vm.RecentBookmarks = recent
 	vm.AllBookmarks = all
-
-	if views.IsHtmx(r) {
-		err = vm.RenderFiltered(w)
-	} else {
-		err = vm.Render(w)
-	}
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	return vm, nil
 }
 
 // loadBookmarks returns the bookmark lists for a user given the active filters.
@@ -121,50 +130,70 @@ func loadBookmarks(ctx context.Context, bookmarks BookmarkStore, userID uuid.UUI
 	return recent, all, err
 }
 
-func handlePostBookmarks(comp *components.Components) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		postBookmarks(w, r, comp.DB, comp.DB, comp.HTTPClient)
+func handlePostBookmarks(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarks(w, r, comp.DB, comp.DB, comp.HTTPClient)
 	}
 }
 
 type (
-	newBookmarkForm struct {
-		URL          string `form:"url"`
-		CollectionID string `form:"collection_id"`
-		Tags         string `form:"tags"`
-	}
-
 	titleFetcher interface {
 		FetchPageTitle(ctx context.Context, u *url.URL) string
 	}
 )
 
-func postBookmarks(w http.ResponseWriter, r *http.Request, collections CollectionStore, bookmarks BookmarkStore, fetcher titleFetcher) {
+// renderBookmarkFormErrors re-renders the add-bookmark form with field errors,
+// preserving the submitted values. htmx requests retarget the swap to the form
+// element itself, since the form's own hx-target is the bookmarks list
+// (#bookmarks); plain requests re-render the full home page.
+func renderBookmarkFormErrors(w http.ResponseWriter, r *http.Request, user core.User, collections CollectionStore, bookmarks BookmarkStore, f views.BookmarkForm) error {
+	if views.IsHtmx(r) {
+		collectionsList, err := collections.GetCollectionsByUser(r.Context(), user.ID)
+		if err != nil {
+			return fmt.Errorf("get collections: %w", err)
+		}
+		w.Header().Set("HX-Retarget", "#add-bookmark-form")
+		w.Header().Set("HX-Reswap", "outerHTML")
+		if err := views.NewBookmarkForm(f, collectionsList).Render(w); err != nil {
+			return fmt.Errorf("render bookmark form: %w", err)
+		}
+		return nil
+	}
+
+	vm, err := loadHomeVM(r, user, collections, bookmarks)
+	if err != nil {
+		return err
+	}
+	vm.AddBookmark = f
+	if err := vm.Render(w); err != nil {
+		return fmt.Errorf("render home: %w", err)
+	}
+	return nil
+}
+
+func postBookmarks(w http.ResponseWriter, r *http.Request, collections CollectionStore, bookmarks BookmarkStore, fetcher titleFetcher) error {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
-		http.Error(w, "user not found in context", 500)
-		return
+		return fmt.Errorf("user not found in context")
 	}
 
-	var formData newBookmarkForm
+	var formData views.BookmarkForm
 	if err := form.NewDecoder(r.Body).Decode(&formData); err != nil {
-		http.Error(w, err.Error(), 400)
-		return
+		return fmt.Errorf("decode bookmark form: %w", err)
 	}
 
 	parsedURL, err := url.Parse(formData.URL)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
+		formData.Errors = views.FormErrors{"url": "that doesn't look like a valid URL"}
+		return renderBookmarkFormErrors(w, r, user, collections, bookmarks, formData)
 	}
 
 	collectionID := uuid.Nil
 	if formData.CollectionID != "" {
 		collectionID, err = uuid.Parse(formData.CollectionID)
 		if err != nil {
-			http.Error(w, err.Error(), 400)
-			return
+			return fmt.Errorf("invalid collection id %q in bookmark form: %w", formData.CollectionID, err)
 		}
 	}
 
@@ -180,30 +209,25 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
 	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, collectionID, tags); err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return fmt.Errorf("create bookmark: %w", err)
 	}
 
 	if views.IsHtmx(r) {
 		collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("get collections: %w", err)
 		}
 		tags, err := bookmarks.GetTagsByUser(ctx, user.ID)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("get tags: %w", err)
 		}
 		recent, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, "")
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("get recent bookmarks: %w", err)
 		}
 		all, err := bookmarks.GetAllBookmarksByUser(ctx, user.ID, "")
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("get all bookmarks: %w", err)
 		}
 		vm := views.HomePageViewModel{
 			User:            user,
@@ -214,10 +238,11 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 			CurrentQuery:    url.Values{},
 		}
 		if err := vm.RenderFiltered(w); err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return fmt.Errorf("render filtered home: %w", err)
 		}
-		return
+		return nil
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
 }

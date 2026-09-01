@@ -185,6 +185,22 @@
         container-name: viewport;
     }
 
+    /* toast container — fixed, above the topnav's z-10 */
+    #toast-container {
+        position: fixed;
+        right: var(--size-4);
+        bottom: var(--size-4);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: var(--size-2);
+        pointer-events: none; /* let clicks pass through; toasts re-enable below */
+
+        > * {
+            pointer-events: auto;
+        }
+    }
+
     [data-sidebar-layout] {
         display: flex;
         flex-direction: column;
@@ -529,7 +545,7 @@
                             line-height: var(--font-lineheight-3);
                         }
                     }
-                }
+                        }
             }
         }
     }
@@ -781,6 +797,77 @@
 
     body > main > p {
         margin-top: var(--size-3);
+    }
+
+    /* ---- form errors + toasts + error page ---- */
+    .form-error {
+        margin-top: var(--size-1);
+        color: var(--danger);
+        font-size: var(--font-size-0);
+        font-weight: var(--font-weight-6);
+    }
+
+    .toast {
+        display: flex;
+        align-items: center;
+        gap: var(--size-2);
+        max-width: min(100%, 24rem);
+        padding: var(--size-2) var(--size-3);
+        border: 1px solid var(--border);
+        border-inline-start: 3px solid var(--toast-accent, var(--border));
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--text-1);
+        font-size: var(--font-size-0);
+        box-shadow: var(--shadow-2);
+        animation: var(--animation-slide-in-up);
+
+        code {
+            color: var(--text-3);
+            font-size: 0.85em;
+        }
+    }
+
+    .toast-error {
+        --toast-accent: var(--danger);
+    }
+
+    .toast-success {
+        --toast-accent: var(--success);
+    }
+
+    /* × dismiss — ghost child button, overrides the base button look */
+    .toast-dismiss {
+        flex: none;
+        margin-inline-start: auto;
+        min-height: 0;
+        padding-block: 0;
+        padding-inline: var(--size-1);
+        border: 0;
+        background: none;
+        color: var(--text-3);
+        font-size: var(--font-size-1);
+        line-height: 1;
+
+        &:hover {
+            color: var(--danger);
+        }
+    }
+
+    /* standalone error page — body > main already centers; add focus layout */
+    main.error-page {
+        gap: var(--size-2);
+        width: min(100% - var(--size-7), 30rem);
+        text-align: center;
+
+        p {
+            color: var(--text-2);
+        }
+
+        code {
+            color: var(--text-3);
+            font-size: var(--font-size-0);
+        }
     }
 }
 

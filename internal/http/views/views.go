@@ -22,6 +22,7 @@ func Page(title string, children ...Node) Node {
 			Link(Rel("stylesheet"), Href("https://unpkg.com/open-props")),
 			Link(Rel("stylesheet"), Href("/static/css/app.css")),
 			Script(Src("https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js"), Defer()),
+			Script(Src("/static/js/app.js"), Defer()),
 		},
 		Body: children,
 	})
@@ -33,6 +34,7 @@ func AppShell(user core.User, mainContent Node) Node {
 		Nav(Class("sidenav"), SideNav(user)),
 		Nav(Attr("data-topnav"), TopNav(user)),
 		mainContent,
+		Div(ID("toast-container")),
 	)
 }
 

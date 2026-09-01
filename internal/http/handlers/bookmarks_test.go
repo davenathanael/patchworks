@@ -27,7 +27,7 @@ func TestGetHomeNoFilters(t *testing.T) {
 	col := &fakeCollectionStore{collections: []core.Collection{{ID: uuid.New(), Name: "Work"}}}
 
 	rec := httptest.NewRecorder()
-	getHome(rec, mustAuthedRequest(t, http.MethodGet, "/", nil), col, bm)
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/", nil), col, bm))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "all", bm.last) // else-branch ran (only it calls GetAllBookmarksByUser)
@@ -39,7 +39,7 @@ func TestGetHomeCollectionFilter(t *testing.T) {
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?collection_id="+id.String(), nil), col, bm)
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?collection_id="+id.String(), nil), col, bm))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "collection", bm.last)
@@ -51,7 +51,7 @@ func TestGetHomeTagsFilter(t *testing.T) {
 	col := &fakeCollectionStore{}
 
 	rec := httptest.NewRecorder()
-	getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?tags=go", nil), col, bm)
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?tags=go", nil), col, bm))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "tags", bm.last)
@@ -63,7 +63,7 @@ func TestGetHomeCollectionAndTagsFilter(t *testing.T) {
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?collection_id="+id.String()+"&tags=go", nil), col, bm)
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?collection_id="+id.String()+"&tags=go", nil), col, bm))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "collection+tags", bm.last)
@@ -71,20 +71,20 @@ func TestGetHomeCollectionAndTagsFilter(t *testing.T) {
 }
 
 func TestGetHomeWithoutUser(t *testing.T) {
-	rec := httptest.NewRecorder()
-	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
-
-	getHome(rec, r, &fakeCollectionStore{}, &fakeBookmarkStore{})
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return getHome(w, r, &fakeCollectionStore{}, &fakeBookmarkStore{})
+	}, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil))
 
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
 func TestGetHomeStoreError(t *testing.T) {
-	rec := httptest.NewRecorder()
 	col := &fakeCollectionStore{err: errFake}
 	bm := &fakeBookmarkStore{}
 
-	getHome(rec, mustAuthedRequest(t, http.MethodGet, "/", nil), col, bm)
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return getHome(w, r, col, bm)
+	}, mustAuthedRequest(t, http.MethodGet, "/", nil))
 
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
@@ -95,7 +95,7 @@ func TestPostBookmarksCreatesAndRedirects(t *testing.T) {
 	fetcher := fakeTitleFetcher{title: "Example"}
 
 	rec := httptest.NewRecorder()
-	postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&tags=go%2C+web"), col, bm, fetcher)
+	be.NilErr(t, postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&tags=go%2C+web"), col, bm, fetcher))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, "/", rec.Header().Get("Location"))
@@ -113,7 +113,7 @@ func TestPostBookmarksEmptyTags(t *testing.T) {
 	col := &fakeCollectionStore{}
 
 	rec := httptest.NewRecorder()
-	postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&tags=%20%2C%20"), col, bm, fakeTitleFetcher{title: "Example"})
+	be.NilErr(t, postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&tags=%20%2C%20"), col, bm, fakeTitleFetcher{title: "Example"}))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, 1, len(bm.created))
@@ -124,10 +124,11 @@ func TestPostBookmarksInvalidCollectionID(t *testing.T) {
 	bm := &fakeBookmarkStore{}
 	col := &fakeCollectionStore{}
 
-	rec := httptest.NewRecorder()
-	postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&collection_id=not-a-uuid"), col, bm, fakeTitleFetcher{})
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarks(w, r, col, bm, fakeTitleFetcher{})
+	}, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&collection_id=not-a-uuid"))
 
-	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, http.StatusInternalServerError, rec.Code) // tampered select value, not reachable via the UI
 }
 
 func TestPostBookmarksMalformedURL(t *testing.T) {
@@ -135,16 +136,32 @@ func TestPostBookmarksMalformedURL(t *testing.T) {
 	col := &fakeCollectionStore{}
 
 	rec := httptest.NewRecorder()
-	postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2F%25"), col, bm, fakeTitleFetcher{})
+	err := postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2F%25"), col, bm, fakeTitleFetcher{})
+	be.NilErr(t, err)
 
-	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, http.StatusOK, rec.Code) // re-rendered home page with inline field error
+	be.True(t, containsBody(rec, "valid URL"))
+}
+
+func TestPostBookmarksMalformedURLPreservesValues(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+	col := &fakeCollectionStore{collections: []core.Collection{{ID: uuid.New(), Name: "Work"}}}
+
+	rec := httptest.NewRecorder()
+	err := postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2F%25&tags=go%2C+web"), col, bm, fakeTitleFetcher{})
+	be.NilErr(t, err)
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.True(t, containsBody(rec, "valid URL"))
+	be.True(t, containsBody(rec, `value="http://%"`)) // submitted URL preserved
+	be.True(t, containsBody(rec, `value="go, web"`))  // submitted tags preserved
+	be.True(t, containsBody(rec, "Dashboard"))        // full page, not a bare fragment
 }
 
 func TestPostBookmarksWithoutUser(t *testing.T) {
-	rec := httptest.NewRecorder()
-	r := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/bookmarks", nil)
-
-	postBookmarks(rec, r, &fakeCollectionStore{}, &fakeBookmarkStore{}, fakeTitleFetcher{})
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarks(w, r, &fakeCollectionStore{}, &fakeBookmarkStore{}, fakeTitleFetcher{})
+	}, httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/bookmarks", nil))
 
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
@@ -156,13 +173,37 @@ func TestPostBookmarksHtmxRendersFiltered(t *testing.T) {
 
 	r := mustFormRequest(t, "url=http%3A%2F%2Fexample.com")
 	r.Header.Set("HX-Request", "true")
-	postBookmarks(rec, r, col, bm, fakeTitleFetcher{title: "Example"})
+	be.NilErr(t, postBookmarks(rec, r, col, bm, fakeTitleFetcher{title: "Example"}))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "", rec.Header().Get("Location")) // no redirect on htmx
 }
 
+func TestPostBookmarksHtmxMalformedURL(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+	col := &fakeCollectionStore{}
+	rec := httptest.NewRecorder()
+
+	r := mustFormRequest(t, "url=http%3A%2F%2F%25&tags=go%2C+web")
+	r.Header.Set("HX-Request", "true")
+	err := postBookmarks(rec, r, col, bm, fakeTitleFetcher{})
+	be.NilErr(t, err)
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "#add-bookmark-form", rec.Header().Get("HX-Retarget")) // error retargets the form, not #bookmarks
+	be.True(t, containsBody(rec, "valid URL"))
+	be.True(t, containsBody(rec, `value="go, web"`)) // submitted tags preserved in the fragment
+}
+
 // --- fakes & helpers ---
+
+// serve runs a Handler through Adapt so status codes are written by the
+// HandleError wrapper (mirrors real registration).
+func serve(h Handler, r *http.Request) *httptest.ResponseRecorder {
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, r)
+	return rec
+}
 
 var errFake = errors.New("boom")
 

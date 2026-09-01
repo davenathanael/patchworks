@@ -3,10 +3,10 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/ajg/form"
-	"github.com/davenathanael/patchwork/internal/auth"
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/http/views"
 )
@@ -26,91 +26,99 @@ type AuthLogoutHandler interface {
 	Logout(w http.ResponseWriter, r *http.Request) error
 }
 
-type credentialsForm struct {
-	Email    string `form:"email"`
-	Password string `form:"password"`
+// renderLogin renders the login page, preserving values and errors.
+func renderLogin(w http.ResponseWriter, f views.CredentialsForm) error {
+	if err := views.LoginPage(f).Render(w); err != nil {
+		return fmt.Errorf("render login page: %w", err)
+	}
+	return nil
+}
+
+// renderRegister renders the registration page, preserving values and errors.
+func renderRegister(w http.ResponseWriter, f views.CredentialsForm) error {
+	if err := views.RegisterPage(f).Render(w); err != nil {
+		return fmt.Errorf("render register page: %w", err)
+	}
+	return nil
 }
 
 // handleGetLogin renders the login page.
-func handleGetLogin() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := views.LoginPage().Render(w); err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
+func handleGetLogin() Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return renderLogin(w, views.CredentialsForm{})
 	}
 }
 
 // handlePostLogin authenticates the user and redirects home.
-func handlePostLogin(svc AuthLoginHandler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var f credentialsForm
+func handlePostLogin(svc AuthLoginHandler) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		var f views.CredentialsForm
 		if err := form.NewDecoder(r.Body).Decode(&f); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			f.Errors = views.FormErrors{"form": "invalid form data"}
+			return renderLogin(w, f)
 		}
 
-		if f.Email == "" || f.Password == "" {
-			http.Error(w, "email and password are required", http.StatusBadRequest)
-			return
+		if errs := validateCredentials(f); len(errs) > 0 {
+			f.Errors = errs
+			return renderLogin(w, f)
 		}
 
 		err := svc.Login(w, r, f.Email, f.Password)
-		if errors.Is(err, auth.ErrInvalidCredentials) {
-			http.Error(w, "invalid email or password", http.StatusUnauthorized)
-			return
+		if errors.Is(err, core.ErrInvalidCredentials) {
+			f.Errors = views.FormErrors{"form": "invalid email or password"}
+			return renderLogin(w, f)
 		}
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("login: %w", err)
 		}
 
 		http.Redirect(w, r, "/", http.StatusFound)
+		return nil
 	}
 }
 
 // handleGetRegister renders the registration page.
-func handleGetRegister() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := views.RegisterPage().Render(w); err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
+func handleGetRegister() Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return renderRegister(w, views.CredentialsForm{})
 	}
 }
 
 // handlePostRegister creates a new user and redirects to login.
-func handlePostRegister(svc AuthRegistrar) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var f credentialsForm
+func handlePostRegister(svc AuthRegistrar) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		var f views.CredentialsForm
 		if err := form.NewDecoder(r.Body).Decode(&f); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			f.Errors = views.FormErrors{"form": "invalid form data"}
+			return renderRegister(w, f)
 		}
 
-		if f.Email == "" || f.Password == "" {
-			http.Error(w, "email and password are required", http.StatusBadRequest)
-			return
+		if errs := validateCredentials(f); len(errs) > 0 {
+			f.Errors = errs
+			return renderRegister(w, f)
 		}
 
-		if _, err := svc.Register(r.Context(), f.Email, f.Password); err != nil {
-			if errors.Is(err, core.ErrEmailTaken) {
-				http.Error(w, core.ErrEmailTaken.Error(), http.StatusBadRequest)
-				return
-			}
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+		_, err := svc.Register(r.Context(), f.Email, f.Password)
+		if errors.Is(err, core.ErrEmailTaken) {
+			f.Errors = views.FormErrors{"form": core.ErrEmailTaken.Error()}
+			return renderRegister(w, f)
+		}
+		if err != nil {
+			return fmt.Errorf("register: %w", err)
 		}
 
 		http.Redirect(w, r, "/auth/login", http.StatusFound)
+		return nil
 	}
 }
 
 // handleGetLogout logs the user out.
-func handleGetLogout(svc AuthLogoutHandler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetLogout(svc AuthLogoutHandler) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if err := svc.Logout(w, r); err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			return fmt.Errorf("logout: %w", err)
 		}
 		http.Redirect(w, r, "/auth/login", http.StatusFound)
+		return nil
 	}
 }

@@ -70,8 +70,8 @@ func TestLoginRejectsBadCredentials(t *testing.T) {
 	req2 := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/auth/login", nil)
 	unknownUser := svc.Login(rec2, req2, "nobody@x.y", "whatever")
 
-	be.Equal(t, ErrInvalidCredentials, wrongPass)
-	be.Equal(t, ErrInvalidCredentials, unknownUser)
+	be.Equal(t, core.ErrInvalidCredentials, wrongPass)
+	be.Equal(t, core.ErrInvalidCredentials, unknownUser)
 	be.Equal(t, 0, len(f.sessions)) // no session created on failure
 }
 
@@ -83,7 +83,7 @@ func TestLoginStoreErrorPropagates(t *testing.T) {
 
 	err := svc.Login(w, r, "a@b.c", "x")
 	be.Nonzero(t, err)
-	be.Unequal(t, ErrInvalidCredentials, err) // must not masquerade as bad creds
+	be.Unequal(t, core.ErrInvalidCredentials, err) // must not masquerade as bad creds
 }
 
 func TestLogoutDeletesSession(t *testing.T) {

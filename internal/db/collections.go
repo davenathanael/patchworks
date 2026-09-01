@@ -2,12 +2,14 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/db/sqlc"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -90,6 +92,9 @@ func (db *DB) CreateCollection(ctx context.Context, userID uuid.UUID, name, desc
 func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionWithBookmarks, error) {
 	collectionRow, err := db.querier.GetCollectionById(ctx, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.CollectionWithBookmarks{}, fmt.Errorf("get collection: %w", core.ErrNotFound)
+		}
 		return core.CollectionWithBookmarks{}, err
 	}
 

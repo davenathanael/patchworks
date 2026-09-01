@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/carlmjohnson/be"
-	"github.com/davenathanael/patchwork/internal/auth"
 	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchwork/internal/http/views"
 )
 
 func TestGetLoginPage(t *testing.T) {
@@ -30,12 +30,22 @@ func TestPostLoginSuccess(t *testing.T) {
 	be.Equal(t, "a@b.c", svc.loginEmail)
 }
 
+func TestPostLoginInvalidFormData(t *testing.T) {
+	svc := &fakeAuth{}
+	rec := httptest.NewRecorder()
+	handlePostLogin(svc).ServeHTTP(rec, mustFormRequest(t, "email=%zz"))
+
+	be.Equal(t, http.StatusOK, rec.Code) // re-render with top-level alert
+	be.True(t, containsBody(rec, "invalid form data"))
+	be.Equal(t, "", svc.loginEmail) // Login not called
+}
+
 func TestPostLoginInvalidCredentials(t *testing.T) {
-	svc := &fakeAuth{loginErr: auth.ErrInvalidCredentials}
+	svc := &fakeAuth{loginErr: core.ErrInvalidCredentials}
 	rec := httptest.NewRecorder()
 	handlePostLogin(svc).ServeHTTP(rec, mustFormRequest(t, "email=a%40b.c&password=wrong"))
 
-	be.Equal(t, http.StatusUnauthorized, rec.Code)
+	be.Equal(t, http.StatusOK, rec.Code) // re-render with inline error
 	be.True(t, containsBody(rec, "invalid email or password"))
 	be.False(t, containsBody(rec, "boom")) // no internal error details leaked
 }
@@ -53,7 +63,8 @@ func TestPostLoginEmptyCredentials(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handlePostLogin(svc).ServeHTTP(rec, mustFormRequest(t, "email=&password="))
 
-	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, http.StatusOK, rec.Code) // re-render with inline field errors
+	be.True(t, containsBody(rec, "email is required"))
 	be.Equal(t, "", svc.loginEmail) // Login not called
 }
 
@@ -62,7 +73,17 @@ func TestPostRegisterEmptyCredentials(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handlePostRegister(svc).ServeHTTP(rec, mustFormRequest(t, "email=&password="))
 
-	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, http.StatusOK, rec.Code) // re-render with inline field errors
+	be.Equal(t, 0, len(svc.registered))
+}
+
+func TestPostRegisterInvalidFormData(t *testing.T) {
+	svc := &fakeAuth{}
+	rec := httptest.NewRecorder()
+	handlePostRegister(svc).ServeHTTP(rec, mustFormRequest(t, "email=%zz"))
+
+	be.Equal(t, http.StatusOK, rec.Code) // re-render with top-level alert
+	be.True(t, containsBody(rec, "invalid form data"))
 	be.Equal(t, 0, len(svc.registered))
 }
 
@@ -81,7 +102,7 @@ func TestPostRegisterDuplicateEmail(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handlePostRegister(svc).ServeHTTP(rec, mustFormRequest(t, "email=a%40b.c&password=pw"))
 
-	be.Equal(t, http.StatusBadRequest, rec.Code)
+	be.Equal(t, http.StatusOK, rec.Code) // re-render with top-level alert
 	be.True(t, containsBody(rec, "already registered"))
 }
 
@@ -101,6 +122,29 @@ func TestGetLogout(t *testing.T) {
 	be.Equal(t, http.StatusFound, rec.Code)
 	be.Equal(t, "/auth/login", rec.Header().Get("Location"))
 	be.Equal(t, 1, svc.logoutCalls)
+}
+
+func TestValidateCredentials(t *testing.T) {
+	tests := []struct {
+		name  string
+		form  views.CredentialsForm
+		field string // field expected to carry an error; "" = must validate clean
+	}{
+		{"valid form has no errors", views.CredentialsForm{Email: "a@b.c", Password: "pw"}, ""},
+		{"missing email", views.CredentialsForm{Password: "pw"}, "email"},
+		{"missing password", views.CredentialsForm{Email: "a@b.c"}, "password"},
+		{"missing both", views.CredentialsForm{}, "email"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateCredentials(tt.form)
+			if tt.field == "" {
+				be.Equal(t, 0, len(errs))
+				return
+			}
+			be.True(t, errs[tt.field] != "")
+		})
+	}
 }
 
 // --- fakes & helpers ---

@@ -12,6 +12,14 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+// CollectionForm is the shared create/edit collection form view-model: the
+// ajg/form decode target and the render model. Zero value renders a fresh form.
+type CollectionForm struct {
+	Name        string     `form:"name"`
+	Description string     `form:"description"`
+	Errors      FormErrors `form:"-"`
+}
+
 func ListCollectionsPage(collections []core.Collection, user core.User) Node {
 	collectionItem := func(c core.Collection) Node {
 		memberCount := len(c.Members)
@@ -62,13 +70,19 @@ func initialsFromEmail(email string) string {
 	return strings.ToUpper(name)
 }
 
-func CreateCollectionsPage(user core.User) Node {
+// CreateCollectionsPage renders the create-collection form, preserving
+// submitted values and field errors.
+func CreateCollectionsPage(user core.User, f CollectionForm) Node {
 	content := Main(
 		backToCollectionsLink(),
 		H1(Text("Create a Collection")),
 		Form(Method("post"), Action("/collections"),
-			Label(Text("Name"), Input(Type("text"), Name("name"), Placeholder("e.g. Work"), Required())),
-			Label(Text("Description"), Textarea(Name("description"), Placeholder("What lives here?"))),
+			If(f.Errors["form"] != "", Toast("error", f.Errors["form"], "")),
+			TextInput("Name", "name", "text", f.Name, f.Errors, Placeholder("e.g. Work"), Required()),
+			Label(Text("Description"),
+				Textarea(Name("description"), Placeholder("What lives here?"), Text(f.Description)),
+				FieldError("description", f.Errors),
+			),
 			Button(Type("submit"), Text("Create")),
 		),
 	)
@@ -142,16 +156,18 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 	return Page(collection.Name+" - Patchworks", AppShell(user, content))
 }
 
-func EditCollectionPage(collection core.Collection, user core.User) Node {
+// EditCollectionPage renders the edit-collection form, preserving submitted
+// values and field errors.
+func EditCollectionPage(user core.User, f CollectionForm, id uuid.UUID) Node {
 	content := Main(
-		backToCollectionLink(collection.ID),
+		backToCollectionLink(id),
 		H1(Text("Edit Collection")),
-		Form(Method(http.MethodPost), Action(fmt.Sprintf("/collections/%s/edit", collection.ID.String())),
-			Label(Text("Name"),
-				Input(Type("text"), Name("name"), Value(collection.Name), Placeholder("Name"), Required()),
-			),
+		Form(Method(http.MethodPost), Action(fmt.Sprintf("/collections/%s/edit", id.String())),
+			If(f.Errors["form"] != "", Toast("error", f.Errors["form"], "")),
+			TextInput("Name", "name", "text", f.Name, f.Errors, Placeholder("Name"), Required()),
 			Label(Text("Description"),
-				Textarea(Name("description"), Placeholder("Description"), Text(collection.Description)),
+				Textarea(Name("description"), Placeholder("Description"), Text(f.Description)),
+				FieldError("description", f.Errors),
 			),
 			Button(Type("submit"), Text("Save")),
 		),
