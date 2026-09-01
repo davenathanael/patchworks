@@ -581,6 +581,10 @@
         gap: var(--size-3);
     }
 
+    .detail-main {
+        min-width: 0;
+    }
+
     .detail-side {
         display: grid;
         gap: var(--size-3);
