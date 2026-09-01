@@ -72,7 +72,7 @@ func TestDecryptShortCiphertext(t *testing.T) {
 
 func TestSetSessionCookie(t *testing.T) {
 	w := httptest.NewRecorder()
-	err := SetSessionCookie(w, CookieConfig{Key: testKey(t), Secure: true}, "session-1")
+	err := setSessionCookie(w, CookieConfig{Key: testKey(t), Secure: true}, "session-1")
 	be.NilErr(t, err)
 
 	cookies := w.Result().Cookies()
@@ -87,14 +87,14 @@ func TestSetSessionCookie(t *testing.T) {
 func TestGetSessionCookieRoundTrip(t *testing.T) {
 	key := testKey(t)
 	w := httptest.NewRecorder()
-	be.NilErr(t, SetSessionCookie(w, CookieConfig{Key: key}, "session-1"))
+	be.NilErr(t, setSessionCookie(w, CookieConfig{Key: key}, "session-1"))
 
 	r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	for _, c := range w.Result().Cookies() {
 		r.AddCookie(c)
 	}
 
-	got, err := GetSessionCookie(r, CookieConfig{Key: key})
+	got, err := getSessionCookie(r, CookieConfig{Key: key})
 	be.NilErr(t, err)
 	be.Equal(t, "session-1", got)
 }
@@ -109,7 +109,7 @@ func TestSessionCookieSecureFlag(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			be.NilErr(t, SetSessionCookie(w, CookieConfig{Key: testKey(t), Secure: tc.secure}, "s"))
+			be.NilErr(t, setSessionCookie(w, CookieConfig{Key: testKey(t), Secure: tc.secure}, "s"))
 			be.Equal(t, tc.secure, w.Result().Cookies()[0].Secure)
 		})
 	}
@@ -117,7 +117,7 @@ func TestSessionCookieSecureFlag(t *testing.T) {
 
 func TestDeleteSessionCookieSecureFlag(t *testing.T) {
 	w := httptest.NewRecorder()
-	DeleteSessionCookie(w, CookieConfig{Key: testKey(t), Secure: true})
+	deleteSessionCookie(w, CookieConfig{Key: testKey(t), Secure: true})
 	be.True(t, w.Result().Cookies()[0].Secure)
 }
 

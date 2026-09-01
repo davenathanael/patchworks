@@ -15,7 +15,7 @@ func (db *DB) GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, 
 		return nil, err
 	}
 
-	return ToTags(tags), nil
+	return toTags(tags), nil
 }
 
 func (db *DB) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
@@ -147,7 +147,7 @@ func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, us
 		return core.Bookmark{}, err
 	}
 
-	return ToBookmark(createdBookmark, tags, user), nil
+	return toBookmark(createdBookmark, tags, user), nil
 }
 
 func (db *DB) toBookmarksWithTags(ctx context.Context, rows []sqlc.GetRecentBookmarksByUserIdRow) ([]core.Bookmark, error) {
@@ -165,5 +165,5 @@ func (db *DB) toBookmarksWithTags(ctx context.Context, rows []sqlc.GetRecentBook
 		return nil, err
 	}
 
-	return ToBookmarks(rows, tagRows), nil
+	return toBookmarks(rows, tagRows), nil
 }

@@ -56,7 +56,10 @@ func (db *DB) CreateCollection(ctx context.Context, userID uuid.UUID, name, desc
 	defer func() { _ = tx.Rollback(ctx) }()
 	querier := db.querier.WithTx(tx)
 
-	collectionID, _ := uuid.NewV7()
+	collectionID, err := uuid.NewV7()
+	if err != nil {
+		return err
+	}
 
 	_, err = querier.CreateCollection(ctx, sqlc.CreateCollectionParams{
 		ID:          collectionID,
@@ -115,7 +118,7 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 				CreatedAt:  row.Bookmark.CreatedAt.Time,
 				UpdatedAt:  row.Bookmark.UpdatedAt.Time,
 				ArchivedAt: row.Bookmark.ArchivedAt.Time,
-				Author:     ToUser(row.User),
+				Author:     toUser(row.User),
 			}
 			bookmarksByID[row.Bookmark.ID] = bm
 			bookmarks = append(bookmarks, *bm)

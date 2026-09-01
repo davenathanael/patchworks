@@ -40,13 +40,13 @@ func getCollections(w http.ResponseWriter, r *http.Request, collections Collecti
 
 	collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	err = views.ListCollectionsPage(collectionsList, user).Render(w)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
@@ -66,7 +66,7 @@ func getCollectionCreation(w http.ResponseWriter, r *http.Request) {
 
 	err := views.CreateCollectionsPage(user).Render(w)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
@@ -97,7 +97,7 @@ func postCollection(w http.ResponseWriter, r *http.Request, collections Collecti
 
 	err := collections.CreateCollection(ctx, user.ID, formData.Name, formData.Description)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -126,13 +126,13 @@ func getCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 
 	collection, err := collections.GetCollection(ctx, id)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	err = views.CollectionPage(collection.Collection, collection.Bookmarks, user).Render(w)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
@@ -158,13 +158,13 @@ func getCollectionEdit(w http.ResponseWriter, r *http.Request, collections Colle
 
 	collection, err := collections.GetCollection(ctx, id)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	err = views.EditCollectionPage(collection.Collection, user).Render(w)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }
 
@@ -200,7 +200,7 @@ func putCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 
 	_, err = collections.UpdateCollection(ctx, id, formData.Name, formData.Description)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -243,7 +243,7 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, collections Co
 
 	err = collections.AddMember(ctx, collectionID, formData.Email, formData.Role)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -277,7 +277,7 @@ func deleteCollectionMember(w http.ResponseWriter, r *http.Request, collections 
 
 	err = collections.RemoveMember(ctx, collectionID, memberID)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -305,7 +305,7 @@ func deleteCollectionById(w http.ResponseWriter, r *http.Request, collections Co
 
 	err = collections.DeleteCollection(ctx, id)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 

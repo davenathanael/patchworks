@@ -29,7 +29,7 @@ type CookieConfig struct {
 }
 
 // SetSessionCookie encrypts the session ID and sets it in an HTTP cookie.
-func SetSessionCookie(w http.ResponseWriter, cfg CookieConfig, sessionID string) error {
+func setSessionCookie(w http.ResponseWriter, cfg CookieConfig, sessionID string) error {
 	encrypted, err := encryptAES(cfg.Key, sessionID)
 	if err != nil {
 		return fmt.Errorf("encrypt session: %w", err)
@@ -49,7 +49,7 @@ func SetSessionCookie(w http.ResponseWriter, cfg CookieConfig, sessionID string)
 }
 
 // GetSessionCookie retrieves and decrypts the session ID from the request's cookie.
-func GetSessionCookie(r *http.Request, cfg CookieConfig) (string, error) {
+func getSessionCookie(r *http.Request, cfg CookieConfig) (string, error) {
 	cookie, err := r.Cookie(cookieName)
 	if err != nil {
 		return "", err // http.ErrNoCookie or other error
@@ -63,7 +63,7 @@ func GetSessionCookie(r *http.Request, cfg CookieConfig) (string, error) {
 }
 
 // DeleteSessionCookie clears the session cookie.
-func DeleteSessionCookie(w http.ResponseWriter, cfg CookieConfig) {
+func deleteSessionCookie(w http.ResponseWriter, cfg CookieConfig) {
 	cookie := &http.Cookie{ // #nosec G124 -- Secure is env-driven (SESSION_COOKIE_SECURE)
 		Name:     cookieName,
 		Value:    "",

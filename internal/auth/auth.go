@@ -80,7 +80,7 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, email, password 
 		return fmt.Errorf("create session: %w", err)
 	}
 
-	if err := SetSessionCookie(w, s.cookieCfg, session.ID.String()); err != nil {
+	if err := setSessionCookie(w, s.cookieCfg, session.ID.String()); err != nil {
 		return fmt.Errorf("set session cookie: %w", err)
 	}
 	return nil
@@ -88,16 +88,16 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, email, password 
 
 // Logout deletes the session from the database and clears the session cookie.
 func (s *Service) Logout(w http.ResponseWriter, r *http.Request) error {
-	sessionID, err := GetSessionCookie(r, s.cookieCfg)
+	sessionID, err := getSessionCookie(r, s.cookieCfg)
 	if err != nil {
 		// No session cookie is fine for logout.
-		DeleteSessionCookie(w, s.cookieCfg)
+		deleteSessionCookie(w, s.cookieCfg)
 		return nil
 	}
 
 	sessionUUID, err := uuid.Parse(sessionID)
 	if err != nil {
-		DeleteSessionCookie(w, s.cookieCfg)
+		deleteSessionCookie(w, s.cookieCfg)
 		return nil
 	}
 
@@ -105,14 +105,14 @@ func (s *Service) Logout(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("delete session failed: %w", err)
 	}
 
-	DeleteSessionCookie(w, s.cookieCfg)
+	deleteSessionCookie(w, s.cookieCfg)
 	return nil
 }
 
 // GetUserFromCookie retrieves the authenticated user from the session cookie.
 // Returns (zero User, false) if no valid session exists.
 func (s *Service) GetUserFromCookie(r *http.Request) (core.User, bool) {
-	sessionID, err := GetSessionCookie(r, s.cookieCfg)
+	sessionID, err := getSessionCookie(r, s.cookieCfg)
 	if err != nil {
 		return core.User{}, false
 	}

@@ -35,7 +35,7 @@ type credentialsForm struct {
 func handleGetLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := views.LoginPage().Render(w); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 	}
 }
@@ -60,7 +60,7 @@ func handlePostLogin(svc AuthLoginHandler) http.HandlerFunc {
 			return
 		}
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
@@ -72,7 +72,7 @@ func handlePostLogin(svc AuthLoginHandler) http.HandlerFunc {
 func handleGetRegister() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := views.RegisterPage().Render(w); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func handlePostRegister(svc AuthRegistrar) http.HandlerFunc {
 				http.Error(w, core.ErrEmailTaken.Error(), http.StatusBadRequest)
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
@@ -108,7 +108,7 @@ func handlePostRegister(svc AuthRegistrar) http.HandlerFunc {
 func handleGetLogout(svc AuthLogoutHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := svc.Logout(w, r); err != nil {
-			http.Error(w, "logout failed: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		http.Redirect(w, r, "/auth/login", http.StatusFound)

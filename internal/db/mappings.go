@@ -9,7 +9,7 @@ import (
 )
 
 // ToUser converts a sqlc.User row to a core.User struct.
-func ToUser(row sqlc.User) core.User {
+func toUser(row sqlc.User) core.User {
 	return core.User{
 		ID:    row.ID,
 		Email: row.Email,
@@ -17,7 +17,7 @@ func ToUser(row sqlc.User) core.User {
 }
 
 // ToSession converts a sqlc.Session row to a core.Session struct.
-func ToSession(row sqlc.Session) core.Session {
+func toSession(row sqlc.Session) core.Session {
 	return core.Session{
 		ID:        row.ID,
 		UserID:    row.UserID,
@@ -25,22 +25,7 @@ func ToSession(row sqlc.Session) core.Session {
 	}
 }
 
-func ToCollections(rows []sqlc.ListUserCollectionsRow) []core.Collection {
-	var collections []core.Collection
-	for _, row := range rows {
-		collections = append(collections, core.Collection{
-			ID:            row.Collection.ID,
-			Name:          row.Collection.Name,
-			Description:   row.Collection.Description.String,
-			CreatedAt:     row.Collection.CreatedAt.Time,
-			UpdatedAt:     row.Collection.UpdatedAt.Time,
-			BookmarkCount: int(row.BookmarkCount),
-		})
-	}
-	return collections
-}
-
-func ToTags(rows []sqlc.GetTagsByUserIdRow) []core.Tag {
+func toTags(rows []sqlc.GetTagsByUserIdRow) []core.Tag {
 	var tags []core.Tag
 	for _, row := range rows {
 		tags = append(tags, core.Tag{
@@ -51,7 +36,7 @@ func ToTags(rows []sqlc.GetTagsByUserIdRow) []core.Tag {
 	return tags
 }
 
-func ToBookmarks(rows []sqlc.GetRecentBookmarksByUserIdRow, tagRows []sqlc.GetTagsByBookmarkIdsRow) []core.Bookmark {
+func toBookmarks(rows []sqlc.GetRecentBookmarksByUserIdRow, tagRows []sqlc.GetTagsByBookmarkIdsRow) []core.Bookmark {
 	tagsByBookmark := make(map[uuid.UUID][]string)
 	for _, tr := range tagRows {
 		tagsByBookmark[tr.BookmarkID] = append(tagsByBookmark[tr.BookmarkID], tr.Tag)
@@ -67,7 +52,7 @@ func ToBookmarks(rows []sqlc.GetRecentBookmarksByUserIdRow, tagRows []sqlc.GetTa
 			CreatedAt:  row.Bookmark.CreatedAt.Time,
 			UpdatedAt:  row.Bookmark.UpdatedAt.Time,
 			ArchivedAt: row.Bookmark.ArchivedAt.Time,
-			Author:     ToUser(row.User),
+			Author:     toUser(row.User),
 			Tags:       tagsByBookmark[row.Bookmark.ID],
 		}
 	}
@@ -75,7 +60,7 @@ func ToBookmarks(rows []sqlc.GetRecentBookmarksByUserIdRow, tagRows []sqlc.GetTa
 	return bookmarks
 }
 
-func ToBookmark(createdBookmark sqlc.Bookmark, tags []string, user core.User) core.Bookmark {
+func toBookmark(createdBookmark sqlc.Bookmark, tags []string, user core.User) core.Bookmark {
 	parsedUrl, _ := url.Parse(createdBookmark.Url) // TODO: handle invalid URL? but DB should not contain any invalid URLs to begin with
 	return core.Bookmark{
 		ID:         createdBookmark.ID,
@@ -89,15 +74,6 @@ func ToBookmark(createdBookmark sqlc.Bookmark, tags []string, user core.User) co
 	}
 }
 
-func ToBookmarksFromAllBookmarks(rows []sqlc.GetAllBookmarksByUserIdRow, tagRows []sqlc.GetTagsByBookmarkIdsRow) []core.Bookmark {
-	rowsAsRecentBookmarks := make([]sqlc.GetRecentBookmarksByUserIdRow, 0, len(rows))
-	for _, row := range rows {
-		rowsAsRecentBookmarks = append(rowsAsRecentBookmarks, sqlc.GetRecentBookmarksByUserIdRow(row))
-	}
-
-	return ToBookmarks(rowsAsRecentBookmarks, tagRows)
-}
-
 // smaller utilities
 
 func groupMembersByCollectionID(memberRows []sqlc.GetMembersByCollectionIdsRow) map[uuid.UUID][]core.CollectionMember {
@@ -106,7 +82,7 @@ func groupMembersByCollectionID(memberRows []sqlc.GetMembersByCollectionIdsRow) 
 		membersByCollection[mr.CollectionMember.CollectionID] = append(
 			membersByCollection[mr.CollectionMember.CollectionID],
 			core.CollectionMember{
-				User:    ToUser(mr.User),
+				User:    toUser(mr.User),
 				Role:    mr.CollectionMember.Role,
 				AddedAt: mr.CollectionMember.AddedAt.Time,
 			},

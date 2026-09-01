@@ -22,7 +22,7 @@ func (db *DB) CreateSession(ctx context.Context, id, userID uuid.UUID, expiresAt
 	if err != nil {
 		return core.Session{}, err
 	}
-	return ToSession(row), nil
+	return toSession(row), nil
 }
 
 // GetSessionByID retrieves a session by its ID, returning (zero, false, nil) if not found.
@@ -33,7 +33,7 @@ func (db *DB) GetSessionByID(ctx context.Context, id uuid.UUID) (core.Session, b
 	} else if err != nil {
 		return core.Session{}, false, err
 	}
-	return ToSession(row), true, nil
+	return toSession(row), true, nil
 }
 
 // DeleteSession deletes a session by its ID.

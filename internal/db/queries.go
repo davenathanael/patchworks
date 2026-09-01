@@ -19,7 +19,7 @@ func (db *DB) GetUserByID(ctx context.Context, id uuid.UUID) (core.User, error) 
 	if err != nil {
 		return core.User{}, err
 	}
-	return ToUser(row), nil
+	return toUser(row), nil
 }
 
 // GetUserByEmail retrieves a user and their password hash by email.
@@ -32,7 +32,7 @@ func (db *DB) GetUserByEmail(ctx context.Context, email string) (core.User, stri
 	if err != nil {
 		return core.User{}, "", false, err
 	}
-	return ToUser(row), row.PasswordHash.String, true, nil
+	return toUser(row), row.PasswordHash.String, true, nil
 }
 
 // CreateUser creates a new user with the given password hash.
@@ -49,5 +49,5 @@ func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (core.
 		}
 		return core.User{}, err
 	}
-	return ToUser(row), nil
+	return toUser(row), nil
 }

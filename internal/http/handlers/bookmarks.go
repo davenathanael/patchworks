@@ -58,13 +58,13 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 
 	collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := bookmarks.GetTagsByUser(ctx, user.ID)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -80,7 +80,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 	}
 	recent, all, err := loadBookmarks(ctx, bookmarks, user.ID, filterCollectionID, filterTags, filterSearch)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	vm.RecentBookmarks = recent
@@ -92,7 +92,7 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 		err = vm.Render(w)
 	}
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -180,29 +180,29 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
 	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, collectionID, tags); err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if views.IsHtmx(r) {
 		collectionsList, err := collections.GetCollectionsByUser(ctx, user.ID)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		tags, err := bookmarks.GetTagsByUser(ctx, user.ID)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		recent, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, "")
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		all, err := bookmarks.GetAllBookmarksByUser(ctx, user.ID, "")
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		vm := views.HomePageViewModel{
@@ -214,7 +214,7 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 			CurrentQuery:    url.Values{},
 		}
 		if err := vm.RenderFiltered(w); err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 		return
 	}
