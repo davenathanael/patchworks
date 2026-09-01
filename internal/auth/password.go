@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -62,7 +63,11 @@ func verifyPassword(password, encoded string) bool {
 	if err != nil {
 		return false
 	}
+	if len(want) > math.MaxUint32 {
+		return false // defense in depth; practically unreachable for a stored hash
+	}
 
+	// #nosec G115 -- want is a base64-decoded argon2 hash (~32 bytes), far below MaxUint32
 	got := argon2.IDKey([]byte(password), salt, time, memory, uint8(threads), uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1
 }

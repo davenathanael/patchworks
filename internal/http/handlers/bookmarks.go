@@ -78,42 +78,13 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 		Search:       filterSearch,
 		CurrentQuery: qs,
 	}
-	if filterCollectionID != uuid.Nil && len(filterTags) != 0 {
-		result, err := bookmarks.GetBookmarksByCollectionAndTags(ctx, filterCollectionID, filterTags, filterSearch)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		vm.AllBookmarks = result
-	} else if filterCollectionID != uuid.Nil {
-		result, err := bookmarks.GetBookmarksByCollection(ctx, filterCollectionID, filterSearch)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		vm.AllBookmarks = result
-	} else if len(filterTags) != 0 {
-		result, err := bookmarks.GetBookmarksByTags(ctx, user.ID, filterTags, filterSearch)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		vm.AllBookmarks = result
-	} else {
-		recentBookmarks, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, filterSearch)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		vm.RecentBookmarks = recentBookmarks
-
-		allBookmarks, err := bookmarks.GetAllBookmarksByUser(ctx, user.ID, filterSearch)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		vm.AllBookmarks = allBookmarks
+	recent, all, err := loadBookmarks(ctx, bookmarks, user.ID, filterCollectionID, filterTags, filterSearch)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
 	}
+	vm.RecentBookmarks = recent
+	vm.AllBookmarks = all
 
 	if views.IsHtmx(r) {
 		err = vm.RenderFiltered(w)
@@ -124,6 +95,30 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 		http.Error(w, err.Error(), 500)
 		return
 	}
+}
+
+// loadBookmarks returns the bookmark lists for a user given the active filters.
+// With a collection and/or tags filter, only the all list is populated; with no
+// filters the recent list is populated too.
+func loadBookmarks(ctx context.Context, bookmarks BookmarkStore, userID uuid.UUID, collectionID uuid.UUID, filterTags []string, search string) ([]core.Bookmark, []core.Bookmark, error) {
+	if collectionID != uuid.Nil && len(filterTags) != 0 {
+		all, err := bookmarks.GetBookmarksByCollectionAndTags(ctx, collectionID, filterTags, search)
+		return nil, all, err
+	}
+	if collectionID != uuid.Nil {
+		all, err := bookmarks.GetBookmarksByCollection(ctx, collectionID, search)
+		return nil, all, err
+	}
+	if len(filterTags) != 0 {
+		all, err := bookmarks.GetBookmarksByTags(ctx, userID, filterTags, search)
+		return nil, all, err
+	}
+	recent, err := bookmarks.GetRecentBookmarksByUser(ctx, userID, search)
+	if err != nil {
+		return nil, nil, err
+	}
+	all, err := bookmarks.GetAllBookmarksByUser(ctx, userID, search)
+	return recent, all, err
 }
 
 func handlePostBookmarks(comp *components.Components) http.HandlerFunc {

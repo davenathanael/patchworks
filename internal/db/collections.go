@@ -53,7 +53,7 @@ func (db *DB) CreateCollection(ctx context.Context, userID uuid.UUID, name, desc
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 	querier := db.querier.WithTx(tx)
 
 	collectionID, _ := uuid.NewV7()

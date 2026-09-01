@@ -193,7 +193,7 @@ func putCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 	}
 
 	var formData updateCollectionForm
-	if err := form.NewDecoder(r.Body).Decode(&formData); err != nil {
+	if err = form.NewDecoder(r.Body).Decode(&formData); err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
@@ -204,7 +204,7 @@ func putCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 		return
 	}
 
-	http.Redirect(w, r, "/collections/"+id.String(), http.StatusSeeOther)
+	http.Redirect(w, r, "/collections/"+id.String(), http.StatusSeeOther) // #nosec G710 -- id is a validated UUID, no open redirect
 }
 
 func handlePostCollectionMember(comp *components.Components) http.HandlerFunc {
@@ -232,7 +232,7 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, collections Co
 	}
 
 	var formData addMemberForm
-	if err := form.NewDecoder(r.Body).Decode(&formData); err != nil {
+	if err = form.NewDecoder(r.Body).Decode(&formData); err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
@@ -247,7 +247,7 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, collections Co
 		return
 	}
 
-	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther)
+	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther) // #nosec G710 -- a validated UUID, no open redirect
 }
 
 func handleDeleteCollectionMember(comp *components.Components) http.HandlerFunc {
@@ -281,7 +281,7 @@ func deleteCollectionMember(w http.ResponseWriter, r *http.Request, collections 
 		return
 	}
 
-	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther)
+	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther) // #nosec G710 -- a validated UUID, no open redirect
 }
 
 func handleDeleteCollectionById(comp *components.Components) http.HandlerFunc {

@@ -97,7 +97,7 @@ func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, us
 	if err != nil {
 		return core.Bookmark{}, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	querier := db.querier.WithTx(tx)
 	bookmarkID := uuid.New()
