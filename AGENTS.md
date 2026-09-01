@@ -13,6 +13,7 @@ Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, email/p
 |`mise run sql`|SQLC generate|
 |`mise run compose`|Docker Compose up (Postgres)|
 |`mise run migrate`|Run migrations|
+|`mise run migration`|Create a new migration file (`dbmate new`)|
 
 ## Architecture
 

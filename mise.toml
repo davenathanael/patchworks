@@ -31,7 +31,7 @@ description = "Run DB integration tests (needs `mise run compose` up; creates+us
 [tasks.migration]
 alias = "mn"
 run = "dbmate new"
-description = "Run database migrations"
+description = "Create a new migration file"
 
 [tasks.migrate]
 alias = "mu"
