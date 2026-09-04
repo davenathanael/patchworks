@@ -269,6 +269,45 @@ func TestUpdateBookmarkCollectionIDs(t *testing.T) {
 	be.True(t, errors.Is(err, core.ErrNotFound))
 }
 
+func TestArchiveBookmark(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "archive@test.local", "hash")
+	be.NilErr(t, err)
+	other, err := testDB.CreateUser(ctx, "archother@test.local", "hash")
+	be.NilErr(t, err)
+
+	be.NilErr(t, testDB.CreateCollection(ctx, user.ID, "Keep", ""))
+	lists, err := testDB.GetCollectionsByUser(ctx, user.ID)
+	be.NilErr(t, err)
+	colID := lists[0].ID
+
+	u, err := url.Parse("https://example.com/archived")
+	be.NilErr(t, err)
+	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, colID, []string{"go"})
+	be.NilErr(t, err)
+
+	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	be.NilErr(t, err)
+	be.Equal(t, 1, len(recent))
+
+	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID))
+	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID)) // idempotent
+
+	// hidden from all browse lists and the edit fetch
+	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	be.NilErr(t, err)
+	be.Equal(t, 0, len(recent))
+	_, err = testDB.GetBookmarkByID(ctx, bk.ID, user.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+	full, err := testDB.GetCollection(ctx, colID)
+	be.NilErr(t, err)
+	be.Equal(t, 0, len(full.Bookmarks)) // collection browse filters archived too
+
+	// author-only
+	err = testDB.ArchiveBookmark(ctx, bk.ID, other.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+}
+
 func TestBookmarkRepository(t *testing.T) {
 	ctx := context.Background()
 	user, err := testDB.CreateUser(ctx, "bookmark@test.local", "hash")

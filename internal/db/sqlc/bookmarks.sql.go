@@ -12,6 +12,34 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const archiveBookmark = `-- name: ArchiveBookmark :one
+UPDATE bookmarks
+SET archived_at = now()
+WHERE id = $1::uuid AND author_id = $2::uuid
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+`
+
+type ArchiveBookmarkParams struct {
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) ArchiveBookmark(ctx context.Context, arg ArchiveBookmarkParams) (Bookmark, error) {
+	row := q.db.QueryRow(ctx, archiveBookmark, arg.ID, arg.AuthorID)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+		&i.AuthorID,
+		&i.Notes,
+	)
+	return i, err
+}
+
 const createBookmark = `-- name: CreateBookmark :one
 INSERT INTO bookmarks (id, url, title, author_id)
 VALUES ($1, $2, $3, $4::uuid)
@@ -110,6 +138,7 @@ SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookm
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
+AND bookmarks.archived_at IS NULL
 AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20
@@ -164,7 +193,7 @@ const getBookmarkById = `-- name: GetBookmarkById :one
 SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
-WHERE bookmarks.id = $1::uuid AND bookmarks.author_id = $2::uuid
+WHERE bookmarks.id = $1::uuid AND bookmarks.author_id = $2::uuid AND bookmarks.archived_at IS NULL
 `
 
 type GetBookmarkByIdParams struct {
@@ -205,6 +234,7 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 WHERE collection_bookmarks.collection_id = $1
+AND bookmarks.archived_at IS NULL
 AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20
@@ -263,6 +293,7 @@ JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 WHERE collection_bookmarks.collection_id = $1
 AND bookmark_tags.tag = ANY($2::text[])
+AND bookmarks.archived_at IS NULL
 AND ($3::text = '' OR bookmarks.title ILIKE '%' || $3::text || '%' OR bookmarks.url ILIKE '%' || $3::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 20
@@ -325,6 +356,7 @@ JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 LEFT JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 JOIN users ON bookmarks.author_id = users.id
 WHERE collection_bookmarks.collection_id = $1
+AND bookmarks.archived_at IS NULL
 ORDER BY bookmarks.created_at DESC
 `
 
@@ -380,6 +412,7 @@ JOIN users ON bookmarks.author_id = users.id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 WHERE bookmark_tags.tag = ANY($1::text[])
 AND bookmarks.author_id = $2::uuid
+AND bookmarks.archived_at IS NULL
 AND ($3::text = '' OR bookmarks.title ILIKE '%' || $3::text || '%' OR bookmarks.url ILIKE '%' || $3::text || '%')
 ORDER BY bookmarks.id, bookmarks.created_at DESC
 LIMIT 20
@@ -467,6 +500,7 @@ SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookm
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
+AND bookmarks.archived_at IS NULL
 AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
 ORDER BY bookmarks.created_at DESC
 LIMIT 10

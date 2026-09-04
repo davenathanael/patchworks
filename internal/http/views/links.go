@@ -183,6 +183,15 @@ func bookmarkMenu(link core.Bookmark, collections []core.Collection, currentColl
 				Attr("hx-swap", "outerHTML"),
 				Text("Edit collections"),
 			),
+			Button(
+				Class("menu-item danger"),
+				Type("button"),
+				Attr("hx-post", fmt.Sprintf("/bookmarks/%s/archive", link.ID)),
+				Attr("hx-confirm", "Archive this bookmark? You can restore it later."),
+				Attr("hx-target", "closest li"),
+				Attr("hx-swap", "delete"),
+				Text("Archive"),
+			),
 		),
 	}
 }

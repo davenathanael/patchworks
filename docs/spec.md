@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v0.7 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v0.8 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -11,6 +11,7 @@
 | 0.5 | 2026-09-04 | FR-22 landed in §5.2 as **BK-7** — notes column + row display (1-line clamp, native More/Less expand via CSS `:has()`) |
 | 0.6 | 2026-09-04 | FR-3 edit half landed in §5.2 as **BK-8** — inline Edit notes & tags panel (author-only, title/domain immutable); FR-3 remainder (hard-delete) stays in §6.1 |
 | 0.7 | 2026-09-04 | FR-13 landed in §5.3 as **CL-8** — Edit collections popover (search + checkboxes, preloaded membership, one save; own links only) |
+| 0.8 | 2026-09-04 | FR-1 archive half landed in §5.2 as **BK-9** — Archive row action (hx-confirm, `archived_at` set, row leaves list) + `archived_at IS NULL` filters on all browse queries; FR-1 remainder (restore/hard-delete/Archived page) stays in §6.1 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -80,7 +81,8 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable, *unused*).
 - **BK-7** Bookmark notes: an optional free-text note per bookmark, shown under the domain & tags in the bookmark row, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication; the toggle appears only when the note likely overflows). Editing/clearing via BK-8. Design: `docs/mockups/design-bookmark-actions.html`. *(formerly FR-22 — see Rev 0.5)*
 - **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Hard-delete UI remains future (see Gaps). Design: `docs/mockups/design-bookmark-actions.html`.
-- **Gaps:** no hard-delete or archive/restore UI (→ FR-1, FR-3 remainder). The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only (→ FR-13).
+- **BK-9** *(formerly FR-1, archive half)* Archive a bookmark from the row menu (dashboard and collection detail): native confirm (`hx-confirm`), one htmx post sets `archived_at`, the row leaves the current list. Archived bookmarks are hidden from recent/search/filtered/collection browse (`archived_at IS NULL` on all browse queries); restore, hard-delete, and the **Archived page** land with FR-1 remainder.
+- **Gaps:** no hard-delete, restore, or archived-page UI (→ FR-1 remainder). The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only (→ FR-13).
 
 ### 5.3 Collections & sharing — *impl / partial*
 
@@ -124,7 +126,7 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 
 ### 6.1 Near-term — schema/design-ready
 
-- **FR-1** Bookmark archive/restore. Archiving hides a bookmark from recent/search/filtered lists (it stays linked to its collections but leaves the collections' default browse view); archives are soft-deletes (`bookmarks.archived_at` already exists — *(schema-ready)*). Design settled: row-level **Archive** action in the row menu (works on dashboard and collection detail), `hx-confirm` + htmx post, row leaves the current list. A dedicated **Archived page** lists archived bookmarks (restore + hard-delete live there). Design: `docs/mockups/design-bookmark-actions.html`.
+- **FR-1** *(remainder)* Archive/restore round trip: restore an archived bookmark (clear `archived_at`), hard-delete (author-only, destructive, own confirm), and a dedicated **Archived page** listing archived bookmarks where both live. The archive action itself landed as BK-9; browse queries already filter `archived_at IS NULL`. Design: `docs/mockups/design-bookmark-actions.html`.
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
 - **FR-3** *(remainder)* Hard-delete a bookmark (author-only) — only meaningful for archived bookmarks; destructive, so it gets its own confirm. Edit of notes + tags landed as BK-8.
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.

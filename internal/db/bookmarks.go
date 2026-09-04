@@ -281,6 +281,18 @@ func (db *DB) tagsForBookmarks(ctx context.Context, bookmarkIDs []uuid.UUID) (ma
 	return out, nil
 }
 
+// ArchiveBookmark sets archived_at (soft-delete). Author-only; ErrNotFound if
+// not the author. Idempotent — archiving twice just refreshes the timestamp.
+func (db *DB) ArchiveBookmark(ctx context.Context, id, userID uuid.UUID) error {
+	if _, err := db.querier.ArchiveBookmark(ctx, sqlc.ArchiveBookmarkParams{ID: id, AuthorID: userID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("archive bookmark: %w", core.ErrNotFound)
+		}
+		return err
+	}
+	return nil
+}
+
 // UpdateBookmarkCollectionIDs replaces the bookmark's links to the user's own
 // (member) collections, in one transaction. Links to collections the user is
 // not a member of are left untouched — a shared bookmark keeps its place in

@@ -358,6 +358,39 @@ func TestPostBookmarkCollectionsNotAuthor(t *testing.T) {
 	be.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestPostBookmarkArchiveHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+
+	rec := httptest.NewRecorder()
+	r := routeFormRequest(t, uuid.New(), "")
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkArchive(rec, r, bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "archive", bm.last)
+	be.Equal(t, "", rec.Body.String()) // htmx deletes the row client-side, no body needed
+}
+
+func TestPostBookmarkArchiveRedirect(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, postBookmarkArchive(rec, routeFormRequest(t, uuid.New(), ""), bm))
+
+	be.Equal(t, http.StatusSeeOther, rec.Code)
+	be.Equal(t, "/", rec.Header().Get("Location"))
+}
+
+func TestPostBookmarkArchiveNotAuthor(t *testing.T) {
+	bm := &fakeBookmarkStore{err: core.ErrNotFound}
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkArchive(w, r, bm)
+	}, routeFormRequest(t, uuid.New(), ""))
+
+	be.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 // --- fakes & helpers ---
 
 // serve runs a Handler through Adapt so status codes are written by the
@@ -445,6 +478,11 @@ func (f *fakeBookmarkStore) UpdateBookmarkCollectionIDs(ctx context.Context, boo
 	}
 	f.one.CollectionIDs = collectionIDs
 	return f.one, nil
+}
+
+func (f *fakeBookmarkStore) ArchiveBookmark(ctx context.Context, id, userID uuid.UUID) error {
+	f.last = "archive"
+	return f.err
 }
 
 // fakeTitleFetcher returns a fixed title for any URL.

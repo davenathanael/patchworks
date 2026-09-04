@@ -44,11 +44,13 @@ Order of implementation (each step is a committable unit):
    CollectionIDs` (batched `attachCollectionIDs` in the repo). Spec: FR-13 →
    §5.3 as CL-8; Rev 0.7. `check` + integration green.
 
-6. **Archive (FR-1, action only)** — menu item Archive everywhere (dashboard +
-   collection detail), `hx-confirm="Archive this bookmark? You can restore it
-   later."`, htmx post `POST /bookmarks/{id}/archive` sets `archived_at`, row
-   leaves the current list. Archived page (list + restore + hard-delete) is a
-   separate later step.
+6. **✅ Archive (FR-1 → BK-9, action half)** (done) — third menu item
+   everywhere: hx-confirm + htmx post `POST /bookmarks/{id}/archive` (sets
+   `archived_at`, author-only, idempotent), client-side `hx-swap="delete"`
+   removes the row. Added `archived_at IS NULL` to all browse queries (recent,
+   all, filtered, collection detail, GetBookmarkById) so refreshes don't
+   resurrect archived links. Spec: FR-1 → §5.2 as BK-9, remainder (restore /
+   hard-delete / Archived page) stays FR-1; Rev 0.8. `check` + integration green.
 
 7. **Archived page (FR-1, remainder)** — separate step, later: list archived
    bookmarks, restore, hard-delete; archive/filter interplay per spec.

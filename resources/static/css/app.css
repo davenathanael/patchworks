@@ -674,9 +674,18 @@
             cursor: pointer;
             text-align: left;
             justify-content: flex-start; /* buttons center by default */
+            min-height: 0; /* base button sets 2.15rem — match the anchor items */
 
             &:hover {
                 background: var(--surface-2);
+            }
+
+            &.danger {
+                color: var(--danger);
+
+                &:hover {
+                    background: color-mix(in srgb, var(--danger) 10%, transparent);
+                }
             }
         }
 
@@ -686,7 +695,6 @@
         }
     }
 
-    /* collections picker — preloaded membership popover, anchored like the menu */
     /* inline edit panel — notes + tags, replaces the row */
     .edit-panel {
         display: grid;

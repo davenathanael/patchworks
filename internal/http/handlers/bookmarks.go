@@ -31,6 +31,7 @@ type BookmarkStore interface {
 	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 	UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error)
 	UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error)
+	ArchiveBookmark(ctx context.Context, id, userID uuid.UUID) error
 }
 
 func handleGetHome(comp *components.Components) Handler {
@@ -390,6 +391,41 @@ func postBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks Bookmark
 		if err := views.LinkRow(updated, allCollections, "").Render(w); err != nil {
 			return fmt.Errorf("render bookmark row: %w", err)
 		}
+		return nil
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+func handlePostBookmarkArchive(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkArchive(w, r, comp.DB)
+	}
+}
+
+// postBookmarkArchive soft-deletes the bookmark. htmx deletes the row client-
+// side (hx-swap="delete"); plain submits redirect to the dashboard.
+func postBookmarkArchive(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+
+	if err := bookmarks.ArchiveBookmark(ctx, id, user.ID); err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+		return fmt.Errorf("archive bookmark: %w", err)
+	}
+
+	if views.IsHtmx(r) {
 		return nil
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
