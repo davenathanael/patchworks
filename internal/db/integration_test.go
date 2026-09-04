@@ -203,6 +203,15 @@ func TestBookmarkRepository(t *testing.T) {
 	be.Equal(t, 1, len(recent))
 	be.Equal(t, "Example Post", recent[0].Title)
 	be.Equal(t, "https://example.com/post", recent[0].URL.String())
+	be.Equal(t, "", recent[0].Notes) // default: no note
+
+	// notes round-trip — raw write for now (the repo update path lands with
+	// the edit panel step); assert the mapper reads the column.
+	_, err = testDB.Pool.Exec(ctx, `update bookmarks set notes = $1 where id = $2`, "Check the grid section", bk.ID)
+	be.NilErr(t, err)
+	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	be.NilErr(t, err)
+	be.Equal(t, "Check the grid section", recent[0].Notes)
 
 	tags, err := testDB.GetTagsByUser(ctx, user.ID)
 	be.NilErr(t, err)

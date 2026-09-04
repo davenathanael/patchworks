@@ -120,6 +120,7 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 				ID:         row.Bookmark.ID,
 				URL:        parsedURL,
 				Title:      row.Bookmark.Title,
+				Notes:      row.Bookmark.Notes,
 				CreatedAt:  row.Bookmark.CreatedAt.Time,
 				UpdatedAt:  row.Bookmark.UpdatedAt.Time,
 				ArchivedAt: row.Bookmark.ArchivedAt.Time,

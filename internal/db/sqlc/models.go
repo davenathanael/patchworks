@@ -17,6 +17,7 @@ type Bookmark struct {
 	UpdatedAt  pgtype.Timestamp
 	ArchivedAt pgtype.Timestamp
 	AuthorID   pgtype.UUID
+	Notes      string
 }
 
 type BookmarkTag struct {

@@ -33,6 +33,7 @@ type (
 		ID         uuid.UUID
 		URL        *url.URL
 		Title      string
+		Notes      string
 		CreatedAt  time.Time
 		UpdatedAt  time.Time
 		ArchivedAt time.Time

@@ -15,11 +15,11 @@ Order of implementation (each step is a committable unit):
    with settled design, FR-13 + FR-22 moved to §6.1, Rev row 0.4.
    Mockup: `docs/mockups/design-bookmark-actions.html`. Plan: this file.
 
-2. **Notes column (FR-22, schema)** — `dbmate new` migration:
-   `ALTER TABLE bookmarks ADD COLUMN notes TEXT NOT NULL DEFAULT ''`.
-   - `mise run sql` (sqlc regen), `core.Bookmark.Notes string` field,
-     `internal/db/bookmarks.go` mapping (`toBookmarks` + GetCollection rows).
-   - Verify: `mise run check`, integration test asserts notes round-trip.
+2. **✅ Notes column (FR-22, schema)** (done) — migration
+   `20260904070446_bookmark_notes.sql` (`notes TEXT NOT NULL DEFAULT ''`, up/down);
+   `core.Bookmark.Notes`; mapped in `internal/db/{mappings,collections}.go`;
+   sqlc regen; integration test asserts notes round-trip (`mise run check` +
+   `test-integration` green). Dev DB still needs `mise run migrate`.
 
 3. **Notes display + expand (LinkRow)** — Variant A: clamp to 1 line, native
    `<details class="note-toggle">` + CSS `:has()` expand (no JS, no text
