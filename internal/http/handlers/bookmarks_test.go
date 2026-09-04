@@ -195,6 +195,84 @@ func TestPostBookmarksHtmxMalformedURL(t *testing.T) {
 	be.True(t, containsBody(rec, `value="go, web"`)) // submitted tags preserved in the fragment
 }
 
+func TestGetBookmarkByIdHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+
+	rec := httptest.NewRecorder()
+	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String(), bm.one.ID.String())
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, getBookmarkById(rec, r, bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "byid", bm.last)
+	be.True(t, containsBody(rec, "Post"))
+	be.True(t, containsBody(rec, "Bookmark actions")) // kebab menu present
+}
+
+func TestGetBookmarkEditHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	bm.one.Notes = "existing note"
+	bm.one.Tags = []string{"go"}
+
+	rec := httptest.NewRecorder()
+	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/edit", bm.one.ID.String())
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, getBookmarkEdit(rec, r, bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.True(t, containsBody(rec, `name="notes"`))
+	be.True(t, containsBody(rec, "existing note")) // pre-filled
+	be.True(t, containsBody(rec, `name="tags"`))
+	be.True(t, containsBody(rec, `value="go"`)) // tags joined into the input
+	be.True(t, containsBody(rec, "Cancel"))
+}
+
+func TestGetBookmarkEditFullPage(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getBookmarkEdit(rec, routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/edit", bm.one.ID.String()), bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.True(t, containsBody(rec, "Edit Bookmark — Patchworks")) // full page, not a fragment
+}
+
+func TestPostBookmarkEditHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+
+	rec := httptest.NewRecorder()
+	r := routeFormRequest(t, bm.one.ID, "notes=new+note&tags=css%2C+web")
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkEdit(rec, r, bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "update", bm.last)
+	be.Equal(t, "new note", bm.one.Notes)
+	be.AllEqual(t, []string{"css", "web"}, bm.one.Tags)
+	be.True(t, containsBody(rec, "new note")) // updated row fragment
+}
+
+func TestPostBookmarkEditRedirect(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, postBookmarkEdit(rec, routeFormRequest(t, bm.one.ID, "notes=x&tags="), bm))
+
+	be.Equal(t, http.StatusSeeOther, rec.Code)
+	be.Equal(t, "/", rec.Header().Get("Location"))
+	be.Equal(t, "update", bm.last)
+}
+
+func TestPostBookmarkEditNotAuthor(t *testing.T) {
+	bm := &fakeBookmarkStore{err: core.ErrNotFound}
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkEdit(w, r, bm)
+	}, routeFormRequest(t, uuid.New(), "notes=x"))
+
+	be.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 // --- fakes & helpers ---
 
 // serve runs a Handler through Adapt so status codes are written by the
@@ -217,7 +295,8 @@ type fakeBookmarkStore struct {
 	tags            []core.Tag
 	recent          []core.Bookmark
 	all             []core.Bookmark
-	last            string // which query method ran last
+	one             core.Bookmark // single-bookmark target (edit routes)
+	last            string        // which query method ran last
 	gotCollectionID uuid.UUID
 	created         []createdBookmark
 }
@@ -257,6 +336,21 @@ func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, titl
 	b := core.Bookmark{ID: uuid.New(), URL: u, Title: title, Author: core.User{ID: userID}, Tags: tags}
 	f.created = append(f.created, createdBookmark{bk: b, colID: collectionID})
 	return b, f.err
+}
+
+func (f *fakeBookmarkStore) GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	f.last = "byid"
+	return f.one, f.err
+}
+
+func (f *fakeBookmarkStore) UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error) {
+	f.last = "update"
+	if f.err != nil {
+		return core.Bookmark{}, f.err
+	}
+	f.one.Notes = notes
+	f.one.Tags = tags
+	return f.one, nil
 }
 
 // fakeTitleFetcher returns a fixed title for any URL.

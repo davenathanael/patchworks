@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v0.5 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v0.6 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -9,6 +9,7 @@
 | 0.3 | 2026-09-04 | BK-4: dashboard shows recent bookmarks only; all bookmarks reached via search/filter (removed redundant "Your Bookmarks" show-all list) |
 | 0.4 | 2026-09-04 | Row-actions design settled (see `docs/mockups/design-bookmark-actions.html`): one 3-item menu per bookmark (Edit notes & tags · Edit collections · Archive); notes = 1-line clamp + native expand; title/domain immutable; FR-1/FR-3/FR-13/FR-22 reworded; FR-13, FR-22 moved to §6.1 |
 | 0.5 | 2026-09-04 | FR-22 landed in §5.2 as **BK-7** — notes column + row display (1-line clamp, native More/Less expand via CSS `:has()`) |
+| 0.6 | 2026-09-04 | FR-3 edit half landed in §5.2 as **BK-8** — inline Edit notes & tags panel (author-only, title/domain immutable); FR-3 remainder (hard-delete) stays in §6.1 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -76,8 +77,9 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-4** The dashboard shows *recent bookmarks* (latest 10), newest first. Everything else is reached through search and filters (SR-1–SR-5).
 - **BK-5** After adding, htmx requests re-render just the bookmark list; non-htmx requests redirect to the dashboard.
 - **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable, *unused*).
-- **BK-7** Bookmark notes: an optional free-text note per bookmark, shown under the domain & tags in the bookmark row, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication; the toggle appears only when the note likely overflows). Add/edit/clear arrive with FR-3 (inline edit panel). Design: `docs/mockups/design-bookmark-actions.html`. *(formerly FR-22 — see Rev 0.5)*
-- **Gaps:** no edit, delete, or archive/restore UI (→ FR-1, FR-3). The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only (→ FR-13).
+- **BK-7** Bookmark notes: an optional free-text note per bookmark, shown under the domain & tags in the bookmark row, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication; the toggle appears only when the note likely overflows). Editing/clearing via BK-8. Design: `docs/mockups/design-bookmark-actions.html`. *(formerly FR-22 — see Rev 0.5)*
+- **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Hard-delete UI remains future (see Gaps). Design: `docs/mockups/design-bookmark-actions.html`.
+- **Gaps:** no hard-delete or archive/restore UI (→ FR-1, FR-3 remainder). The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only (→ FR-13).
 
 ### 5.3 Collections & sharing — *impl / partial*
 
@@ -122,7 +124,7 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 
 - **FR-1** Bookmark archive/restore. Archiving hides a bookmark from recent/search/filtered lists (it stays linked to its collections but leaves the collections' default browse view); archives are soft-deletes (`bookmarks.archived_at` already exists — *(schema-ready)*). Design settled: row-level **Archive** action in the row menu (works on dashboard and collection detail), `hx-confirm` + htmx post, row leaves the current list. A dedicated **Archived page** lists archived bookmarks (restore + hard-delete live there). Design: `docs/mockups/design-bookmark-actions.html`.
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
-- **FR-3** Edit bookmarks (author-only): **notes + tags** from a single inline row panel (one menu item, "Edit notes & tags" — textarea + comma-separated tags); title and domain are immutable by design (they are the bookmark's identity). Hard-delete UI remains future. Design: `docs/mockups/design-bookmark-actions.html`.
+- **FR-3** *(remainder)* Hard-delete a bookmark (author-only) — only meaningful for archived bookmarks; destructive, so it gets its own confirm. Edit of notes + tags landed as BK-8.
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 - **FR-5** Write `users.last_login_at` on successful login. *(schema-ready)*
 - **FR-13** "Edit collections" — add an existing bookmark to / remove it from collections via a search + checkbox popover (preloaded with the user's own collections and their current membership), one save round-trip; works from dashboard and collection detail (on a collection page the current collection arrives pre-checked, so unchecking removes). Today saving chooses exactly one collection. *(join table exists)* Design: `docs/mockups/design-bookmark-actions.html`.

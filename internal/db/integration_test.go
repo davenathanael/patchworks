@@ -4,6 +4,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/carlmjohnson/be"
+	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -185,6 +187,35 @@ func TestCollectionBookmarksIncludeUntagged(t *testing.T) {
 	be.True(t, slices.Contains(taggedTags, "go"))
 	be.True(t, slices.Contains(taggedTags, "web"))
 	be.Equal(t, 0, len(plainTags))
+}
+
+func TestUpdateBookmarkNotesTags(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "edit@test.local", "hash")
+	be.NilErr(t, err)
+	other, err := testDB.CreateUser(ctx, "other@test.local", "hash")
+	be.NilErr(t, err)
+
+	u, err := url.Parse("https://example.com/post")
+	be.NilErr(t, err)
+	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", user.ID, uuid.Nil, []string{"go", "web"})
+	be.NilErr(t, err)
+
+	updated, err := testDB.UpdateBookmarkNotesTags(ctx, bk.ID, user.ID, "a note", []string{"css"})
+	be.NilErr(t, err)
+	be.Equal(t, "a note", updated.Notes)
+	be.AllEqual(t, []string{"css"}, updated.Tags)
+
+	got, err := testDB.GetBookmarkByID(ctx, bk.ID, user.ID)
+	be.NilErr(t, err)
+	be.Equal(t, "a note", got.Notes)
+	be.AllEqual(t, []string{"css"}, got.Tags)
+
+	// author-only: another user can neither read nor update it
+	_, err = testDB.GetBookmarkByID(ctx, bk.ID, other.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+	_, err = testDB.UpdateBookmarkNotesTags(ctx, bk.ID, other.ID, "hijack", nil)
+	be.True(t, errors.Is(err, core.ErrNotFound))
 }
 
 func TestBookmarkRepository(t *testing.T) {

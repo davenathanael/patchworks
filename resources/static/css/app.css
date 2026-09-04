@@ -45,19 +45,34 @@
         --font-display: "Fraunces", Georgia, "Times New Roman", serif;
 
         /* chocolate/mocha palette — the mockup's exact oklch tokens, ported verbatim */
-        --primary: light-dark(oklch(0.47 0.10 58), oklch(0.80 0.10 82)); /* burnt caramel ~ warm gold */
-        --primary-strong: light-dark(oklch(0.40 0.09 52), oklch(0.86 0.09 86));
+        --primary: light-dark(
+            oklch(0.47 0.1 58),
+            oklch(0.8 0.1 82)
+        ); /* burnt caramel ~ warm gold */
+        --primary-strong: light-dark(oklch(0.4 0.09 52), oklch(0.86 0.09 86));
         --on-primary: light-dark(oklch(0.975 0.008 85), oklch(0.22 0.03 45));
-        --bg: light-dark(oklch(0.972 0.010 85), oklch(0.21 0.02 45)); /* café au lait ~ espresso */
-        --page: light-dark(oklch(0.935 0.013 83), oklch(0.165 0.014 38)); /* framed-shell backdrop, one roast darker */
+        --bg: light-dark(
+            oklch(0.972 0.01 85),
+            oklch(0.21 0.02 45)
+        ); /* café au lait ~ espresso */
+        --page: light-dark(
+            oklch(0.935 0.013 83),
+            oklch(0.165 0.014 38)
+        ); /* framed-shell backdrop, one roast darker */
         --surface: light-dark(oklch(0.992 0.005 88), oklch(0.255 0.022 50));
-        --surface-2: light-dark(oklch(0.945 0.013 82), oklch(0.30 0.024 55));
-        --text-1: light-dark(oklch(0.27 0.03 45), oklch(0.93 0.015 82)); /* espresso ~ cream */
+        --surface-2: light-dark(oklch(0.945 0.013 82), oklch(0.3 0.024 55));
+        --text-1: light-dark(
+            oklch(0.27 0.03 45),
+            oklch(0.93 0.015 82)
+        ); /* espresso ~ cream */
         --text-2: light-dark(oklch(0.45 0.04 55), oklch(0.76 0.02 72));
         --text-3: light-dark(oklch(0.58 0.03 62), oklch(0.62 0.016 68));
         --border: light-dark(oklch(0.875 0.015 80), oklch(0.34 0.018 56));
         --ring: var(--primary);
-        --danger: light-dark(oklch(0.50 0.17 30), oklch(0.72 0.15 30)); /* mockup Mocha danger */
+        --danger: light-dark(
+            oklch(0.5 0.17 30),
+            oklch(0.72 0.15 30)
+        ); /* mockup Mocha danger */
 
         /* corners — the mockup's corner-4 toggle */
         --radius: 4px;
@@ -169,8 +184,8 @@
     :focus-visible {
         --outline-size: max(2px, 0.15em);
 
-        outline: var(--outline-width, var(--outline-size)) var(--outline-style, solid)
-            var(--outline-color, var(--ring));
+        outline: var(--outline-width, var(--outline-size))
+            var(--outline-style, solid) var(--outline-color, var(--ring));
         outline-offset: var(--outline-offset, var(--outline-size));
     }
 }
@@ -388,6 +403,17 @@
             }
         }
 
+        &.ghost {
+            --button-bg: transparent;
+            --button-color: var(--text-2);
+            border-color: transparent;
+
+            &:hover {
+                --button-bg: var(--surface-2);
+                --button-color: var(--text-1);
+            }
+        }
+
         &.danger {
             --button-bg: transparent;
             --button-color: var(--danger);
@@ -545,7 +571,13 @@
                             line-height: var(--font-lineheight-3);
                         }
                     }
-                        }
+
+                    .row-actions {
+                        margin-inline-start: auto;
+                        display: flex;
+                        align-items: center;
+                    }
+                }
             }
         }
     }
@@ -600,6 +632,83 @@
             .note-toggle summary::before {
                 content: "Less";
             }
+        }
+    }
+
+    /* row kebab menu — native popover: light-dismiss (click outside / Esc) is
+       built into popover="auto". The popover anchors itself to its trigger:
+       popovertarget gives the popover an implicit anchor (position-anchor:
+       auto), so no per-row anchor-name is needed (duplicate anchor names across
+       a list are undefined). */
+    .menu-card {
+        position: fixed;
+        margin: 0; /* UA popover default is inset:0 + margin:auto centering */
+        width: max-content;
+        min-width: 14rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-2);
+        padding: var(--size-1);
+        gap: var(--size-1);
+
+        /* grid only while open — an author display rule on the element would
+           override the UA's closed-popover display:none and show it always */
+        &:popover-open {
+            display: grid;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: var(--size-1) var(--size-2);
+            border-radius: var(--radius-sm);
+            color: var(--text-1);
+            text-decoration: none;
+            font-size: var(--font-size-0);
+
+            &:hover {
+                background: var(--surface-2);
+            }
+        }
+
+        /* below the open ⋯, right edge flush with the trigger's right edge:
+           bottom span-left covers the center+left tiles, whose right edge is
+           the anchor's right edge. Falls back to the popover's default
+           top-layer placement where anchor positioning is unavailable. */
+        @supports (position-area: bottom span-left) {
+            position-area: bottom span-left;
+        }
+    }
+
+    /* inline edit panel — notes + tags, replaces the row */
+    .edit-panel {
+        display: grid;
+        gap: var(--size-2);
+        margin-top: var(--size-2);
+        padding: var(--size-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+
+        label {
+            display: grid;
+            gap: var(--size-1);
+            font-size: var(--font-size-0);
+            color: var(--text-2);
+        }
+
+        input,
+        textarea {
+            /* delta over the base field style — fields stand out on the
+               panel's surface */
+            background: var(--bg);
+        }
+
+        .edit-actions {
+            display: flex;
+            gap: var(--size-1);
+            justify-content: flex-end;
         }
     }
 
@@ -743,7 +852,9 @@
         color: var(--text-2);
         text-decoration: none;
         margin: 0 var(--size-1) var(--size-1) 0;
-        transition: background-color 120ms, color 120ms;
+        transition:
+            background-color 120ms,
+            color 120ms;
 
         &:hover {
             background-color: var(--surface-2);

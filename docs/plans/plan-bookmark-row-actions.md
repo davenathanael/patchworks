@@ -28,12 +28,13 @@ Order of implementation (each step is a committable unit):
    chars, table-tested in `links_test.go`). CSS in `app.css` components layer.
    Spec: FR-22 landed → §5.2, Rev 0.5. `mise run check` green.
 
-4. **Edit notes & tags panel (FR-3 + FR-22)** — menu item opens inline panel
-   (note textarea + comma-separated tags), title/domain read-only display.
-   - New handler `PUT /bookmarks/{id}` (author-only), repo method
-     `UpdateBookmarkNotesTags`, sqlc query.
-   - htmx: swap row → panel → row; non-htmx fallback post + redirect.
-   - Verify: handler tests + integration test (notes+tags persist).
+4. **✅ Edit notes & tags panel (FR-3 → BK-8)** (done) — "Edit notes & tags"
+   menu item (first of the 3 — Edit collections + Archive join in steps 5–6);
+   GET /bookmarks/{id}/edit (htmx inline panel / no-JS edit page),
+   POST /bookmarks/{id}/edit (author-only; `UpdateBookmarkNotesTags` +
+   `GetBookmarkByID`; tags replaced wholesale); GET /bookmarks/{id} = row
+   fragment for Cancel. Shared `splitTags`. Spec: FR-3 edit half → §5.2 as
+   BK-8, remainder (hard-delete) stays FR-3; Rev 0.6. `check` + integration green.
 
 5. **Edit collections popover (FR-13)** — search + checkbox list, **preloaded**
    server-side at page render with all user's own collections + current

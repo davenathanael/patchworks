@@ -70,6 +70,21 @@ func (q *Queries) CreateCollectionBookmark(ctx context.Context, arg CreateCollec
 	return i, err
 }
 
+const deleteBookmarkTags = `-- name: DeleteBookmarkTags :exec
+DELETE FROM bookmark_tags
+WHERE bookmark_id = $1 AND author_id = $2
+`
+
+type DeleteBookmarkTagsParams struct {
+	BookmarkID uuid.UUID
+	AuthorID   uuid.UUID
+}
+
+func (q *Queries) DeleteBookmarkTags(ctx context.Context, arg DeleteBookmarkTagsParams) error {
+	_, err := q.db.Exec(ctx, deleteBookmarkTags, arg.BookmarkID, arg.AuthorID)
+	return err
+}
+
 const getAllBookmarksByUserId = `-- name: GetAllBookmarksByUserId :many
 SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
@@ -123,6 +138,45 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmar
 		return nil, err
 	}
 	return items, nil
+}
+
+const getBookmarkById = `-- name: GetBookmarkById :one
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.id = $1::uuid AND bookmarks.author_id = $2::uuid
+`
+
+type GetBookmarkByIdParams struct {
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+type GetBookmarkByIdRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetBookmarkById(ctx context.Context, arg GetBookmarkByIdParams) (GetBookmarkByIdRow, error) {
+	row := q.db.QueryRow(ctx, getBookmarkById, arg.ID, arg.AuthorID)
+	var i GetBookmarkByIdRow
+	err := row.Scan(
+		&i.Bookmark.ID,
+		&i.Bookmark.Url,
+		&i.Bookmark.Title,
+		&i.Bookmark.CreatedAt,
+		&i.Bookmark.UpdatedAt,
+		&i.Bookmark.ArchivedAt,
+		&i.Bookmark.AuthorID,
+		&i.Bookmark.Notes,
+		&i.User.ID,
+		&i.User.Email,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.User.LastLoginAt,
+		&i.User.PasswordHash,
+	)
+	return i, err
 }
 
 const getBookmarksByCollection = `-- name: GetBookmarksByCollection :many
@@ -475,4 +529,33 @@ func (q *Queries) GetTagsByUserId(ctx context.Context, authorID uuid.UUID) ([]Ge
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateBookmarkNotesTags = `-- name: UpdateBookmarkNotesTags :one
+UPDATE bookmarks
+SET notes = $1::text
+WHERE id = $2::uuid AND author_id = $3::uuid
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+`
+
+type UpdateBookmarkNotesTagsParams struct {
+	Notes    string
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) UpdateBookmarkNotesTags(ctx context.Context, arg UpdateBookmarkNotesTagsParams) (Bookmark, error) {
+	row := q.db.QueryRow(ctx, updateBookmarkNotesTags, arg.Notes, arg.ID, arg.AuthorID)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+		&i.AuthorID,
+		&i.Notes,
+	)
+	return i, err
 }

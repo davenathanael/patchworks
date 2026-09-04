@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/davenathanael/patchwork/internal/core"
@@ -99,6 +100,12 @@ func Links(links []core.Bookmark) Node {
 }
 
 func LinkRow(link core.Bookmark) Node {
+	return Li(BookmarkArticle(link))
+}
+
+// BookmarkArticle renders one bookmark row's article — the swap target for the
+// row menu: the edit panel, updated rows, and cancellations all replace it.
+func BookmarkArticle(link core.Bookmark) Node {
 	relTime := relativeTime(link.CreatedAt)
 
 	tags := make([]Node, 0, len(link.Tags))
@@ -106,22 +113,103 @@ func LinkRow(link core.Bookmark) Node {
 		tags = append(tags, Li(Text(tag)))
 	}
 
-	return Li(
-		Article(
-			Header(
+	return Article(
+		Header(
+			A(
+				Href(link.URL.String()),
+				Target("_blank"),
+				Rel("noopener"),
+				Text(link.Title),
+			),
+			Time(Attr("datetime", link.CreatedAt.Format(time.RFC3339)), Text(relTime)),
+		),
+		Footer(
+			Small(Text(link.URL.Host)),
+			Ul(tags...),
+			Span(Class("row-actions"), bookmarkMenu(link)),
+		),
+		noteBlock(link),
+	)
+}
+
+// EditBookmarkPage is the no-JS fallback: a full page wrapping the edit panel.
+func EditBookmarkPage(user core.User, panel Node) Node {
+	return Page("Edit Bookmark — Patchworks", AppShell(user, Main(
+		A(Class("back-link"), Href("/"), Text("← Dashboard")),
+		panel,
+	)))
+}
+
+// bookmarkMenu is the row's kebab menu. The trigger opens a native popover
+// (popover="auto") so click-outside / Esc dismiss it with no JS; the popover
+// anchors itself to the trigger. "Edit notes & tags" swaps the article for the
+// inline edit panel (htmx) or navigates to the edit page (no-JS).
+// Edit-collections and Archive join this menu in later steps.
+func bookmarkMenu(link core.Bookmark) Node {
+	editURL := fmt.Sprintf("/bookmarks/%s/edit", link.ID)
+	popoverID := "bookmark-menu-" + link.ID.String()
+	return Group{
+		Button(
+			Class("button ghost small"),
+			Type("button"),
+			Attr("popovertarget", popoverID),
+			Attr("aria-label", "Bookmark actions"),
+			Text("⋯"),
+		),
+		Div(
+			ID(popoverID),
+			Class("menu-card"),
+			Attr("popover", "auto"),
+			A(
+				Class("menu-item"),
+				Href(editURL),
+				Attr("hx-get", editURL),
+				Attr("hx-target", "closest article"),
+				Attr("hx-swap", "outerHTML"),
+				Text("Edit notes & tags"),
+			),
+		),
+	}
+}
+
+// BookmarkEditPanel is the inline edit state replacing the row's article:
+// notes textarea + comma-separated tags; title and domain stay read-only.
+func BookmarkEditPanel(link core.Bookmark, errs FormErrors) Node {
+	editURL := fmt.Sprintf("/bookmarks/%s/edit", link.ID)
+	rowURL := fmt.Sprintf("/bookmarks/%s", link.ID)
+	return Article(
+		Header(
+			A(
+				Href(link.URL.String()),
+				Target("_blank"),
+				Rel("noopener"),
+				Text(link.Title),
+			),
+			Time(Attr("datetime", link.CreatedAt.Format(time.RFC3339)), Text(relativeTime(link.CreatedAt))),
+		),
+		Footer(Small(Text(link.URL.Host))),
+		Form(
+			Class("edit-panel"),
+			Method("POST"),
+			Action(editURL),
+			Attr("hx-post", editURL),
+			Attr("hx-target", "closest article"),
+			Attr("hx-swap", "outerHTML"),
+			Label(Text("Note"),
+				Textarea(Name("notes"), Rows("2"), Text(link.Notes)),
+			),
+			TextInput("Tags (comma-separated)", "tags", "text", strings.Join(link.Tags, ", "), errs),
+			Div(Class("edit-actions"),
+				Button(Type("submit"), Class("button small"), Text("Save")),
 				A(
-					Href(link.URL.String()),
-					Target("_blank"),
-					Rel("noopener"),
-					Text(link.Title),
+					Class("button ghost small"),
+					Href("/"),
+					Attr("hx-get", rowURL),
+					Attr("hx-target", "closest article"),
+					Attr("hx-swap", "outerHTML"),
+					Text("Cancel"),
 				),
-				Time(Attr("datetime", link.CreatedAt.Format(time.RFC3339)), Text(relTime)),
 			),
-			Footer(
-				Small(Text(link.URL.Host)),
-				Ul(tags...),
-			),
-			noteBlock(link),
 		),
 	)
 }

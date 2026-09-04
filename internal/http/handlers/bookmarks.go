@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/http/middleware"
 	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -25,6 +27,8 @@ type BookmarkStore interface {
 	GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
 	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
 	CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
+	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
+	UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error)
 }
 
 func handleGetHome(comp *components.Components) Handler {
@@ -200,14 +204,7 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 		}
 	}
 
-	tags := strings.Split(formData.Tags, ",")
-	filtered := tags[:0]
-	for _, tag := range tags {
-		if tag = strings.TrimSpace(tag); tag != "" {
-			filtered = append(filtered, tag)
-		}
-	}
-	tags = filtered
+	tags := splitTags(formData.Tags)
 
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
@@ -243,4 +240,144 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	return nil
+}
+
+func handleGetBookmarkById(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return getBookmarkById(w, r, comp.DB)
+	}
+}
+
+// getBookmarkById returns the bookmark row fragment (htmx cancel/refresh) or
+// redirects to the dashboard for plain requests.
+func getBookmarkById(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	user, ok := middleware.UserFromContext(r.Context())
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	bm, err := loadEditableBookmark(r, user, bookmarks)
+	if err != nil {
+		return err
+	}
+
+	if views.IsHtmx(r) {
+		if err := views.BookmarkArticle(bm).Render(w); err != nil {
+			return fmt.Errorf("render bookmark row: %w", err)
+		}
+		return nil
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+func handleGetBookmarkEdit(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return getBookmarkEdit(w, r, comp.DB)
+	}
+}
+
+// getBookmarkEdit renders the inline edit panel (htmx fragment) or a full edit
+// page (no-JS fallback).
+func getBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	bm, err := loadEditableBookmark(r, user, bookmarks)
+	if err != nil {
+		return err
+	}
+
+	panel := views.BookmarkEditPanel(bm, views.FormErrors{})
+	if views.IsHtmx(r) {
+		if err := panel.Render(w); err != nil {
+			return fmt.Errorf("render bookmark edit panel: %w", err)
+		}
+		return nil
+	}
+	if err := views.EditBookmarkPage(user, panel).Render(w); err != nil {
+		return fmt.Errorf("render edit bookmark page: %w", err)
+	}
+	return nil
+}
+
+func handlePostBookmarkEdit(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkEdit(w, r, comp.DB)
+	}
+}
+
+// postBookmarkEdit saves notes + tags (author-only) and returns the updated row
+// fragment (htmx) or redirects to the dashboard (plain form submit).
+func postBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+
+	var f editBookmarkForm
+	if err = form.NewDecoder(r.Body).Decode(&f); err != nil {
+		return fmt.Errorf("decode edit bookmark form: %w", err)
+	}
+	tags := splitTags(f.Tags)
+
+	updated, err := bookmarks.UpdateBookmarkNotesTags(ctx, id, user.ID, f.Notes, tags)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+		return fmt.Errorf("update bookmark: %w", err)
+	}
+
+	if views.IsHtmx(r) {
+		if err := views.BookmarkArticle(updated).Render(w); err != nil {
+			return fmt.Errorf("render bookmark row: %w", err)
+		}
+		return nil
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+// loadEditableBookmark parses the :id route param and fetches the user's own
+// bookmark (ErrNotFound propagates as a 404).
+func loadEditableBookmark(r *http.Request, user core.User, bookmarks BookmarkStore) (core.Bookmark, error) {
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return core.Bookmark{}, fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+	bm, err := bookmarks.GetBookmarkByID(r.Context(), id, user.ID)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return core.Bookmark{}, err
+		}
+		return core.Bookmark{}, fmt.Errorf("get bookmark: %w", err)
+	}
+	return bm, nil
+}
+
+// splitTags trims and filters empty tags from a comma-separated input.
+func splitTags(raw string) []string {
+	tags := strings.Split(raw, ",")
+	filtered := tags[:0]
+	for _, tag := range tags {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			filtered = append(filtered, tag)
+		}
+	}
+	return filtered
+}
+
+type editBookmarkForm struct {
+	Notes string `form:"notes"`
+	Tags  string `form:"tags"`
 }

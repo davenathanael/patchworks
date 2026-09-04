@@ -71,6 +71,23 @@ FROM bookmark_tags
 WHERE bookmark_id = ANY(@bookmark_ids::uuid[]);
 
 
+-- name: GetBookmarkById :one
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.id = @id::uuid AND bookmarks.author_id = @author_id::uuid;
+
+-- name: UpdateBookmarkNotesTags :one
+UPDATE bookmarks
+SET notes = @notes::text
+WHERE id = @id::uuid AND author_id = @author_id::uuid
+RETURNING *;
+
+-- name: DeleteBookmarkTags :exec
+DELETE FROM bookmark_tags
+WHERE bookmark_id = $1 AND author_id = $2;
+
+
 -- name: GetTagsByUserId :many
 SELECT
     tag,

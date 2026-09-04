@@ -2,11 +2,14 @@ package db
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/db/sqlc"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 func (db *DB) GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, error) {
@@ -166,4 +169,78 @@ func (db *DB) toBookmarksWithTags(ctx context.Context, rows []sqlc.GetRecentBook
 	}
 
 	return toBookmarks(rows, tagRows), nil
+}
+
+// GetBookmarkByID returns one of the user's own bookmarks with its tags.
+// Author-only: the query matches author_id, so other users' bookmarks are not
+// visible (404).
+func (db *DB) GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	row, err := db.querier.GetBookmarkById(ctx, sqlc.GetBookmarkByIdParams{ID: id, AuthorID: userID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.Bookmark{}, fmt.Errorf("get bookmark: %w", core.ErrNotFound)
+		}
+		return core.Bookmark{}, err
+	}
+	tags, err := db.tagsForBookmarks(ctx, []uuid.UUID{id})
+	if err != nil {
+		return core.Bookmark{}, err
+	}
+	return toBookmark(row.Bookmark, tags[id], toUser(row.User)), nil
+}
+
+// UpdateBookmarkNotesTags replaces a bookmark's notes and tags in one
+// transaction. Author-only: the UPDATE matches author_id; a mismatch returns
+// ErrNotFound. Tags are replaced wholesale (delete + insert), like a fresh save.
+func (db *DB) UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error) {
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return core.Bookmark{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	querier := db.querier.WithTx(tx)
+
+	if _, err := querier.UpdateBookmarkNotesTags(ctx, sqlc.UpdateBookmarkNotesTagsParams{
+		ID:       id,
+		AuthorID: userID,
+		Notes:    notes,
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.Bookmark{}, fmt.Errorf("update bookmark: %w", core.ErrNotFound)
+		}
+		return core.Bookmark{}, err
+	}
+
+	if err := querier.DeleteBookmarkTags(ctx, sqlc.DeleteBookmarkTagsParams{BookmarkID: id, AuthorID: userID}); err != nil {
+		return core.Bookmark{}, err
+	}
+	if len(tags) > 0 {
+		tagParams := make([]sqlc.CreateBookmarkTagsParams, 0, len(tags))
+		for _, tag := range tags {
+			tagParams = append(tagParams, sqlc.CreateBookmarkTagsParams{BookmarkID: id, Tag: tag, AuthorID: userID})
+		}
+		if _, err := querier.CreateBookmarkTags(ctx, tagParams); err != nil {
+			return core.Bookmark{}, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return core.Bookmark{}, err
+	}
+
+	return db.GetBookmarkByID(ctx, id, userID)
+}
+
+// tagsForBookmarks groups tag rows by bookmark id for quick lookup.
+func (db *DB) tagsForBookmarks(ctx context.Context, bookmarkIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
+	tagRows, err := db.querier.GetTagsByBookmarkIds(ctx, bookmarkIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID][]string, len(bookmarkIDs))
+	for _, tr := range tagRows {
+		out[tr.BookmarkID] = append(out[tr.BookmarkID], tr.Tag)
+	}
+	return out, nil
 }
