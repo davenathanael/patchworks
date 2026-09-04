@@ -43,6 +43,7 @@ func SideNav(user core.User) Node {
 		A(Class("brand"), Href("/"), Group{Text("Patch"), B(Text("works"))}),
 		A(Class("nav-link"), Href("/"), Text("Home")),
 		A(Class("nav-link"), Href("/collections"), Text("Collections")),
+		A(Class("nav-link"), Href("/archived"), Text("Archived")),
 		Div(
 			Class("sid-user"),
 			Span(Class("muted"), Text(user.Email)),
@@ -58,6 +59,7 @@ func TopNav(user core.User) Node {
 			Class("nav-links"),
 			A(Class("nav-link"), Href("/"), Text("Patchworks")),
 			A(Class("nav-link"), Href("/collections"), Text("Collections")),
+			A(Class("nav-link"), Href("/archived"), Text("Archived")),
 		),
 		Div(
 			Class("nav-user"),

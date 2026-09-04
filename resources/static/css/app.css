@@ -576,6 +576,7 @@
                         margin-inline-start: auto;
                         display: flex;
                         align-items: center;
+                        gap: var(--size-1);
                     }
                 }
             }

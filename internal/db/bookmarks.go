@@ -293,6 +293,44 @@ func (db *DB) ArchiveBookmark(ctx context.Context, id, userID uuid.UUID) error {
 	return nil
 }
 
+// GetArchivedBookmarksByUser lists the user's archived bookmarks, newest
+// archive first, with tags and collection membership attached.
+func (db *DB) GetArchivedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error) {
+	rows, err := db.querier.GetArchivedBookmarksByUserId(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	recent := Map(rows, func(r sqlc.GetArchivedBookmarksByUserIdRow) sqlc.GetRecentBookmarksByUserIdRow {
+		return sqlc.GetRecentBookmarksByUserIdRow(r)
+	})
+	return db.toBookmarksWithTags(ctx, recent)
+}
+
+// RestoreBookmark clears archived_at, bringing the bookmark back into the
+// browse lists. Author-only; ErrNotFound if not the author.
+func (db *DB) RestoreBookmark(ctx context.Context, id, userID uuid.UUID) error {
+	if _, err := db.querier.RestoreBookmark(ctx, sqlc.RestoreBookmarkParams{ID: id, AuthorID: userID}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("restore bookmark: %w", core.ErrNotFound)
+		}
+		return err
+	}
+	return nil
+}
+
+// DeleteBookmark permanently removes a bookmark (its tags and collection links
+// cascade). Author-only; ErrNotFound if not the author.
+func (db *DB) DeleteBookmark(ctx context.Context, id, userID uuid.UUID) error {
+	deleted, err := db.querier.DeleteBookmark(ctx, sqlc.DeleteBookmarkParams{ID: id, AuthorID: userID})
+	if err != nil {
+		return err
+	}
+	if deleted == 0 {
+		return fmt.Errorf("delete bookmark: %w", core.ErrNotFound)
+	}
+	return nil
+}
+
 // UpdateBookmarkCollectionIDs replaces the bookmark's links to the user's own
 // (member) collections, in one transaction. Links to collections the user is
 // not a member of are left untouched — a shared bookmark keeps its place in

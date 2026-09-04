@@ -52,8 +52,13 @@ Order of implementation (each step is a committable unit):
    resurrect archived links. Spec: FR-1 → §5.2 as BK-9, remainder (restore /
    hard-delete / Archived page) stays FR-1; Rev 0.8. `check` + integration green.
 
-7. **Archived page (FR-1, remainder)** — separate step, later: list archived
-   bookmarks, restore, hard-delete; archive/filter interplay per spec.
+7. **✅ Archived page (FR-1 → BK-10, remainder)** (done) — `/archived` lists
+   archived bookmarks (newest-first, tags attached) with inline Restore
+   (`POST /bookmarks/{id}/restore`) and permanent Delete (`POST
+   /bookmarks/{id}/delete`, hx-confirm; `DeleteBookmark` uses `:execrows` to
+   404 non-authors); both drop the row via hx-swap delete. Nav links added to
+   sidenav + topnav. Spec: FR-1 fully landed → §5.2 as BK-9 (action) + BK-10
+   (page); Rev 0.9. `check` + integration green.
 
 ## Risks / notes
 - Notes migration touches all sqlc bookmark rows → mapping updates in

@@ -32,6 +32,9 @@ type BookmarkStore interface {
 	UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error)
 	UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error)
 	ArchiveBookmark(ctx context.Context, id, userID uuid.UUID) error
+	GetArchivedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
+	RestoreBookmark(ctx context.Context, id, userID uuid.UUID) error
+	DeleteBookmark(ctx context.Context, id, userID uuid.UUID) error
 }
 
 func handleGetHome(comp *components.Components) Handler {
@@ -436,6 +439,93 @@ func handlePostBookmarkCollections(comp *components.Components) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		return postBookmarkCollections(w, r, comp.DB, comp.DB)
 	}
+}
+
+func handleGetArchived(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return getArchived(w, r, comp.DB)
+	}
+}
+
+// getArchived renders the archived-bookmarks page (list + restore/delete).
+func getArchived(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	archived, err := bookmarks.GetArchivedBookmarksByUser(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("get archived bookmarks: %w", err)
+	}
+	if err := views.ArchivedPage(user, archived).Render(w); err != nil {
+		return fmt.Errorf("render archived page: %w", err)
+	}
+	return nil
+}
+
+func handlePostBookmarkRestore(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkRestore(w, r, comp.DB)
+	}
+}
+
+// postBookmarkRestore clears archived_at; the htmx client deletes the row
+// (hx-swap="delete"), plain submits return to the archived page.
+func postBookmarkRestore(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+	if err := bookmarks.RestoreBookmark(ctx, id, user.ID); err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+		return fmt.Errorf("restore bookmark: %w", err)
+	}
+	if views.IsHtmx(r) {
+		return nil
+	}
+	http.Redirect(w, r, "/archived", http.StatusSeeOther)
+	return nil
+}
+
+func handlePostBookmarkDelete(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkDelete(w, r, comp.DB)
+	}
+}
+
+// postBookmarkDelete permanently removes the bookmark; the htmx client deletes
+// the row, plain submits return to the archived page.
+func postBookmarkDelete(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+	if err := bookmarks.DeleteBookmark(ctx, id, user.ID); err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+		return fmt.Errorf("delete bookmark: %w", err)
+	}
+	if views.IsHtmx(r) {
+		return nil
+	}
+	http.Redirect(w, r, "/archived", http.StatusSeeOther)
+	return nil
 }
 
 // postBookmarkCollections replaces the bookmark's collection membership from

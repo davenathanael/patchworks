@@ -89,6 +89,24 @@ SET archived_at = now()
 WHERE id = @id::uuid AND author_id = @author_id::uuid
 RETURNING *;
 
+-- name: GetArchivedBookmarksByUserId :many
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = @author_id::uuid
+AND bookmarks.archived_at IS NOT NULL
+ORDER BY bookmarks.archived_at DESC;
+
+-- name: RestoreBookmark :one
+UPDATE bookmarks
+SET archived_at = NULL
+WHERE id = @id::uuid AND author_id = @author_id::uuid
+RETURNING *;
+
+-- name: DeleteBookmark :execrows
+DELETE FROM bookmarks
+WHERE id = @id::uuid AND author_id = @author_id::uuid;
+
 -- name: UpdateBookmarkNotesTags :one
 UPDATE bookmarks
 SET notes = @notes::text

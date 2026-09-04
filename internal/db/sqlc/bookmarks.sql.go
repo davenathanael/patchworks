@@ -103,6 +103,24 @@ func (q *Queries) CreateCollectionBookmark(ctx context.Context, arg CreateCollec
 	return i, err
 }
 
+const deleteBookmark = `-- name: DeleteBookmark :execrows
+DELETE FROM bookmarks
+WHERE id = $1::uuid AND author_id = $2::uuid
+`
+
+type DeleteBookmarkParams struct {
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteBookmark, arg.ID, arg.AuthorID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteBookmarkCollectionLinks = `-- name: DeleteBookmarkCollectionLinks :exec
 DELETE FROM collection_bookmarks
 WHERE bookmark_id = $1 AND collection_id = ANY($2::uuid[])
@@ -163,6 +181,55 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmar
 	var items []GetAllBookmarksByUserIdRow
 	for rows.Next() {
 		var i GetAllBookmarksByUserIdRow
+		if err := rows.Scan(
+			&i.Bookmark.ID,
+			&i.Bookmark.Url,
+			&i.Bookmark.Title,
+			&i.Bookmark.CreatedAt,
+			&i.Bookmark.UpdatedAt,
+			&i.Bookmark.ArchivedAt,
+			&i.Bookmark.AuthorID,
+			&i.Bookmark.Notes,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getArchivedBookmarksByUserId = `-- name: GetArchivedBookmarksByUserId :many
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = $1::uuid
+AND bookmarks.archived_at IS NOT NULL
+ORDER BY bookmarks.archived_at DESC
+`
+
+type GetArchivedBookmarksByUserIdRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetArchivedBookmarksByUserId(ctx context.Context, authorID uuid.UUID) ([]GetArchivedBookmarksByUserIdRow, error) {
+	rows, err := q.db.Query(ctx, getArchivedBookmarksByUserId, authorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetArchivedBookmarksByUserIdRow
+	for rows.Next() {
+		var i GetArchivedBookmarksByUserIdRow
 		if err := rows.Scan(
 			&i.Bookmark.ID,
 			&i.Bookmark.Url,
@@ -614,6 +681,34 @@ func (q *Queries) GetTagsByUserId(ctx context.Context, authorID uuid.UUID) ([]Ge
 		return nil, err
 	}
 	return items, nil
+}
+
+const restoreBookmark = `-- name: RestoreBookmark :one
+UPDATE bookmarks
+SET archived_at = NULL
+WHERE id = $1::uuid AND author_id = $2::uuid
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+`
+
+type RestoreBookmarkParams struct {
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) RestoreBookmark(ctx context.Context, arg RestoreBookmarkParams) (Bookmark, error) {
+	row := q.db.QueryRow(ctx, restoreBookmark, arg.ID, arg.AuthorID)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+		&i.AuthorID,
+		&i.Notes,
+	)
+	return i, err
 }
 
 const updateBookmarkNotesTags = `-- name: UpdateBookmarkNotesTags :one

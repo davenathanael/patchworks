@@ -308,6 +308,57 @@ func TestArchiveBookmark(t *testing.T) {
 	be.True(t, errors.Is(err, core.ErrNotFound))
 }
 
+func TestArchivedLifecycle(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "archlife@test.local", "hash")
+	be.NilErr(t, err)
+	other, err := testDB.CreateUser(ctx, "archlife2@test.local", "hash")
+	be.NilErr(t, err)
+
+	u, err := url.Parse("https://example.com/archived")
+	be.NilErr(t, err)
+	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, uuid.Nil, []string{"go"})
+	be.NilErr(t, err)
+
+	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID))
+
+	// the archived list returns it with tags attached
+	list, err := testDB.GetArchivedBookmarksByUser(ctx, user.ID)
+	be.NilErr(t, err)
+	be.Equal(t, 1, len(list))
+	be.Equal(t, "Archived Post", list[0].Title)
+	be.AllEqual(t, []string{"go"}, list[0].Tags)
+
+	// restore puts it back in browse
+	be.NilErr(t, testDB.RestoreBookmark(ctx, bk.ID, user.ID))
+	list, err = testDB.GetArchivedBookmarksByUser(ctx, user.ID)
+	be.NilErr(t, err)
+	be.Equal(t, 0, len(list))
+	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	be.NilErr(t, err)
+	be.Equal(t, 1, len(recent))
+
+	// archive again, then permanently delete
+	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID))
+	be.NilErr(t, testDB.DeleteBookmark(ctx, bk.ID, user.ID))
+	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	be.NilErr(t, err)
+	be.Equal(t, 0, len(recent))
+	_, err = testDB.GetBookmarkByID(ctx, bk.ID, user.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+
+	// author-only restore/delete — on a fresh bookmark
+	u2, err := url.Parse("https://example.com/again")
+	be.NilErr(t, err)
+	bk2, err := testDB.CreateBookmark(ctx, u2, "Another Post", user.ID, uuid.Nil, nil)
+	be.NilErr(t, err)
+	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk2.ID, user.ID))
+	err = testDB.RestoreBookmark(ctx, bk2.ID, other.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+	err = testDB.DeleteBookmark(ctx, bk2.ID, other.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+}
+
 func TestBookmarkRepository(t *testing.T) {
 	ctx := context.Background()
 	user, err := testDB.CreateUser(ctx, "bookmark@test.local", "hash")

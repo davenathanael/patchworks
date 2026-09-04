@@ -138,6 +138,67 @@ func EditBookmarkPage(user core.User, panel Node) Node {
 	)))
 }
 
+// ArchivedPage lists the user's archived bookmarks — restore and permanent
+// delete live here (FR-1 remainder).
+func ArchivedPage(user core.User, bookmarks []core.Bookmark) Node {
+	content := Main(
+		Header(H1(Text("Archived"))),
+		IfElse(len(bookmarks) > 0,
+			Ul(Class("link-list"), Map(bookmarks, ArchivedRow)),
+			P(Class("muted"), Text("Nothing archived yet.")),
+		),
+	)
+	return Page("Archived — Patchworks", AppShell(user, content))
+}
+
+// ArchivedRow is the management row for the archived page: inline Restore and
+// permanent Delete instead of the kebab menu.
+func ArchivedRow(link core.Bookmark) Node {
+	relTime := relativeTime(link.CreatedAt)
+	tags := make([]Node, 0, len(link.Tags))
+	for _, tag := range link.Tags {
+		tags = append(tags, Li(Text(tag)))
+	}
+	restoreURL := fmt.Sprintf("/bookmarks/%s/restore", link.ID)
+	deleteURL := fmt.Sprintf("/bookmarks/%s/delete", link.ID)
+
+	return Li(
+		Article(
+			Header(
+				A(
+					Href(link.URL.String()),
+					Target("_blank"),
+					Rel("noopener"),
+					Text(link.Title),
+				),
+				Time(Attr("datetime", link.CreatedAt.Format(time.RFC3339)), Text(relTime)),
+			),
+			Footer(
+				Small(Text(link.URL.Host)),
+				Ul(tags...),
+				Span(Class("row-actions"),
+					Group{
+						Button(Class("button outline small"), Type("button"),
+							Attr("hx-post", restoreURL),
+							Attr("hx-target", "closest li"),
+							Attr("hx-swap", "delete"),
+							Text("Restore"),
+						),
+						Button(Class("button danger small"), Type("button"),
+							Attr("hx-post", deleteURL),
+							Attr("hx-confirm", "Delete permanently? This cannot be undone."),
+							Attr("hx-target", "closest li"),
+							Attr("hx-swap", "delete"),
+							Text("Delete"),
+						),
+					},
+				),
+			),
+			noteBlock(link),
+		),
+	)
+}
+
 // EditPanelRow wraps an inline edit panel in the list item the row swap
 // expects: swap targets are `closest li` + outerHTML, so fragments must be Li
 // (a bare article would replace the li and break .link-list > li > article).

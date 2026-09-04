@@ -391,6 +391,75 @@ func TestPostBookmarkArchiveNotAuthor(t *testing.T) {
 	be.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestGetArchivedPage(t *testing.T) {
+	bm := &fakeBookmarkStore{archived: []core.Bookmark{mustBookmark(t, "https://example.com", "Old Post")}}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getArchived(rec, mustAuthedRequest(t, http.MethodGet, "/archived", nil), bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "archived", bm.last)
+	be.True(t, containsBody(rec, "Archived"))
+	be.True(t, containsBody(rec, "Old Post"))
+	be.True(t, containsBody(rec, "Restore"))
+	be.True(t, containsBody(rec, "Delete"))
+}
+
+func TestPostBookmarkRestoreHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+
+	rec := httptest.NewRecorder()
+	r := routeFormRequest(t, uuid.New(), "")
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkRestore(rec, r, bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "restore", bm.last)
+	be.Equal(t, "", rec.Body.String())
+}
+
+func TestPostBookmarkRestoreRedirect(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, postBookmarkRestore(rec, routeFormRequest(t, uuid.New(), ""), bm))
+
+	be.Equal(t, http.StatusSeeOther, rec.Code)
+	be.Equal(t, "/archived", rec.Header().Get("Location"))
+}
+
+func TestPostBookmarkRestoreNotAuthor(t *testing.T) {
+	bm := &fakeBookmarkStore{err: core.ErrNotFound}
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkRestore(w, r, bm)
+	}, routeFormRequest(t, uuid.New(), ""))
+
+	be.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestPostBookmarkDeleteHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+
+	rec := httptest.NewRecorder()
+	r := routeFormRequest(t, uuid.New(), "")
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkDelete(rec, r, bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "delete", bm.last)
+}
+
+func TestPostBookmarkDeleteNotAuthor(t *testing.T) {
+	bm := &fakeBookmarkStore{err: core.ErrNotFound}
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkDelete(w, r, bm)
+	}, routeFormRequest(t, uuid.New(), ""))
+
+	be.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 // --- fakes & helpers ---
 
 // serve runs a Handler through Adapt so status codes are written by the
@@ -413,6 +482,7 @@ type fakeBookmarkStore struct {
 	tags            []core.Tag
 	recent          []core.Bookmark
 	all             []core.Bookmark
+	archived        []core.Bookmark
 	one             core.Bookmark // single-bookmark target (edit routes)
 	last            string        // which query method ran last
 	gotCollectionID uuid.UUID
@@ -482,6 +552,21 @@ func (f *fakeBookmarkStore) UpdateBookmarkCollectionIDs(ctx context.Context, boo
 
 func (f *fakeBookmarkStore) ArchiveBookmark(ctx context.Context, id, userID uuid.UUID) error {
 	f.last = "archive"
+	return f.err
+}
+
+func (f *fakeBookmarkStore) GetArchivedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error) {
+	f.last = "archived"
+	return f.archived, f.err
+}
+
+func (f *fakeBookmarkStore) RestoreBookmark(ctx context.Context, id, userID uuid.UUID) error {
+	f.last = "restore"
+	return f.err
+}
+
+func (f *fakeBookmarkStore) DeleteBookmark(ctx context.Context, id, userID uuid.UUID) error {
+	f.last = "delete"
 	return f.err
 }
 

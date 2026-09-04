@@ -36,6 +36,7 @@ func New(comp *components.Components) http.Handler {
 		r.Use(middleware.Auth(comp.AuthService))
 
 		r.Method("GET", "/", handleGetHome(comp))
+		r.Method("GET", "/archived", handleGetArchived(comp))
 		r.Method("POST", "/bookmarks", handlePostBookmarks(comp))
 		r.Method("GET", "/bookmarks/{id}", handleGetBookmarkById(comp))
 		r.Method("GET", "/bookmarks/{id}/edit", handleGetBookmarkEdit(comp))
@@ -43,6 +44,8 @@ func New(comp *components.Components) http.Handler {
 		r.Method("GET", "/bookmarks/{id}/collections/edit", handleGetBookmarkCollectionsEdit(comp))
 		r.Method("POST", "/bookmarks/{id}/collections", handlePostBookmarkCollections(comp))
 		r.Method("POST", "/bookmarks/{id}/archive", handlePostBookmarkArchive(comp))
+		r.Method("POST", "/bookmarks/{id}/restore", handlePostBookmarkRestore(comp))
+		r.Method("POST", "/bookmarks/{id}/delete", handlePostBookmarkDelete(comp))
 
 		r.Method("GET", "/collections", handleGetCollections(comp))
 		r.Method("GET", "/collections/new", handleGetCollectionCreation(comp))
