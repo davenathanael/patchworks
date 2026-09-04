@@ -264,7 +264,7 @@
             text-decoration: none;
             padding: 0.4em 0.6em;
             border-radius: var(--radius-sm);
-            font-size: 0.9rem;
+            font-size: var(--font-size-0);
 
             &:hover {
                 background: var(--surface-2);
@@ -934,11 +934,6 @@
         font-size: var(--font-size-0);
         font-weight: var(--font-weight-5);
         color: var(--text-2);
-    }
-
-    main > form label input,
-    main > form label textarea {
-        color: var(--text-1);
     }
 
     /* auth pages — standalone body > main, centered card filling the viewport */
