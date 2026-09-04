@@ -29,6 +29,7 @@ type BookmarkStore interface {
 	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
 	CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
 	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
+	FindUserBookmarkByURL(ctx context.Context, userID uuid.UUID, rawURL string) (core.Bookmark, bool, error)
 	GetBookmarkForCollectionEdit(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 	UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error)
 	UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error)
@@ -175,6 +176,22 @@ type (
 // preserving the submitted values. htmx requests retarget the swap to the form
 // element itself, since the form's own hx-target is the bookmarks list
 // (#bookmarks); plain requests re-render the full home page.
+// checkDuplicateURL returns the FR-11 reminder for an exact-URL bookmark of
+// the same author; saveAnyway (the warned form's hidden field) skips the check.
+func checkDuplicateURL(ctx context.Context, bookmarks BookmarkStore, userID uuid.UUID, u *url.URL, saveAnyway bool) (*views.Duplicate, error) {
+	if saveAnyway {
+		return nil, nil
+	}
+	dup, found, err := bookmarks.FindUserBookmarkByURL(ctx, userID, u.String())
+	if err != nil {
+		return nil, fmt.Errorf("find duplicate bookmark: %w", err)
+	}
+	if !found {
+		return nil, nil
+	}
+	return views.NewDuplicate(dup), nil
+}
+
 func renderBookmarkFormErrors(w http.ResponseWriter, r *http.Request, user core.User, collections CollectionStore, bookmarks BookmarkStore, f views.BookmarkForm) error {
 	if views.IsHtmx(r) {
 		collectionsList, err := collections.GetCollectionsByUser(r.Context(), user.ID)
@@ -224,9 +241,19 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 		if err != nil {
 			return fmt.Errorf("invalid collection id %q in bookmark form: %w", formData.CollectionID, err)
 		}
-		if err := requireManageBookmarks(ctx, collections, user.ID, collectionID); err != nil {
+		if err = requireManageBookmarks(ctx, collections, user.ID, collectionID); err != nil {
 			return err
 		}
+	}
+
+	var dup *views.Duplicate
+	dup, err = checkDuplicateURL(ctx, bookmarks, user.ID, parsedURL, formData.SaveAnyway)
+	if err != nil {
+		return err
+	}
+	if dup != nil {
+		formData.Duplicate = dup
+		return renderBookmarkFormErrors(w, r, user, collections, bookmarks, formData)
 	}
 
 	tags := splitTags(formData.Tags)

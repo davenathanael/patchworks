@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v1.2 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v1.3 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -16,6 +16,7 @@
 | 1.0 | 2026-09-04 | FR-6 landed in §5.3 as **CL-9** — collection roles enforced (404 non-member / 403 insufficient role); new §6 “Access control & permissions” — consolidated action matrix for tickets/tests; roadmap renumbered (Future developments → §7, Open questions → §8); FR-6 removed from roadmap |
 | 1.1 | 2026-09-04 | FR-3 retired from §7.1 — its hard-delete remainder was already landed as BK-10 (Archived-page permanent delete); stale FR-3 pointers fixed (§3 non-goals, tag gaps, Q1/Q3, §6.3 matrix, §5.2 save-form gap → CL-8) |
 | 1.2 | 2026-09-04 | FR-5 landed in §5.1 as **AU-7** — successful logins stamp `users.last_login_at`; FR-5 removed from §7.1 |
+| 1.3 | 2026-09-04 | FR-11 landed in §5.2 as **BK-11** — soft duplicate-URL reminder with Save-anyway override; FR-11 removed from §7.2 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -88,6 +89,7 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Design: `docs/mockups/design-bookmark-actions.html`.
 - **BK-9** *(formerly FR-1, archive half)* Archive a bookmark from the row menu (dashboard and collection detail): native confirm (`hx-confirm`), one htmx post sets `archived_at`, the row leaves the current list. Archived bookmarks are hidden from recent/search/filtered/collection browse (`archived_at IS NULL` on all browse queries); the management side lives in BK-10.
 - **BK-10** *(formerly FR-1, remainder; also closes FR-3's hard-delete half)* Archived page: `/archived` lists the user's archived bookmarks (newest archive first, tags attached) with inline **Restore** (clears `archived_at`, back into browse) and permanent **Delete** (author-only, own confirm, tags + collection links cascade).
+- **BK-11** *(formerly FR-11)* Duplicate URL detection on save: an exact-URL bookmark by the same author (any archived state) triggers a soft inline reminder — existing title + when it was saved — with a **Save anyway** override (`save_anyway=true` marker on the warned re-render); submitted values are preserved. Exact string match, no URL normalization (a normalized column is a schema-ready follow-up if needed). Non-duplicate saves are unchanged.
 - **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only; multi-collection membership is post-save via CL-8.
 
 ### 5.3 Collections & sharing — *impl / partial*
@@ -188,7 +190,6 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 - **FR-8** Import from browser HTML export / OPML; export collections to JSON/HTML.
 - **FR-9** Link health: periodic HEAD/GET checks, broken-link badges. *(needs a background job — new infra)*
 - **FR-10** Read-later: unread/read state on bookmarks + a reading view.
-- **FR-11** Duplicate URL detection with a soft reminder on save.
 - **FR-12** Email verification and password reset flows (prerequisite for serious OAuth/password UX).
 
 ### 7.3 Longer-term / exploratory

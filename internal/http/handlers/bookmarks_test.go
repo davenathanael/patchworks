@@ -195,6 +195,36 @@ func TestPostBookmarksHtmxMalformedURL(t *testing.T) {
 	be.True(t, containsBody(rec, `value="go, web"`)) // submitted tags preserved in the fragment
 }
 
+func TestPostBookmarksDuplicateURLWarns(t *testing.T) {
+	existing := mustBookmark(t, "https://example.com/dup", "Already Saved")
+	bm := &fakeBookmarkStore{dup: &existing}
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	r := mustFormRequest(t, "url=https%3A%2F%2Fexample.com%2Fdup&tags=go")
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarks(rec, r, col, bm, fakeTitleFetcher{title: "Fresh"}))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, 0, len(bm.created)) // nothing saved until the reminder is confirmed
+	be.Equal(t, "#add-bookmark-form", rec.Header().Get("HX-Retarget"))
+	be.True(t, containsBody(rec, "Save anyway"))
+	be.True(t, containsBody(rec, "Already Saved"))
+	be.True(t, containsBody(rec, `value="go"`)) // submitted tags preserved
+}
+
+func TestPostBookmarksForceSavesDuplicate(t *testing.T) {
+	existing := mustBookmark(t, "https://example.com/dup", "Already Saved")
+	bm := &fakeBookmarkStore{dup: &existing}
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	r := mustFormRequest(t, "url=https%3A%2F%2Fexample.com%2Fdup&save_anyway=true")
+	be.NilErr(t, postBookmarks(rec, r, col, bm, fakeTitleFetcher{title: "Fresh"}))
+
+	be.Equal(t, 1, len(bm.created)) // confirmed → saves
+}
+
 func TestGetBookmarkByIdHtmx(t *testing.T) {
 	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
 
@@ -524,8 +554,9 @@ type fakeBookmarkStore struct {
 	recent          []core.Bookmark
 	all             []core.Bookmark
 	archived        []core.Bookmark
-	one             core.Bookmark // single-bookmark target (edit routes)
-	last            string        // which query method ran last
+	one             core.Bookmark  // single-bookmark target (edit routes)
+	dup             *core.Bookmark // FR-11 reminder: author's existing bookmark for the URL
+	last            string         // which query method ran last
 	gotCollectionID uuid.UUID
 	created         []createdBookmark
 }
@@ -575,6 +606,17 @@ func (f *fakeBookmarkStore) GetBookmarkByID(ctx context.Context, id, userID uuid
 func (f *fakeBookmarkStore) GetBookmarkForCollectionEdit(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
 	f.last = "byid-collection"
 	return f.one, f.err
+}
+
+func (f *fakeBookmarkStore) FindUserBookmarkByURL(ctx context.Context, userID uuid.UUID, rawURL string) (core.Bookmark, bool, error) {
+	f.last = "find-dup"
+	if f.err != nil {
+		return core.Bookmark{}, false, f.err
+	}
+	if f.dup == nil {
+		return core.Bookmark{}, false, nil
+	}
+	return *f.dup, true, nil
 }
 
 func (f *fakeBookmarkStore) UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error) {

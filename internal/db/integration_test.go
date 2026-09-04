@@ -329,6 +329,43 @@ func TestBookmarkCollectionEditAccess(t *testing.T) {
 	be.Equal(t, 0, len(updated.CollectionIDs))
 }
 
+func TestFindUserBookmarkByURL(t *testing.T) {
+	ctx := context.Background()
+	author, err := testDB.CreateUser(ctx, "dupauthor@test.local", "hash")
+	be.NilErr(t, err)
+	other, err := testDB.CreateUser(ctx, "dupother@test.local", "hash")
+	be.NilErr(t, err)
+
+	u, err := url.Parse("https://example.com/dup-check")
+	be.NilErr(t, err)
+	bk, err := testDB.CreateBookmark(ctx, u, "Dup Check", author.ID, uuid.Nil, nil)
+	be.NilErr(t, err)
+
+	// exact URL, same author → found
+	got, found, err := testDB.FindUserBookmarkByURL(ctx, author.ID, u.String())
+	be.NilErr(t, err)
+	be.True(t, found)
+	be.Equal(t, bk.ID, got.ID)
+
+	// different author → not found (per-author scope)
+	_, found, err = testDB.FindUserBookmarkByURL(ctx, other.ID, u.String())
+	be.NilErr(t, err)
+	be.False(t, found)
+
+	// an archived copy still reminds
+	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, author.ID))
+	_, found, err = testDB.FindUserBookmarkByURL(ctx, author.ID, u.String())
+	be.NilErr(t, err)
+	be.True(t, found)
+
+	// near-miss URL (added query string) → not found: exact match per FR-11 v1
+	near, err := url.Parse("https://example.com/dup-check?x=1")
+	be.NilErr(t, err)
+	_, found, err = testDB.FindUserBookmarkByURL(ctx, author.ID, near.String())
+	be.NilErr(t, err)
+	be.False(t, found)
+}
+
 func TestArchiveBookmark(t *testing.T) {
 	ctx := context.Background()
 	user, err := testDB.CreateUser(ctx, "archive@test.local", "hash")

@@ -24,7 +24,31 @@ type BookmarkForm struct {
 	URL          string     `form:"url"`
 	CollectionID string     `form:"collection_id"`
 	Tags         string     `form:"tags"`
+	SaveAnyway   bool       `form:"save_anyway"` // set on the warned re-render: confirmed duplicate
+	Duplicate    *Duplicate `form:"-"`
 	Errors       FormErrors `form:"-"`
+}
+
+// Duplicate is the FR-11 soft reminder: an existing bookmark of the same
+// author with the exact same URL, offered with a Save-anyway override.
+type Duplicate struct {
+	Title    string
+	SavedAt  time.Time
+	Archived bool
+}
+
+// NewDuplicate builds the reminder model from the found bookmark.
+func NewDuplicate(bm core.Bookmark) *Duplicate {
+	return &Duplicate{Title: bm.Title, SavedAt: bm.CreatedAt, Archived: !bm.ArchivedAt.IsZero()}
+}
+
+// duplicateNotice renders the reminder line shown above the Save button.
+func duplicateNotice(d Duplicate) string {
+	msg := fmt.Sprintf("You already saved this link %s — %q.", relativeTime(d.SavedAt), d.Title)
+	if d.Archived {
+		msg += " That copy is archived."
+	}
+	return msg + " Save anyway to keep a second copy."
 }
 
 func NewBookmark(form BookmarkForm, collections []core.Collection) Node {
@@ -42,7 +66,7 @@ func NewBookmark(form BookmarkForm, collections []core.Collection) Node {
 // field errors. htmx failure responses retarget the swap to
 // #add-bookmark-form (the form's own hx-target is the bookmarks list).
 func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
-	return Form(
+	nodes := append([]Node{
 		ID("add-bookmark-form"),
 		Method("POST"),
 		Action("/bookmarks"),
@@ -55,8 +79,21 @@ func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
 			Attr("inputmode", "url"), Attr("enterkeyhint", "go"),
 		),
 		TextInput("Tags", "tags", "text", form.Tags, form.Errors, Placeholder("go, css, reading")),
-		Button(Type("submit"), Text("Save")),
-	)
+	}, duplicateNodes(form)...)
+	return Form(nodes...)
+}
+
+// duplicateNodes renders the FR-11 reminder: notice line, save_anyway marker,
+// and the Save-anyway submit; a fresh form gets the plain Save button.
+func duplicateNodes(form BookmarkForm) []Node {
+	if form.Duplicate == nil {
+		return []Node{Button(Type("submit"), Text("Save"))}
+	}
+	return []Node{
+		P(Class("muted"), Text(duplicateNotice(*form.Duplicate))),
+		Input(Type("hidden"), Name("save_anyway"), Value("true")),
+		Button(Type("submit"), Text("Save anyway")),
+	}
 }
 
 func RecentLinks(links []core.Bookmark, collections []core.Collection) Node {

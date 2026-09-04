@@ -151,6 +151,47 @@ func (q *Queries) DeleteBookmarkTags(ctx context.Context, arg DeleteBookmarkTags
 	return err
 }
 
+const findUserBookmarkByUrl = `-- name: FindUserBookmarkByUrl :one
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = $1::uuid AND bookmarks.url = $2
+ORDER BY bookmarks.created_at DESC
+LIMIT 1
+`
+
+type FindUserBookmarkByUrlParams struct {
+	AuthorID uuid.UUID
+	Url      string
+}
+
+type FindUserBookmarkByUrlRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) FindUserBookmarkByUrl(ctx context.Context, arg FindUserBookmarkByUrlParams) (FindUserBookmarkByUrlRow, error) {
+	row := q.db.QueryRow(ctx, findUserBookmarkByUrl, arg.AuthorID, arg.Url)
+	var i FindUserBookmarkByUrlRow
+	err := row.Scan(
+		&i.Bookmark.ID,
+		&i.Bookmark.Url,
+		&i.Bookmark.Title,
+		&i.Bookmark.CreatedAt,
+		&i.Bookmark.UpdatedAt,
+		&i.Bookmark.ArchivedAt,
+		&i.Bookmark.AuthorID,
+		&i.Bookmark.Notes,
+		&i.User.ID,
+		&i.User.Email,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.User.LastLoginAt,
+		&i.User.PasswordHash,
+	)
+	return i, err
+}
+
 const getAllBookmarksByUserId = `-- name: GetAllBookmarksByUserId :many
 SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks

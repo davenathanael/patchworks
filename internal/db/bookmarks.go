@@ -217,6 +217,21 @@ func (db *DB) GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.B
 	return db.bookmarkWithTags(ctx, id, row.Bookmark, row.User)
 }
 
+// FindUserBookmarkByURL returns the author's most recent bookmark with the
+// exact URL, regardless of archived state — the FR-11 soft-reminder lookup.
+// found=false when the author has no bookmark with that URL.
+func (db *DB) FindUserBookmarkByURL(ctx context.Context, userID uuid.UUID, rawURL string) (core.Bookmark, bool, error) {
+	row, err := db.querier.FindUserBookmarkByUrl(ctx, sqlc.FindUserBookmarkByUrlParams{AuthorID: userID, Url: rawURL})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.Bookmark{}, false, nil
+		}
+		return core.Bookmark{}, false, fmt.Errorf("find bookmark by url: %w", err)
+	}
+	// No tags/collection links needed for the reminder.
+	return toBookmark(row.Bookmark, nil, toUser(row.User)), true, nil
+}
+
 // GetBookmarkForCollectionEdit returns a bookmark for the collections picker:
 // the author themself, or a member with manage rights (owner/editor) in a
 // collection containing the bookmark. Viewers and strangers get ErrNotFound,

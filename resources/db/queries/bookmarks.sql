@@ -100,6 +100,14 @@ WHERE bookmarks.id = @id::uuid AND bookmarks.archived_at IS NULL
     )
   );
 
+-- name: FindUserBookmarkByUrl :one
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = @author_id::uuid AND bookmarks.url = @url
+ORDER BY bookmarks.created_at DESC
+LIMIT 1;
+
 -- name: ArchiveBookmark :one
 UPDATE bookmarks
 SET archived_at = now()
