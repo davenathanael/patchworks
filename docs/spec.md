@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v1.0 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v1.1 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -14,6 +14,7 @@
 | 0.8 | 2026-09-04 | FR-1 archive half landed in §5.2 as **BK-9** — Archive row action (hx-confirm, `archived_at` set, row leaves list) + `archived_at IS NULL` filters on all browse queries; FR-1 remainder (restore/hard-delete/Archived page) stays in §6.1 |
 | 0.9 | 2026-09-04 | FR-1 fully landed in §5.2 as **BK-10** — Archived page (`/archived`) with restore + permanent delete; FR-1 removed from §6.1 |
 | 1.0 | 2026-09-04 | FR-6 landed in §5.3 as **CL-9** — collection roles enforced (404 non-member / 403 insufficient role); new §6 “Access control & permissions” — consolidated action matrix for tickets/tests; roadmap renumbered (Future developments → §7, Open questions → §8); FR-6 removed from roadmap |
+| 1.1 | 2026-09-04 | FR-3 retired from §7.1 — its hard-delete remainder was already landed as BK-10 (Archived-page permanent delete); stale FR-3 pointers fixed (§3 non-goals, tag gaps, Q1/Q3, §6.3 matrix, §5.2 save-form gap → CL-8) |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -47,7 +48,7 @@ Core ideas:
 - **Not a read-later/reader app (yet).** Saving and organizing are core; offline snapshots and readability are future work (FR-19), deliberately out of the initial scope.
 - **No browser extension required** to use the core app (roadmap item FR-14, not a prerequisite).
 - **No client-side rendering stack.** The app is server-rendered by design; a JS framework would be a rewrite, not an enhancement.
-- **No bookmark detail page.** The bookmark list *is* the interface; editing happens on the row itself (→ FR-3).
+- **No bookmark detail page.** The bookmark list *is* the interface; editing happens on the row itself (→ BK-8).
 - **No multi-tenancy or orgs** beyond simple shared collections.
 - **No invasive analytics.** The only signals come from server logs.
 
@@ -82,10 +83,10 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-5** After adding, htmx requests re-render just the bookmark list; non-htmx requests redirect to the dashboard.
 - **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable, *unused*).
 - **BK-7** Bookmark notes: an optional free-text note per bookmark, shown under the domain & tags in the bookmark row, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication; the toggle appears only when the note likely overflows). Editing/clearing via BK-8. Design: `docs/mockups/design-bookmark-actions.html`. *(formerly FR-22 — see Rev 0.5)*
-- **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Hard-delete UI remains future (see Gaps). Design: `docs/mockups/design-bookmark-actions.html`.
+- **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Design: `docs/mockups/design-bookmark-actions.html`.
 - **BK-9** *(formerly FR-1, archive half)* Archive a bookmark from the row menu (dashboard and collection detail): native confirm (`hx-confirm`), one htmx post sets `archived_at`, the row leaves the current list. Archived bookmarks are hidden from recent/search/filtered/collection browse (`archived_at IS NULL` on all browse queries); the management side lives in BK-10.
-- **BK-10** *(formerly FR-1, remainder)* Archived page: `/archived` lists the user's archived bookmarks (newest archive first, tags attached) with inline **Restore** (clears `archived_at`, back into browse) and permanent **Delete** (author-only, own confirm, tags + collection links cascade).
-- **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only (→ FR-13).
+- **BK-10** *(formerly FR-1, remainder; also closes FR-3's hard-delete half)* Archived page: `/archived` lists the user's archived bookmarks (newest archive first, tags attached) with inline **Restore** (clears `archived_at`, back into browse) and permanent **Delete** (author-only, own confirm, tags + collection links cascade).
+- **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only; multi-collection membership is post-save via CL-8.
 
 ### 5.3 Collections & sharing — *impl / partial*
 
@@ -106,7 +107,7 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **TG-2** Tags are scoped per author (a user's tag namespace is their own).
 - **TG-3** The filter bar shows a tag cloud with per-tag bookmark counts (top 15).
 - **TG-4** Filter by one or more tags; a bookmark matches if it has any of the selected tags (results de-duplicated).
-- **Gaps:** no tag-level management — tag changes happen per-bookmark (→ FR-3).
+- **Gaps:** no tag-level management — tag changes happen per-bookmark (→ BK-8).
 
 ### 5.5 Search & filtering — *impl*
 
@@ -160,7 +161,7 @@ matrix.
 | View any bookmark inside a collection | any member of that collection (shared bookmarks keep their original author, CL-7) |
 | Edit notes & tags (BK-8) | author only |
 | Archive / restore (BK-9, BK-10) | author only |
-| Hard-delete (→ FR-3 remainder) | author only |
+| Hard-delete (BK-10) | author only |
 
 ### 6.4 Error semantics
 
@@ -177,7 +178,6 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 ### 7.1 Near-term — schema/design-ready
 
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
-- **FR-3** *(remainder)* Hard-delete a bookmark (author-only) — only meaningful for archived bookmarks; destructive, so it gets its own confirm. Edit of notes + tags landed as BK-8.
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 - **FR-5** Write `users.last_login_at` on successful login. *(schema-ready)*
 
@@ -209,8 +209,8 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 
 Resolved (2026-09-03, answers folded into the relevant requirement):
 
-- Q1/Q3 → FR-3 — per-bookmark editing of tags + collection membership, from the bookmark row; no tag-level management.
+- Q1/Q3 → BK-8 — per-bookmark editing of tags + collection membership, from the bookmark row; no tag-level management.
 - Q2 → FR-1 — archive hides from default lists, stays in collections; soft-delete; hard-delete only for archived bookmarks.
 - Q4 → CL-9 — three fixed roles.
 - Q5 → FR-15 — secret, time-based, and public (pretty slug) share links.
-- Q7 → §3 non-goals + FR-3 — the list is the interface; no detail page.
+- Q7 → §3 non-goals + BK-8 — the list is the interface; no detail page.
