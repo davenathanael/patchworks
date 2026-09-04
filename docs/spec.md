@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v1.1 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v1.2 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -15,6 +15,7 @@
 | 0.9 | 2026-09-04 | FR-1 fully landed in §5.2 as **BK-10** — Archived page (`/archived`) with restore + permanent delete; FR-1 removed from §6.1 |
 | 1.0 | 2026-09-04 | FR-6 landed in §5.3 as **CL-9** — collection roles enforced (404 non-member / 403 insufficient role); new §6 “Access control & permissions” — consolidated action matrix for tickets/tests; roadmap renumbered (Future developments → §7, Open questions → §8); FR-6 removed from roadmap |
 | 1.1 | 2026-09-04 | FR-3 retired from §7.1 — its hard-delete remainder was already landed as BK-10 (Archived-page permanent delete); stale FR-3 pointers fixed (§3 non-goals, tag gaps, Q1/Q3, §6.3 matrix, §5.2 save-form gap → CL-8) |
+| 1.2 | 2026-09-04 | FR-5 landed in §5.1 as **AU-7** — successful logins stamp `users.last_login_at`; FR-5 removed from §7.1 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -72,7 +73,8 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **AU-4** Logout deletes the session and clears the cookie.
 - **AU-5** Protected pages require a valid session: full-page requests redirect to `/auth/login`; htmx requests get `401` + `HX-Redirect`.
 - **AU-6** Empty email/password are rejected with inline field errors; submitted values are preserved on re-render.
-- **Gaps:** no email verification, no password reset, `users.last_login_at` exists in the schema but is not yet written on login (→ FR-5, FR-12).
+- **AU-7** A successful login stamps `users.last_login_at` (server time). Failed logins don't touch it; a failed stamp aborts the login before a session is created.
+- **Gaps:** no email verification, no password reset (→ FR-12).
 
 ### 5.2 Bookmarks — *impl / partial*
 
@@ -179,7 +181,6 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
-- **FR-5** Write `users.last_login_at` on successful login. *(schema-ready)*
 
 ### 7.2 Medium-term
 

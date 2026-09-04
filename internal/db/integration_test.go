@@ -83,6 +83,13 @@ func TestUserRepository(t *testing.T) {
 	be.NilErr(t, err)
 	be.Equal(t, email, byID.Email)
 
+	// A successful login stamps last_login_at (AU-7); core.User carries no
+	// field for it — the write is the feature.
+	be.NilErr(t, testDB.TouchLastLogin(ctx, user.ID))
+	var stamped bool
+	be.NilErr(t, testDB.Pool.QueryRow(ctx, `SELECT last_login_at IS NOT NULL FROM users WHERE id = $1`, user.ID).Scan(&stamped))
+	be.True(t, stamped)
+
 	// Unique email constraint rejects duplicates.
 	_, err = testDB.CreateUser(ctx, email, "hash-2")
 	be.Nonzero(t, err)

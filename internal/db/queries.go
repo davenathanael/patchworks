@@ -52,3 +52,8 @@ func (db *DB) CreateUser(ctx context.Context, email, passwordHash string) (core.
 	}
 	return toUser(row), nil
 }
+
+// TouchLastLogin records the timestamp of a successful login.
+func (db *DB) TouchLastLogin(ctx context.Context, userID uuid.UUID) error {
+	return db.querier.SetUserLastLoginAt(ctx, userID)
+}

@@ -55,6 +55,9 @@ func TestLoginSuccess(t *testing.T) {
 		be.Equal(t, u.ID, s.UserID)
 		be.True(t, s.ExpiresAt.After(time.Now()))
 	}
+
+	be.Equal(t, 1, len(f.lastLogins)) // FR-5: successful login stamps the user
+	be.Equal(t, u.ID, f.lastLogins[0])
 }
 
 func TestLoginRejectsBadCredentials(t *testing.T) {
@@ -72,7 +75,8 @@ func TestLoginRejectsBadCredentials(t *testing.T) {
 
 	be.Equal(t, core.ErrInvalidCredentials, wrongPass)
 	be.Equal(t, core.ErrInvalidCredentials, unknownUser)
-	be.Equal(t, 0, len(f.sessions)) // no session created on failure
+	be.Equal(t, 0, len(f.sessions))   // no session created on failure
+	be.Equal(t, 0, len(f.lastLogins)) // no last-login stamp on failure
 }
 
 func TestLoginStoreErrorPropagates(t *testing.T) {
@@ -166,12 +170,13 @@ func TestGetUserFromCookieNoCookie(t *testing.T) {
 
 // fakeStores implements the auth service's private store interfaces.
 type fakeStores struct {
-	users    map[string]core.User    // email -> user
-	hashes   map[string]string       // email -> password hash
-	byID     map[uuid.UUID]core.User // id -> user
-	sessions map[uuid.UUID]core.Session
-	deleted  []uuid.UUID
-	err      error // injected store error, returned by every read
+	users      map[string]core.User    // email -> user
+	hashes     map[string]string       // email -> password hash
+	byID       map[uuid.UUID]core.User // id -> user
+	sessions   map[uuid.UUID]core.Session
+	deleted    []uuid.UUID
+	err        error       // injected store error, returned by every read
+	lastLogins []uuid.UUID // TouchLastLogin recordings
 }
 
 func newFakeStores() *fakeStores {
@@ -214,6 +219,14 @@ func (f *fakeStores) GetUserByID(ctx context.Context, id uuid.UUID) (core.User, 
 		return core.User{}, errors.New("user not found")
 	}
 	return u, nil
+}
+
+func (f *fakeStores) TouchLastLogin(ctx context.Context, userID uuid.UUID) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.lastLogins = append(f.lastLogins, userID)
+	return nil
 }
 
 func (f *fakeStores) CreateSession(ctx context.Context, id, userID uuid.UUID, expiresAt time.Time) (core.Session, error) {

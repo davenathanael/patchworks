@@ -75,3 +75,14 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
 	)
 	return i, err
 }
+
+const setUserLastLoginAt = `-- name: SetUserLastLoginAt :exec
+update users
+set last_login_at = now()
+where id = $1
+`
+
+func (q *Queries) SetUserLastLoginAt(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, setUserLastLoginAt, id)
+	return err
+}

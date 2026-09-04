@@ -24,6 +24,7 @@ type userStore interface {
 	CreateUser(ctx context.Context, email, passwordHash string) (core.User, error)
 	GetUserByEmail(ctx context.Context, email string) (core.User, string, bool, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (core.User, error)
+	TouchLastLogin(ctx context.Context, userID uuid.UUID) error
 }
 
 // Service orchestrates registration, password login, sessions, and logout.
@@ -64,6 +65,10 @@ func (s *Service) Login(w http.ResponseWriter, r *http.Request, email, password 
 	}
 	if !found || !verifyPassword(password, passwordHash) {
 		return core.ErrInvalidCredentials
+	}
+
+	if err = s.users.TouchLastLogin(r.Context(), user.ID); err != nil {
+		return fmt.Errorf("touch last login: %w", err)
 	}
 
 	sessionID := uuid.New()
