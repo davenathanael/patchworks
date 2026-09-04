@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Bookmark item: notes, actions, archive (Design exploration)</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600,700&display=swap">
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=geist:400,500,600&display=swap">
+<style>
+  /* ===== document chrome (presentation only, not the app) ===== */
+  * { box-sizing: border-box; }
+  .doc { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .doc-wrap { width: min(100% - 2rem, 76rem); margin-inline: auto; padding-block: 2rem 5rem; }
+  .doc-wrap h1 { font-size: 1.75rem; letter-spacing: -0.02em; margin-bottom: .25rem; }
+  .doc-wrap > p.lede { color: #64748b; max-width: 76ch; }
+  .doc-note { font-size: .85rem; color: #64748b; border-left: 3px solid #e2e8f0; padding: .5rem .9rem; margin: 1.25rem 0; }
+  .doc-note b { color: #334155; }
+  .doc-note ul { margin: .4rem 0 0; padding-left: 1.1rem; }
+  .doc-note table { border-collapse: collapse; margin: .5rem 0 0; font-size: .82rem; }
+  .doc-note th, .doc-note td { border: 1px solid #e2e8f0; padding: .3rem .6rem; text-align: left; }
+  .doc-note th { background: #f8fafc; }
+  .doc-h2 { margin-top: 3rem; padding-bottom: .5rem; border-bottom: 1px solid #e2e8f0; }
+  .doc-sub { color: #64748b; font-size: .9rem; margin-top: -.5rem; margin-bottom: 1.5rem; }
+  .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1rem; }
+
+  /* ===== app tokens — PATCHWORKS app.css @layer theme, verbatim ===== */
+  .app {
+    color-scheme: light dark;
+    --font-sans: "Geist", system-ui, sans-serif;
+    --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --primary: light-dark(oklch(0.47 0.10 58), oklch(0.80 0.10 82));
+    --primary-strong: light-dark(oklch(0.40 0.09 52), oklch(0.86 0.09 86));
+    --on-primary: light-dark(oklch(0.975 0.008 85), oklch(0.22 0.03 45));
+    --bg: light-dark(oklch(0.972 0.010 85), oklch(0.21 0.02 45));
+    --page: light-dark(oklch(0.935 0.013 83), oklch(0.165 0.014 38));
+    --surface: light-dark(oklch(0.992 0.005 88), oklch(0.255 0.022 50));
+    --surface-2: light-dark(oklch(0.945 0.013 82), oklch(0.30 0.024 55));
+    --text-1: light-dark(oklch(0.27 0.03 45), oklch(0.93 0.015 82));
+    --text-2: light-dark(oklch(0.45 0.04 55), oklch(0.76 0.02 72));
+    --text-3: light-dark(oklch(0.58 0.03 62), oklch(0.62 0.016 68));
+    --border: light-dark(oklch(0.875 0.015 80), oklch(0.34 0.018 56));
+    --ring: var(--primary);
+    --danger: light-dark(oklch(0.50 0.17 30), oklch(0.72 0.15 30));
+    --radius: 4px;
+    --radius-sm: 2px;
+    background: var(--bg);
+    color: var(--text-1);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    border-radius: 10px;
+    padding: .001px; /* collapse margin */
+  }
+  body:has(#thm-light:checked) .app { color-scheme: light; }
+  body:has(#thm-dark:checked) .app { color-scheme: dark; }
+  body:has(#corner-0:checked) .app { --radius: 0; --radius-sm: 0; }
+  body:has(#corner-2:checked) .app { --radius: 2px; --radius-sm: 1px; }
+  body:has(#pal-cocoa:checked) .app {
+    --primary: light-dark(oklch(0.42 0.075 40), oklch(0.72 0.075 60));
+    --primary-strong: light-dark(oklch(0.36 0.07 35), oklch(0.78 0.07 64));
+    --on-primary: light-dark(oklch(0.97 0.015 80), oklch(0.24 0.04 45));
+    --danger: light-dark(oklch(0.50 0.17 32), oklch(0.70 0.16 30));
+    --bg: light-dark(oklch(0.955 0.02 72), oklch(0.235 0.03 50));
+    --surface: light-dark(oklch(0.985 0.01 76), oklch(0.29 0.03 55));
+    --surface-2: light-dark(oklch(0.925 0.025 70), oklch(0.34 0.03 58));
+    --text-1: light-dark(oklch(0.30 0.04 40), oklch(0.92 0.02 80));
+    --text-2: light-dark(oklch(0.47 0.045 48), oklch(0.75 0.025 70));
+    --text-3: light-dark(oklch(0.58 0.035 55), oklch(0.62 0.02 65));
+    --border: light-dark(oklch(0.86 0.02 70), oklch(0.37 0.025 58));
+  }
+  body:has(#pal-espresso:checked) .app {
+    --primary: light-dark(oklch(0.80 0.10 80), oklch(0.78 0.10 78));
+    --primary-strong: light-dark(oklch(0.86 0.09 84), oklch(0.84 0.09 82));
+    --on-primary: light-dark(oklch(0.24 0.035 45), oklch(0.22 0.03 42));
+    --danger: light-dark(oklch(0.72 0.15 30), oklch(0.70 0.16 28));
+    --bg: light-dark(oklch(0.30 0.03 48), oklch(0.19 0.02 42));
+    --surface: light-dark(oklch(0.355 0.03 50), oklch(0.24 0.022 48));
+    --surface-2: light-dark(oklch(0.40 0.028 52), oklch(0.29 0.024 52));
+    --text-1: light-dark(oklch(0.93 0.015 80), oklch(0.93 0.015 80));
+    --text-2: light-dark(oklch(0.75 0.02 70), oklch(0.74 0.02 70));
+    --text-3: light-dark(oklch(0.60 0.02 66), oklch(0.59 0.018 66));
+    --border: light-dark(oklch(0.42 0.025 52), oklch(0.32 0.02 50));
+  }
+
+  /* ===== app surface frame ===== */
+  .frame { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-block: 1rem; }
+  .frame-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding: .5rem .8rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .app-frame { padding: 1.25rem; }
+
+  /* ===== shared controls ===== */
+  .button {
+    font-family: inherit; font-size: var(--font-size-1, .95rem); color: var(--on-primary);
+    background: var(--primary); border: 1px solid var(--primary); border-radius: var(--radius);
+    padding: .38em .8em; min-height: 2.15rem; cursor: pointer;
+  }
+  .button.outline { background: transparent; color: var(--text-1); border-color: var(--border); }
+  .button.ghost { background: transparent; color: var(--text-2); border-color: transparent; }
+  .button.danger { background: transparent; color: var(--danger); border-color: var(--border); }
+  .button.small { padding: .12em .55em; font-size: .82rem; min-height: 1.8rem; }
+  .field label { display: grid; gap: .2rem; font-size: .85rem; color: var(--text-2); }
+  .field input, .field textarea, .pick-list input[type="search"] {
+    font-family: inherit; font-size: .92rem; color: var(--text-1); background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .42em .6em; min-height: 2.15rem;
+  }
+
+  /* ===== THE bookmark row — mirrors LinkRow (views/links.go) ===== */
+  .frame ul.link-list { list-style: none; margin: 0; padding: 0; }
+  .frame ul.link-list > li { padding: var(--size-2, .5rem) var(--size-1, .25rem); border-bottom: 1px solid var(--border); }
+  .frame ul.link-list > li:last-child { border-bottom: none; }
+  .link-list article.header-wrap {}
+  .link-list article header { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+  .link-list article header a.title {
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    text-decoration: none; font-weight: 600; color: var(--text-1);
+  }
+  .link-list article header a.title:hover { color: var(--primary); }
+  .link-list article header time { color: var(--text-3); font-size: .82rem; white-space: nowrap; }
+  .link-list article footer { display: flex; gap: .5rem; align-items: center; font-size: .84rem; color: var(--text-3); flex-wrap: wrap; }
+  .link-list article footer .host { color: var(--text-2); }
+  .link-list article footer ul.tags { display: flex; gap: .25rem; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+  .link-list article footer ul.tags li {
+    font-size: .75em; padding: .05em .5em; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); color: var(--text-2); line-height: 1.5;
+  }
+  .link-list article footer .row-actions { margin-inline-start: auto; display: flex; align-items: center; }
+
+  /* ---- kebab actions menu (existing details.menu pattern) ---- */
+  .menu { position: relative; }
+  .menu > summary { list-style: none; cursor: pointer; display: inline-flex; }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu .menu-card {
+    position: absolute; inset-inline-end: 0; top: calc(100% + .25rem); z-index: 20;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 6px 20px rgb(0 0 0 / .14); padding: .4rem; min-width: 14rem; display: grid; gap: .15rem;
+  }
+  .menu .menu-card button {
+    display: flex; justify-content: flex-start; gap: .5rem; align-items: center;
+    background: transparent; color: var(--text-1); border: 1px solid transparent;
+    border-radius: var(--radius-sm); min-height: 2rem; font-size: .9rem; cursor: pointer; text-align: left;
+  }
+  .menu .menu-card button:hover { background: var(--surface-2); }
+  .menu .menu-card button.danger { color: var(--danger); }
+  .menu .menu-card .menu-hint { font-size: .73rem; color: var(--text-3); padding: .15rem .5rem; }
+
+  /* ===== NOTE (Variant A) — CSS-native clamp + expand ===== */
+  .link-list .note { margin-top: .3rem; padding-left: .6rem; border-left: 2px solid var(--border); color: var(--text-2); font-size: .82rem; }
+  .link-list .note .note-text {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1;
+    overflow: hidden; text-overflow: ellipsis; margin: 0;
+  }
+  .note-toggle { display: inline-block; margin-inline-start: .35rem; }
+  .note-toggle summary {
+    list-style: none; cursor: pointer; display: inline-block; color: var(--primary);
+    font-size: .78rem; text-decoration: underline; text-underline-offset: .15em;
+  }
+  .note-toggle summary::-webkit-details-marker { display: none; }
+  .note-toggle summary::before { content: "More"; }
+  /* when open: unclamp the note text, flip the label — pure CSS, no JS, no duplicated content */
+  .note:has(.note-toggle[open]) .note-text { -webkit-line-clamp: unset; }
+  .note:has(.note-toggle[open]) .note-toggle summary::before { content: "Less"; }
+  .note-toggle summary:hover { color: var(--primary-strong); }
+
+  /* ===== NOTE (Variant B) — hidden behind a button, reveals editor ===== */
+  .link-list .note-btn {
+    display: inline-flex; align-items: center; gap: .25rem; margin-inline-start: .35rem;
+    font-size: .76rem; color: var(--text-3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--surface); padding: .05em .5em; cursor: pointer;
+  }
+  .link-list .note-btn:hover { color: var(--text-2); }
+
+  /* ===== inline edit panel (notes + tags) ===== */
+  .link-list .edit-panel {
+    margin-top: .4rem; margin-bottom: .25rem; padding: .6rem .7rem;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+    display: grid; gap: .4rem;
+  }
+  .link-list .edit-panel label { display: grid; gap: .15rem; font-size: .8rem; color: var(--text-2); }
+  .link-list .edit-panel input, .link-list .edit-panel textarea {
+    font-family: inherit; font-size: .9rem; color: var(--text-1); background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .4em .55em;
+  }
+  .link-list .edit-panel .edit-actions { display: flex; gap: .4rem; justify-content: flex-end; }
+
+  /* ===== add-to-collection popover ===== */
+  .popover {
+    position: absolute; inset-inline-end: 0; top: calc(100% + .25rem); z-index: 30;
+    width: min(19rem, 80vw); background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 6px 20px rgb(0 0 0 / .14); padding: .6rem; display: grid; gap: .4rem;
+  }
+  .popover .pop-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
+  .popover input[type="search"] {
+    font-family: inherit; font-size: .9rem; color: var(--text-1); background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .4em .55em; min-height: 2rem;
+  }
+  .pick-list { list-style: none; margin: 0; padding: 0; max-height: 12rem; overflow: auto; display: grid; }
+  .pick-list li { border-bottom: 1px solid var(--border); }
+  .pick-list li:last-child { border-bottom: none; }
+  .pick-list label { display: flex; align-items: center; gap: .5rem; padding: .32rem .2rem; font-size: .9rem; cursor: pointer; }
+  .pick-list label:hover { background: var(--surface-2); }
+  .pick-list label .count { margin-inline-start: auto; font-size: .75rem; color: var(--text-3); }
+  .pick-list input { accent-color: var(--primary); }
+  .popover .pop-foot { display: flex; gap: .4rem; justify-content: flex-end; }
+
+  /* ===== collection detail layout (simplified shell) ===== */
+  .detail-grid { display: grid; gap: 1rem; }
+  @container (min-width: 46rem) { .detail-grid { grid-template-columns: minmax(0, 1fr) 15.5rem; align-items: start; } }
+  .detail-main { min-width: 0; }
+  .detail-side { display: grid; gap: 1rem; align-content: start; }
+  .detail-side section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem; }
+  .detail-side h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin: 0 0 .4rem; }
+
+  /* callout for pure-CSS demo rows */
+  .demo-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); margin: 1rem 0 .25rem; }
+</style>
+</head>
+<body class="doc">
+<div class="doc-wrap">
+
+  <h1>Bookmark item — notes, actions, archive</h1>
+  <p class="lede">Design exploration for the shared bookmark row (<code>LinkRow</code>, used by the dashboard <em>and</em> collection detail). Goal: notes preview + expand, per-row actions (archive, add-to-collection, remove-from-collection), and inline editing of notes + tags. <b>No implementation yet</b> — this mockup is the design proposal. Rows below mirror the current <code>LinkRow</code> markup (<code>ul.link-list &gt; li &gt; article &gt; header/footer</code>) with the app's verbatim tokens; every new element is contextual, so a bookmark with no note and no extras looks exactly like today.</p>
+
+  <div class="ctrl" style="display:flex;flex-wrap:wrap;gap:1.25rem;margin:.75rem 0">
+    <fieldset style="border:1px solid #e2e8f0;border-radius:6px;padding:.35rem .6rem .5rem;margin:0">
+      <legend style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b">Palette</legend>
+      <label style="font-size:.85rem;margin-inline-end:.4rem"><input type="radio" name="pal" id="pal-mocha" checked> Mocha</label>
+      <label style="font-size:.85rem;margin-inline-end:.4rem"><input type="radio" name="pal" id="pal-cocoa"> Cocoa</label>
+      <label style="font-size:.85rem"><input type="radio" name="pal" id="pal-espresso"> Espresso</label>
+    </fieldset>
+    <fieldset style="border:1px solid #e2e8f0;border-radius:6px;padding:.35rem .6rem .5rem;margin:0">
+      <legend style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b">Theme</legend>
+      <label style="font-size:.85rem;margin-inline-end:.4rem"><input type="radio" name="thm" id="thm-light"> Light</label>
+      <label style="font-size:.85rem;margin-inline-end:.4rem"><input type="radio" name="thm" id="thm-dark"> Dark</label>
+      <label style="font-size:.85rem"><input type="radio" name="thm" id="thm-auto" checked> Auto</label>
+    </fieldset>
+    <fieldset style="border:1px solid #e2e8f0;border-radius:6px;padding:.35rem .6rem .5rem;margin:0">
+      <legend style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b">Corners</legend>
+      <label style="font-size:.85rem;margin-inline-end:.4rem"><input type="radio" name="corner" id="corner-0"> 0</label>
+      <label style="font-size:.85rem;margin-inline-end:.4rem"><input type="radio" name="corner" id="corner-2"> 2px</label>
+      <label style="font-size:.85rem"><input type="radio" name="corner" id="corner-4" checked> 4px</label>
+    </fieldset>
+  </div>
+
+  <div class="doc-note">
+    <b>Spec consolidation — where each element lands.</b>
+    <table>
+      <tr><th>New element</th><th>Spec</th><th>Status</th></tr>
+      <tr><td>Notes display + expand</td><td>FR-22 bookmark notes</td><td>§6 future — needs <code>notes</code> column (new migration)</td></tr>
+      <tr><td>Add / remove bookmark ↔ collections</td><td>FR-13 additional collections</td><td>§6 future — join table exists; “edit collections” covers both directions</td></tr>
+      <tr><td>Edit notes + tags</td><td>FR-22 + FR-3 per-bookmark edit</td><td>§6 future — same <code>notes</code> migration; tags DB-ready</td></tr>
+    </table>
+    Title/domain stay immutable by design (they are the bookmark's identity — editing them means saving a different link; editing notes/tags covers the useful cases). Archive is the first slice of FR-1; the <em>archived filter</em> + restore UI are FR-1 companions, not in this mockup.
+  </div>
+
+  <h2 class="doc-h2">0. Shared anatomy — one row, three layers</h2>
+  <p class="doc-sub">Baseline row (today) vs the same row with note + actions. Everything new is additive and optional.</p>
+
+  <div class="app doc-grid">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Today — no note, no actions</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Why CSS animations beat JS</a><time>2d</time></header>
+            <footer><small class="host">modern-css.com</small><ul class="tags"><li>#css</li></ul></footer>
+          </article></li>
+        </ul>
+      </div>
+    </div>
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Proposed — same row, note + kebab</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Why CSS animations beat JS</a><time>2d</time></header>
+            <footer>
+              <small class="host">modern-css.com</small>
+              <ul class="tags"><li>#css</li><li>#frontend</li></ul>
+              <span class="row-actions"><details class="menu">
+                <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                <div class="menu-card">
+                  <button onclick="return false">Edit notes &amp; tags</button>
+                  <button onclick="return false">Edit collections…</button>
+                  <button class="danger" onclick="return confirm('Archive this bookmark?  You can restore it later.')">Archive</button>
+                </div>
+              </details></span>
+            </footer>
+            <div class="note"><p class="note-text">Check the grid section — the gap fix depends on this choice.</p></div>
+          </article></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-note">
+    <b>Why the kebab (⋯) menu and not inline buttons.</b>
+    <ul>
+      <li>Rows stay scan-ready at every width — four inline buttons per row would triple the row height on phones.</li>
+      <li>One menu = one place to look; the menu is an existing pattern (<code>details.menu</code>) already in the mockup family.</li>
+      <li>Archive sits in the menu but is styled with a note + confirmation — see §4.</li>
+    </ul>
+  </div>
+
+  <h2 class="doc-h2">1. Notes — Variant A: one-line clamp, click to expand</h2>
+  <p class="doc-sub">Yes, it's possible without JavaScript: <code>line-clamp</code> for the collapsed state + a tiny <code>&lt;details&gt;</code> toggle, unclamped by CSS <code>:has()</code> when open. Demo below is real working CSS in this file.</p>
+
+  <div class="app">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Notes — collapsed, expanded, and empty</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Short note fits on one line</a><time>1h</time></header>
+            <footer><small class="host">example.com</small></footer>
+            <div class="note">
+              <p class="note-text">Quick reminder only.</p>
+            </div>
+          </article></li>
+
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Long note — try clicking <u>More</u></a><time>3d</time></header>
+            <footer><small class="host">modern-css.com</small><ul class="tags"><li>#css</li></ul></footer>
+            <div class="note">
+              <p class="note-text">The demo for this section is real: the note is clamped to one line, and the More/Less toggle unclamps it using <code>:has()</code> — no JavaScript, and the text lives in the DOM exactly once (no preview duplication).</p>
+              <details class="note-toggle"><summary></summary></details>
+            </div>
+          </article></li>
+
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">No note</a><time>1w</time></header>
+            <footer><small class="host">wiki.internal</small><ul class="tags"><li>#ops</li></ul></footer>
+          </article></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-note">
+    <b>Variant A decisions.</b>
+    <ul>
+      <li><b>Tone:</b> muted <code>--text-2</code>, <code>0.82rem</code>, left border accent + no ✎ icon — reads as a quiet annotation, still legible; the border separates it from tags above without a background chip.</li>
+      <li><b>Clamp:</b> <code>-webkit-line-clamp: 1</code> — collapse is pure CSS; the <code>More</code> link shows only when a note exists and overflows (render the toggle only if the note is longer than the preview, decided server-side or by htmx swap).</li>
+      <li><b>Expand:</b> <code>details.note-toggle</code> + <code>.note:has(.note-toggle[open])</code> — native, no JS, matches "native CSS first" in docs/css-guidelines.md. Label flips More/Less via the same <code>:has()</code>.</li>
+      <li><b>No duplication</b> of the note text in the DOM (preview and full are the same element).</li>
+    </ul>
+  </div>
+
+  <h2 class="doc-h2">2. Notes — Variant B: hidden behind a button (your fallback — also the editor)</h2>
+  <p class="doc-sub">If Variant A is rejected, the note lives behind a small pill; clicking it drops open the inline edit panel from §3. Variant B <em>doubles as the note editor</em>, so it costs nothing extra.</p>
+
+  <div class="app">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Variant B — note hidden, reveal = edit</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Incident postmortem template</a><time>3w</time></header>
+            <footer>
+              <small class="host">docs.internal</small>
+              <ul class="tags"><li>#ops</li></ul>
+              <button class="note-btn" onclick="return false">✎ Note</button>
+              <span class="row-actions"><details class="menu">
+                <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                <div class="menu-card">
+                  <button onclick="return false">Edit notes &amp; tags</button>
+                  <button onclick="return false">Edit collections…</button>
+                  <button class="danger" onclick="return false">Archive</button>
+                </div>
+              </details></span>
+            </footer>
+          </article></li>
+        </ul>
+        <div class="doc-note" style="margin:1rem 0 0">Clicking <b>✎ Note</b> or <b>Edit notes &amp; tags</b> swaps this row into the edit state shown in §3 — same panel, same Save/Cancel.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="doc-h2">3. Inline edit — notes + tags (title/domain read-only)</h2>
+  <p class="doc-sub">One panel, one save. Tags reuse the add-form semantics (comma-separated). Title and domain are displayed, not editable — they are the bookmark's identity.</p>
+
+  <div class="app">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Row in edit state (htmx swaps the row fragment)</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header>
+              <a class="title" href="#">Incident postmortem template</a>
+              <time>3w</time>
+            </header>
+            <footer><small class="host">docs.internal</small></footer>
+            <form class="edit-panel" onsubmit="return false">
+              <label>Note
+                <textarea rows="2">Skeleton for the review with the team — fill in the timeline first.</textarea>
+              </label>
+              <label>Tags (comma-separated)
+                <input type="text" value="ops, incident">
+              </label>
+              <div class="edit-actions">
+                <button class="button small" onclick="return false">Save</button>
+                <button class="button ghost small" onclick="return false">Cancel</button>
+              </div>
+            </form>
+          </article></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-note">
+    <b>Why one panel for notes <em>and</em> tags.</b>
+    <ul>
+      <li>Notes (FR-22) and tags (FR-3) have the same lifecycle — "I'm touching this bookmark" — so one <b>Edit notes &amp; tags</b> menu item beats two nearly identical panels.</li>
+      <li>Editing is a temporary state, not a page: the row swaps to the panel and back (htmx), no navigation.</li>
+      <li>Title/domain stay read-only — changing them would mutate the bookmark's identity; the add-form already covers re-saving a different link.</li>
+    </ul>
+  </div>
+
+  <h2 class="doc-h2">4. Archive — one click, then confirm</h2>
+  <p class="doc-sub">Menu item → <code>hx-confirm</code> dialog → htmx posts the archive and the row leaves the list. Restore lives in the archived filter (FR-1 companion).</p>
+
+  <div class="app">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Dashboard row — menu open (archive highlighted)</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Old migration notes</a><time>1mo</time></header>
+            <footer>
+              <small class="host">gist.github.com</small>
+              <ul class="tags"><li>#internal</li></ul>
+              <span class="row-actions"><details class="menu" open>
+                <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                <div class="menu-card">
+                  <button onclick="return false">Edit notes &amp; tags</button>
+                  <button onclick="return false">Edit collections…</button>
+                  <button class="danger" onclick="return confirm('Archive this bookmark?  You can restore it later.')">Archive</button>
+                </div>
+              </details></span>
+            </footer>
+          </article></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-note">
+    <b>Why confirm, why this wording.</b>
+    <ul>
+      <li>Archive is reversible, but it <em>removes the row from the list</em> — the confirm (native <code>hx-confirm</code> in the app, <code>confirm()</code> here for the demo) prevents fat-finger loss.</li>
+      <li>Wording states the consequence and the escape hatch: "Archive this bookmark? You can restore it later."</li>
+      <li>Matches FR-1: soft-delete — <code>archived_at</code> set, hidden from recent/search/filtered; restore + archived filter come later.</li>
+    </ul>
+  </div>
+
+  <h2 class="doc-h2">5. Edit collections — search + multi-select popover</h2>
+  <p class="doc-sub">Same 3-item menu on every page; the popover is the single skill for membership — add <em>and</em> remove, one go. Recommended input: a small popover with a search field and a checkbox list (multi-select), because it scales to many collections, is keyboard-driven, and degrades to a plain checkbox form without JS.</p>
+
+  <div class="app">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Dashboard row — “Edit collections…” popover open</div>
+      <div class="app-frame">
+        <ul class="link-list">
+          <li><article class="header-wrap">
+            <header><a class="title" href="#">Cascade layers in practice</a><time>3d</time></header>
+            <footer>
+              <small class="host">smashingmagazine.com</small>
+              <ul class="tags"><li>#css</li></ul>
+              <span class="row-actions"><details class="menu" open>
+                <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                <div class="popover">
+                  <div class="pop-title">Edit collections</div>
+                  <input type="search" placeholder="Search collections…">
+                  <ul class="pick-list">
+                    <li><label><input type="checkbox" checked> Reading <span class="count">4</span></label></li>
+                    <li><label><input type="checkbox"> Work <span class="count">12</span></label></li>
+                    <li><label><input type="checkbox"> Recipes <span class="count">2</span></label></li>
+                    <li><label><input type="checkbox"> Design <span class="count">2</span></label></li>
+                    <li><label><input type="checkbox"> Video <span class="count">1</span></label></li>
+                  </ul>
+                  <div class="pop-foot">
+                    <button class="button small" onclick="return false">Save</button>
+                    <button class="button ghost small" onclick="return false">Cancel</button>
+                  </div>
+                </div>
+              </details></span>
+            </footer>
+          </article></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-note">
+    <b>Why search + checkboxes (and the alternatives I considered).</b>
+    <ul>
+      <li><b>Search + checkboxes (chosen):</b> exact match on the thing users know (names); checkbox = explicit add/remove; Save = one htmx round-trip. No-JS fallback: the same form posts on submit.</li>
+      <li>Native <code>&lt;select multiple&gt;</code>: smallest code, but ugly on desktop, no search, easy to mis-click; rejected.</li>
+      <li>Instant-toggle chips (click chip = add/remove immediately): fewest clicks, but one request per chip, no "cancel", no search, and accidental toggles are easy. Good later as a progressive enhancement shortcut; not the primary.</li>
+      <li>Only collections the user owns are offered (CL-5: shared-collection bookmarks keep the original author).</li>
+    </ul>
+  </div>
+
+  <div class="doc-note">
+    <b>How it works (mechanics).</b>
+    <ul>
+      <li><b>Open/close:</b> the ⋯ is a <code>&lt;details&gt;</code> — native toggle, no JS. The popover itself uses the <b>popover API</b> (<code>popover="auto"</code>): light-dismiss works out of the box — click outside or press <kbd>Esc</kbd> and it closes. Selecting “Edit collections…” closes the ⋯ menu and opens the popover in its place; Save/Cancel close it again.</li>
+      <li><b>Content:</b> the popover is server-rendered with <b>all of the user's own collections</b>, preloaded, current membership shown as checked boxes (so from the collection page, that collection arrives checked — unchecking it is the “remove from this collection” action). No extra fetch on open; htmx refreshes the popover if membership changed elsewhere.</li>
+      <li><b>Volume &amp; scroll:</b> no artificial cap — the checkbox list has a <code>max-height</code> (~8 rows) with its own scrollbar; search filters it down, so a 50-collection library stays navigable. The 4-collection demo here just truncates for space.</li>
+      <li><b>Accessibility:</b> real form controls — checkboxes are keyboard operable, the search input filters, Save/Cancel are buttons; the popover API wires focus + Esc automatically.</li>
+    </ul>
+  </div>
+
+  <h2 class="doc-h2">6. Collection detail — same menu, plus archive</h2>
+  <p class="doc-sub">The row component is identical on every page — the menu is always the same 3 items. “Edit collections…” covers removal: from inside a collection, that collection is pre-checked, so unchecking it removes the bookmark from it. Archive is available here too.</p>
+
+  <div class="app">
+    <div class="frame" style="overflow:visible">
+      <div class="frame-label">Collection detail <b>— Work</b> · row menu open</div>
+      <div class="app-frame">
+        <div style="container-type:inline-size">
+        <div class="detail-grid">
+          <div class="detail-main">
+            <ul class="link-list">
+              <li><article class="header-wrap">
+                <header><a class="title" href="#">Internal RFC: storage layer</a><time>2d</time></header>
+                <footer>
+                  <small class="host">docs.internal</small>
+                  <ul class="tags"><li>#backend</li></ul>
+                  <span class="row-actions"><details class="menu" open>
+                    <summary><button class="button ghost small" onclick="return false">⋯</button></summary>
+                    <div class="menu-card">
+                      <button onclick="return false">Edit notes &amp; tags</button>
+                      <button onclick="return false">Edit collections…</button>
+                      <button class="danger" onclick="return confirm('Archive this bookmark?  You can restore it later.')">Archive</button>
+                    </div>
+                  </details></span>
+                </footer>
+              </article></li>
+              <li><article class="header-wrap">
+                <header><a class="title" href="#">On-call runbook</a><time>1w</time></header>
+                <footer><small class="host">wiki.internal</small><ul class="tags"><li>#ops</li></ul></footer>
+              </article></li>
+            </ul>
+          </div>
+          <aside class="detail-side">
+            <section>
+              <h2>Members</h2>
+              <div style="font-size:.86rem;color:var(--text-2)">you@example.com · owner</div>
+              <div style="font-size:.86rem;color:var(--text-2)">ana@example.com · editor</div>
+            </section>
+          </aside>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-note">
+    <b>One menu everywhere: Edit notes &amp; tags · Edit collections · Archive.</b>
+    <ul>
+      <li><b>Same 3 items on both pages</b> — nothing is page-specific, so the shared <code>LinkRow</code> needs no context flag for the menu. “Edit collections…” is the single membership skill: when opened from a collection detail page, the current collection is pre-checked, and unchecking it is the removal action.</li>
+      <li><b>Archive lives here too</b> (was missing in v1 of this mockup) — one <code>hx-confirm</code> + htmx post, then the row leaves the current list. Restore + the archived filter arrive with FR-1.</li>
+      <li><b>What happens on the collection page:</b> after archiving, the row leaves that list too — the bookmark stays linked to the collection (FR-1: archives stay visible in collections via the filter) but stops appearing in the default browse view. If you'd rather it stay, say so when we implement.</li>
+      <li><b>Spec gap:</b> “remove bookmark from collection” isn't in spec.md — proposal: fold into FR-13, reworded to “add the bookmark to / remove from collections”.</li>
+    </ul>
+  </div>
+
+  <div class="doc-note">
+    <b>Resolved + remaining decisions.</b>
+    <ul>
+      <li>✔ Notes: Variant A (clamp + More/Less). ✔ Edit notes &amp; tags combined in one inline panel. ✔ Menu = <b>Edit notes &amp; tags · Edit collections · Archive</b> on both pages. ✔ Archive available everywhere.</li>
+      <li>❓ Archive behavior inside a collection page: row leaves the browse list (recommended) — or stays until the archived filter exists?</li>
+      <li>❓ Edit collections popover: preloaded server-side at page render (shown) vs lazy htmx fetch on open? Preloaded = zero latency, always-consistent state; lazy = fresher if membership changed mid-session.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,12 +1,13 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v0.3 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v0.4 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
 | 0.1 | 2026-09-02 | Initial draft from codebase + docs audit |
 | 0.2 | 2026-09-03 | Per review: answered §7 Q1–Q5, Q7 (kept Q6 parked); archive ≈ soft-delete + archived filter; 3 fixed roles; 3 share-link types; bookmark notes added (FR-22); dropped §8 (tech → `docs/`); doc workflow → `docs/process.md` |
 | 0.3 | 2026-09-04 | BK-4: dashboard shows recent bookmarks only; all bookmarks reached via search/filter (removed redundant "Your Bookmarks" show-all list) |
+| 0.4 | 2026-09-04 | Row-actions design settled (see `docs/mockups/design-bookmark-actions.html`): one 3-item menu per bookmark (Edit notes & tags · Edit collections · Archive); notes = 1-line clamp + native expand; title/domain immutable; FR-1/FR-3/FR-13/FR-22 reworded; FR-13, FR-22 moved to §6.1 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -117,11 +118,13 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 
 ### 6.1 Near-term — schema/design-ready
 
-- **FR-1** Bookmark archive/restore + an **archived** filter. Archiving hides a bookmark from recent/search/filtered lists (it stays visible in collections); archives are soft-deletes, and hard-delete is available for archived bookmarks. `bookmarks.archived_at` already exists. *(schema-ready)*
+- **FR-1** Bookmark archive/restore. Archiving hides a bookmark from recent/search/filtered lists (it stays linked to its collections but leaves the collections' default browse view); archives are soft-deletes (`bookmarks.archived_at` already exists — *(schema-ready)*). Design settled: row-level **Archive** action in the row menu (works on dashboard and collection detail), `hx-confirm` + htmx post, row leaves the current list. A dedicated **Archived page** lists archived bookmarks (restore + hard-delete live there). Design: `docs/mockups/design-bookmark-actions.html`.
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
-- **FR-3** Edit and delete bookmarks (author-only): title, tags (add/remove), collection membership (add/remove). Entry point is the bookmark row itself; if row-level controls get clunky, fall back to a dialog/popover that reuses the same save path.
+- **FR-3** Edit bookmarks (author-only): **notes + tags** from a single inline row panel (one menu item, "Edit notes & tags" — textarea + comma-separated tags); title and domain are immutable by design (they are the bookmark's identity). Hard-delete UI remains future. Design: `docs/mockups/design-bookmark-actions.html`.
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 - **FR-5** Write `users.last_login_at` on successful login. *(schema-ready)*
+- **FR-13** "Edit collections" — add an existing bookmark to / remove it from collections via a search + checkbox popover (preloaded with the user's own collections and their current membership), one save round-trip; works from dashboard and collection detail (on a collection page the current collection arrives pre-checked, so unchecking removes). Today saving chooses exactly one collection. *(join table exists)* Design: `docs/mockups/design-bookmark-actions.html`.
+- **FR-22** Bookmark notes: optional free-text note shown under the domain & tags, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication); add/edit/clear via the shared inline edit panel. Needs a `notes` column (new migration — first implementation step). Design: `docs/mockups/design-bookmark-actions.html`.
 
 ### 6.2 Medium-term
 
@@ -132,8 +135,6 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 - **FR-10** Read-later: unread/read state on bookmarks + a reading view.
 - **FR-11** Duplicate URL detection with a soft reminder on save.
 - **FR-12** Email verification and password reset flows (prerequisite for serious OAuth/password UX).
-- **FR-13** Add an existing bookmark to additional collections (today saving chooses exactly one).
-- **FR-22** Bookmark notes: an optional free-text note per bookmark — addable after creation, editable, removable. Needs a `notes` column (new migration) and the FR-3 row-level edit affordance.
 
 ### 6.3 Longer-term / exploratory
 
