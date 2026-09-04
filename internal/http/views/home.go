@@ -31,10 +31,10 @@ func (vm *HomePageViewModel) bookmarks() Node {
 	}
 	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0 || vm.Search != ""
 	if hasFilters {
-		return FilteredLinksView(vm.AllBookmarks, stubPagination)
+		return FilteredLinksView(vm.AllBookmarks, vm.Collections, stubPagination)
 	}
 	return Group{
-		If(len(vm.RecentBookmarks) > 0, RecentLinks(vm.RecentBookmarks)),
+		If(len(vm.RecentBookmarks) > 0, RecentLinks(vm.RecentBookmarks, vm.Collections)),
 	}
 }
 

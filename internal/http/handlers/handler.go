@@ -40,6 +40,8 @@ func New(comp *components.Components) http.Handler {
 		r.Method("GET", "/bookmarks/{id}", handleGetBookmarkById(comp))
 		r.Method("GET", "/bookmarks/{id}/edit", handleGetBookmarkEdit(comp))
 		r.Method("POST", "/bookmarks/{id}/edit", handlePostBookmarkEdit(comp))
+		r.Method("GET", "/bookmarks/{id}/collections/edit", handleGetBookmarkCollectionsEdit(comp))
+		r.Method("POST", "/bookmarks/{id}/collections", handlePostBookmarkCollections(comp))
 
 		r.Method("GET", "/collections", handleGetCollections(comp))
 		r.Method("GET", "/collections/new", handleGetCollectionCreation(comp))

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -29,6 +30,7 @@ type BookmarkStore interface {
 	CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
 	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 	UpdateBookmarkNotesTags(ctx context.Context, id, userID uuid.UUID, notes string, tags []string) (core.Bookmark, error)
+	UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error)
 }
 
 func handleGetHome(comp *components.Components) Handler {
@@ -244,13 +246,13 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 
 func handleGetBookmarkById(comp *components.Components) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		return getBookmarkById(w, r, comp.DB)
+		return getBookmarkById(w, r, comp.DB, comp.DB)
 	}
 }
 
 // getBookmarkById returns the bookmark row fragment (htmx cancel/refresh) or
 // redirects to the dashboard for plain requests.
-func getBookmarkById(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+func getBookmarkById(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore, collections CollectionStore) error {
 	user, ok := middleware.UserFromContext(r.Context())
 	if !ok {
 		return fmt.Errorf("user not found in context")
@@ -261,12 +263,55 @@ func getBookmarkById(w http.ResponseWriter, r *http.Request, bookmarks BookmarkS
 	}
 
 	if views.IsHtmx(r) {
-		if err := views.BookmarkArticle(bm).Render(w); err != nil {
+		allCollections, err := collections.GetCollectionsByUser(r.Context(), user.ID)
+		if err != nil {
+			return fmt.Errorf("get collections: %w", err)
+		}
+		if err := views.LinkRow(bm, allCollections, "").Render(w); err != nil {
 			return fmt.Errorf("render bookmark row: %w", err)
 		}
 		return nil
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+func handleGetBookmarkCollectionsEdit(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return getBookmarkCollectionsEdit(w, r, comp.DB, comp.DB)
+	}
+}
+
+// getBookmarkCollectionsEdit renders the inline membership panel (htmx
+// fragment) or a full edit page (no-JS fallback). The ?collection= query param
+// carries the page's collection so the save can drop the row when it's
+// unchecked.
+func getBookmarkCollectionsEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore, collections CollectionStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	bm, err := loadEditableBookmark(r, user, bookmarks)
+	if err != nil {
+		return err
+	}
+	allCollections, err := collections.GetCollectionsByUser(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("get collections: %w", err)
+	}
+
+	currentCollection := r.URL.Query().Get("collection")
+	panel := views.CollectionEditPanel(bm, allCollections, currentCollection)
+	if views.IsHtmx(r) {
+		if err := views.EditPanelRow(panel).Render(w); err != nil {
+			return fmt.Errorf("render collections edit panel: %w", err)
+		}
+		return nil
+	}
+	if err := views.EditCollectionsPage(user, panel).Render(w); err != nil {
+		return fmt.Errorf("render edit collections page: %w", err)
+	}
 	return nil
 }
 
@@ -291,7 +336,7 @@ func getBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkS
 
 	panel := views.BookmarkEditPanel(bm, views.FormErrors{})
 	if views.IsHtmx(r) {
-		if err := panel.Render(w); err != nil {
+		if err := views.EditPanelRow(panel).Render(w); err != nil {
 			return fmt.Errorf("render bookmark edit panel: %w", err)
 		}
 		return nil
@@ -304,13 +349,13 @@ func getBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkS
 
 func handlePostBookmarkEdit(comp *components.Components) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		return postBookmarkEdit(w, r, comp.DB)
+		return postBookmarkEdit(w, r, comp.DB, comp.DB)
 	}
 }
 
 // postBookmarkEdit saves notes + tags (author-only) and returns the updated row
 // fragment (htmx) or redirects to the dashboard (plain form submit).
-func postBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+func postBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore, collections CollectionStore) error {
 	ctx := r.Context()
 	user, ok := middleware.UserFromContext(ctx)
 	if !ok {
@@ -338,12 +383,82 @@ func postBookmarkEdit(w http.ResponseWriter, r *http.Request, bookmarks Bookmark
 	}
 
 	if views.IsHtmx(r) {
-		if err := views.BookmarkArticle(updated).Render(w); err != nil {
+		allCollections, err := collections.GetCollectionsByUser(ctx, user.ID)
+		if err != nil {
+			return fmt.Errorf("get collections: %w", err)
+		}
+		if err := views.LinkRow(updated, allCollections, "").Render(w); err != nil {
 			return fmt.Errorf("render bookmark row: %w", err)
 		}
 		return nil
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
+func handlePostBookmarkCollections(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkCollections(w, r, comp.DB, comp.DB)
+	}
+}
+
+// postBookmarkCollections replaces the bookmark's collection membership from
+// the picker's checked boxes. From a collection page, unchecking that
+// collection drops the row (HX-Reswap: delete); otherwise the updated row is
+// swapped in. Plain submits redirect back to where they came from.
+func postBookmarkCollections(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore, collections CollectionStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+
+	if err = r.ParseForm(); err != nil {
+		return fmt.Errorf("parse edit collections form: %w", err)
+	}
+	collectionIDs := make([]uuid.UUID, 0, len(r.PostForm["collections"]))
+	for _, raw := range r.PostForm["collections"] {
+		if cid, perr := uuid.Parse(raw); perr == nil {
+			collectionIDs = append(collectionIDs, cid)
+		}
+	}
+	currentCollection := r.PostFormValue("current_collection")
+
+	updated, err := bookmarks.UpdateBookmarkCollectionIDs(ctx, id, user.ID, collectionIDs)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+		return fmt.Errorf("update bookmark collections: %w", err)
+	}
+
+	if views.IsHtmx(r) {
+		// from a collection page, remove the row when this collection was unchecked
+		if currentID, perr := uuid.Parse(currentCollection); perr == nil && !slices.Contains(collectionIDs, currentID) {
+			w.Header().Set("HX-Reswap", "delete")
+			return nil
+		}
+		allCollections, err := collections.GetCollectionsByUser(ctx, user.ID)
+		if err != nil {
+			return fmt.Errorf("get collections: %w", err)
+		}
+		if err := views.LinkRow(updated, allCollections, currentCollection).Render(w); err != nil {
+			return fmt.Errorf("render bookmark row: %w", err)
+		}
+		return nil
+	}
+
+	target := "/"
+	if cid, perr := uuid.Parse(currentCollection); perr == nil {
+		target = "/collections/" + cid.String()
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther) // #nosec G710 -- target is "/" or a parsed UUID's canonical String(), no open redirect
 	return nil
 }
 

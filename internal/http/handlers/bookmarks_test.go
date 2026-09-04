@@ -201,7 +201,7 @@ func TestGetBookmarkByIdHtmx(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String(), bm.one.ID.String())
 	r.Header.Set("HX-Request", "true")
-	be.NilErr(t, getBookmarkById(rec, r, bm))
+	be.NilErr(t, getBookmarkById(rec, r, bm, &fakeCollectionStore{}))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "byid", bm.last)
@@ -220,6 +220,7 @@ func TestGetBookmarkEditHtmx(t *testing.T) {
 	be.NilErr(t, getBookmarkEdit(rec, r, bm))
 
 	be.Equal(t, http.StatusOK, rec.Code)
+	be.True(t, strings.HasPrefix(rec.Body.String(), "<li>")) // row-swap expects Li
 	be.True(t, containsBody(rec, `name="notes"`))
 	be.True(t, containsBody(rec, "existing note")) // pre-filled
 	be.True(t, containsBody(rec, `name="tags"`))
@@ -243,7 +244,7 @@ func TestPostBookmarkEditHtmx(t *testing.T) {
 	rec := httptest.NewRecorder()
 	r := routeFormRequest(t, bm.one.ID, "notes=new+note&tags=css%2C+web")
 	r.Header.Set("HX-Request", "true")
-	be.NilErr(t, postBookmarkEdit(rec, r, bm))
+	be.NilErr(t, postBookmarkEdit(rec, r, bm, &fakeCollectionStore{}))
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, "update", bm.last)
@@ -256,7 +257,7 @@ func TestPostBookmarkEditRedirect(t *testing.T) {
 	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
 
 	rec := httptest.NewRecorder()
-	be.NilErr(t, postBookmarkEdit(rec, routeFormRequest(t, bm.one.ID, "notes=x&tags="), bm))
+	be.NilErr(t, postBookmarkEdit(rec, routeFormRequest(t, bm.one.ID, "notes=x&tags="), bm, &fakeCollectionStore{}))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, "/", rec.Header().Get("Location"))
@@ -267,8 +268,92 @@ func TestPostBookmarkEditNotAuthor(t *testing.T) {
 	bm := &fakeBookmarkStore{err: core.ErrNotFound}
 
 	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
-		return postBookmarkEdit(w, r, bm)
+		return postBookmarkEdit(w, r, bm, &fakeCollectionStore{})
 	}, routeFormRequest(t, uuid.New(), "notes=x"))
+
+	be.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestGetBookmarkCollectionsEditHtmx(t *testing.T) {
+	cid := uuid.New()
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	bm.one.CollectionIDs = []uuid.UUID{cid}
+	col := &fakeCollectionStore{collections: []core.Collection{{ID: cid, Name: "Work", BookmarkCount: 3}}}
+
+	rec := httptest.NewRecorder()
+	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/collections/edit", bm.one.ID.String())
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, getBookmarkCollectionsEdit(rec, r, bm, col))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "byid", bm.last)
+	be.True(t, strings.HasPrefix(rec.Body.String(), "<li>")) // row-swap expects Li
+	be.True(t, containsBody(rec, "Edit collections"))
+	be.True(t, containsBody(rec, "Work"))
+	be.True(t, containsBody(rec, `name="collections"`))
+	be.True(t, containsBody(rec, "checked")) // current membership pre-checked
+}
+
+func TestGetBookmarkCollectionsEditFullPage(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getBookmarkCollectionsEdit(rec, routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/collections/edit", bm.one.ID.String()), bm, col))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.True(t, containsBody(rec, "Edit Collections — Patchworks")) // full page, not a fragment
+}
+
+func TestPostBookmarkCollectionsHtmx(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	col := &fakeCollectionStore{collections: []core.Collection{{ID: uuid.New(), Name: "Work"}}}
+
+	rec := httptest.NewRecorder()
+	body := "collections=" + col.collections[0].ID.String()
+	r := routeFormRequest(t, bm.one.ID, body)
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkCollections(rec, r, bm, col))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "update-collections", bm.last)
+	be.AllEqual(t, []uuid.UUID{col.collections[0].ID}, bm.one.CollectionIDs)
+	be.True(t, containsBody(rec, "Post")) // updated row fragment
+}
+
+func TestPostBookmarkCollectionsRemovesFromCurrentCollection(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	col := &fakeCollectionStore{}
+	current := uuid.New()
+
+	rec := httptest.NewRecorder()
+	// unchecked the current collection → empty checked set
+	r := routeFormRequest(t, bm.one.ID, "current_collection="+current.String())
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkCollections(rec, r, bm, col))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "delete", rec.Header().Get("HX-Reswap")) // htmx deletes the row
+}
+
+func TestPostBookmarkCollectionsRedirect(t *testing.T) {
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	current := uuid.New()
+
+	rec := httptest.NewRecorder()
+	r := routeFormRequest(t, bm.one.ID, "current_collection="+current.String())
+	be.NilErr(t, postBookmarkCollections(rec, r, bm, &fakeCollectionStore{}))
+
+	be.Equal(t, http.StatusSeeOther, rec.Code)
+	be.Equal(t, "/collections/"+current.String(), rec.Header().Get("Location"))
+}
+
+func TestPostBookmarkCollectionsNotAuthor(t *testing.T) {
+	bm := &fakeBookmarkStore{err: core.ErrNotFound}
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkCollections(w, r, bm, &fakeCollectionStore{})
+	}, routeFormRequest(t, uuid.New(), "collections="+uuid.New().String()))
 
 	be.Equal(t, http.StatusNotFound, rec.Code)
 }
@@ -350,6 +435,15 @@ func (f *fakeBookmarkStore) UpdateBookmarkNotesTags(ctx context.Context, id, use
 	}
 	f.one.Notes = notes
 	f.one.Tags = tags
+	return f.one, nil
+}
+
+func (f *fakeBookmarkStore) UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error) {
+	f.last = "update-collections"
+	if f.err != nil {
+		return core.Bookmark{}, f.err
+	}
+	f.one.CollectionIDs = collectionIDs
 	return f.one, nil
 }
 

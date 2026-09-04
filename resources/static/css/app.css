@@ -164,7 +164,7 @@
         color: inherit;
     }
 
-    input,
+    input:not([type="checkbox"]):not([type="radio"]),
     select,
     textarea {
         padding: 0.38em 0.55em;
@@ -661,26 +661,32 @@
         .menu-item {
             display: flex;
             align-items: center;
+            gap: var(--size-1);
+            width: 100%;
             padding: var(--size-1) var(--size-2);
+            border: 0;
             border-radius: var(--radius-sm);
+            background: none;
             color: var(--text-1);
             text-decoration: none;
+            font-family: inherit;
             font-size: var(--font-size-0);
+            cursor: pointer;
+            text-align: left;
+            justify-content: flex-start; /* buttons center by default */
 
             &:hover {
                 background: var(--surface-2);
             }
         }
 
-        /* below the open ⋯, right edge flush with the trigger's right edge:
-           bottom span-left covers the center+left tiles, whose right edge is
-           the anchor's right edge. Falls back to the popover's default
-           top-layer placement where anchor positioning is unavailable. */
+        /* below the open ⋯, right edge flush with the trigger's right edge */
         @supports (position-area: bottom span-left) {
             position-area: bottom span-left;
         }
     }
 
+    /* collections picker — preloaded membership popover, anchored like the menu */
     /* inline edit panel — notes + tags, replaces the row */
     .edit-panel {
         display: grid;
@@ -698,11 +704,55 @@
             color: var(--text-2);
         }
 
-        input,
+        input:not([type="checkbox"]),
         textarea {
-            /* delta over the base field style — fields stand out on the
-               panel's surface */
+            /* delta over the base field style — fields stand out on the panel's surface */
             background: var(--bg);
+        }
+
+        .picker-title {
+            font-size: var(--font-size-0);
+            color: var(--text-2);
+        }
+
+        .pick-list {
+            display: grid;
+            max-height: 12rem;
+            overflow: auto;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+
+            li {
+                border-bottom: 1px solid var(--border);
+
+                &:last-child {
+                    border-bottom: none;
+                }
+            }
+
+            label {
+                display: flex;
+                align-items: center;
+                gap: var(--size-2);
+                padding: var(--size-1) var(--size-1);
+                font-size: var(--font-size-0);
+                cursor: pointer;
+
+                &:hover {
+                    background: var(--surface-2);
+                }
+
+                input {
+                    accent-color: var(--primary);
+                }
+
+                .count {
+                    margin-inline-start: auto;
+                    font-size: var(--font-size-00);
+                    color: var(--text-3);
+                }
+            }
         }
 
         .edit-actions {

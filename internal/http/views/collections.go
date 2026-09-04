@@ -89,7 +89,7 @@ func CreateCollectionsPage(user core.User, f CollectionForm) Node {
 	return Page("Create New Collection - Patchworks", AppShell(user, content))
 }
 
-func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User) Node {
+func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User, collections []core.Collection) Node {
 	memberSection := Section(
 		H2(Text("Members")),
 		Ul(Class("member-list"), Map(collection.Members, func(m core.CollectionMember) Node {
@@ -130,7 +130,7 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 	bookmarkSection := Section(
 		H2(Text("Bookmarks")),
 		IfElse(len(bookmarks) > 0,
-			Links(bookmarks),
+			Links(bookmarks, collections, collection.ID.String()),
 			P(Class("muted"), Text("No bookmarks yet.")),
 		),
 	)

@@ -137,6 +137,9 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 	for i, bm := range ordered {
 		bookmarks[i] = *bm // dereference after tags are fully collected
 	}
+	if err := db.attachCollectionIDs(ctx, bookmarks); err != nil {
+		return core.CollectionWithBookmarks{}, err
+	}
 
 	return core.CollectionWithBookmarks{
 		Collection: core.Collection{

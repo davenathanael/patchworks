@@ -150,7 +150,11 @@ func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, us
 		return core.Bookmark{}, err
 	}
 
-	return toBookmark(createdBookmark, tags, user), nil
+	b := toBookmark(createdBookmark, tags, user)
+	if collectionID != uuid.Nil {
+		b.CollectionIDs = []uuid.UUID{collectionID}
+	}
+	return b, nil
 }
 
 func (db *DB) toBookmarksWithTags(ctx context.Context, rows []sqlc.GetRecentBookmarksByUserIdRow) ([]core.Bookmark, error) {
@@ -168,7 +172,35 @@ func (db *DB) toBookmarksWithTags(ctx context.Context, rows []sqlc.GetRecentBook
 		return nil, err
 	}
 
-	return toBookmarks(rows, tagRows), nil
+	bookmarks := toBookmarks(rows, tagRows)
+	if err := db.attachCollectionIDs(ctx, bookmarks); err != nil {
+		return nil, err
+	}
+	return bookmarks, nil
+}
+
+// attachCollectionIDs fills each bookmark's CollectionIDs with the collections
+// it belongs to (batched, one query for the whole list).
+func (db *DB) attachCollectionIDs(ctx context.Context, bookmarks []core.Bookmark) error {
+	if len(bookmarks) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(bookmarks))
+	for i, bm := range bookmarks {
+		ids[i] = bm.ID
+	}
+	rows, err := db.querier.GetCollectionIdsByBookmarkIds(ctx, ids)
+	if err != nil {
+		return err
+	}
+	byBookmark := make(map[uuid.UUID][]uuid.UUID)
+	for _, row := range rows {
+		byBookmark[row.BookmarkID] = append(byBookmark[row.BookmarkID], row.CollectionID)
+	}
+	for i := range bookmarks {
+		bookmarks[i].CollectionIDs = byBookmark[bookmarks[i].ID]
+	}
+	return nil
 }
 
 // GetBookmarkByID returns one of the user's own bookmarks with its tags.
@@ -186,7 +218,11 @@ func (db *DB) GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.B
 	if err != nil {
 		return core.Bookmark{}, err
 	}
-	return toBookmark(row.Bookmark, tags[id], toUser(row.User)), nil
+	bookmarks := []core.Bookmark{toBookmark(row.Bookmark, tags[id], toUser(row.User))}
+	if err := db.attachCollectionIDs(ctx, bookmarks); err != nil {
+		return core.Bookmark{}, err
+	}
+	return bookmarks[0], nil
 }
 
 // UpdateBookmarkNotesTags replaces a bookmark's notes and tags in one
@@ -243,4 +279,64 @@ func (db *DB) tagsForBookmarks(ctx context.Context, bookmarkIDs []uuid.UUID) (ma
 		out[tr.BookmarkID] = append(out[tr.BookmarkID], tr.Tag)
 	}
 	return out, nil
+}
+
+// UpdateBookmarkCollectionIDs replaces the bookmark's links to the user's own
+// (member) collections, in one transaction. Links to collections the user is
+// not a member of are left untouched — a shared bookmark keeps its place in
+// other users' collections. Author-only: ErrNotFound if not the author.
+func (db *DB) UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error) {
+	if _, err := db.GetBookmarkByID(ctx, bookmarkID, userID); err != nil {
+		return core.Bookmark{}, err // author check + 404
+	}
+
+	allowed, err := db.GetCollectionsByUser(ctx, userID)
+	if err != nil {
+		return core.Bookmark{}, err
+	}
+	allowedIDs := make(map[uuid.UUID]bool, len(allowed))
+	for _, c := range allowed {
+		allowedIDs[c.ID] = true
+	}
+
+	// dedupe + restrict to the user's own collections
+	seen := make(map[uuid.UUID]bool, len(collectionIDs))
+	filtered := make([]uuid.UUID, 0, len(collectionIDs))
+	for _, cid := range collectionIDs {
+		if !seen[cid] && allowedIDs[cid] {
+			seen[cid] = true
+			filtered = append(filtered, cid)
+		}
+	}
+
+	allowedSlice := make([]uuid.UUID, 0, len(allowed))
+	for _, c := range allowed {
+		allowedSlice = append(allowedSlice, c.ID)
+	}
+
+	tx, err := db.Pool.Begin(ctx)
+	if err != nil {
+		return core.Bookmark{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	querier := db.querier.WithTx(tx)
+	if err := querier.DeleteBookmarkCollectionLinks(ctx, sqlc.DeleteBookmarkCollectionLinksParams{BookmarkID: bookmarkID, Column2: allowedSlice}); err != nil {
+		return core.Bookmark{}, err
+	}
+	if len(filtered) > 0 {
+		linkParams := make([]sqlc.CreateBookmarkCollectionLinksParams, 0, len(filtered))
+		for _, cid := range filtered {
+			linkParams = append(linkParams, sqlc.CreateBookmarkCollectionLinksParams{CollectionID: cid, BookmarkID: bookmarkID})
+		}
+		if _, err := querier.CreateBookmarkCollectionLinks(ctx, linkParams); err != nil {
+			return core.Bookmark{}, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return core.Bookmark{}, err
+	}
+
+	return db.GetBookmarkByID(ctx, bookmarkID, userID)
 }

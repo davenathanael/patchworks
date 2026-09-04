@@ -218,6 +218,57 @@ func TestUpdateBookmarkNotesTags(t *testing.T) {
 	be.True(t, errors.Is(err, core.ErrNotFound))
 }
 
+func TestUpdateBookmarkCollectionIDs(t *testing.T) {
+	ctx := context.Background()
+	owner, err := testDB.CreateUser(ctx, "coledit@test.local", "hash")
+	be.NilErr(t, err)
+	other, err := testDB.CreateUser(ctx, "colshared@test.local", "hash")
+	be.NilErr(t, err)
+
+	be.NilErr(t, testDB.CreateCollection(ctx, owner.ID, "Mine A", ""))
+	be.NilErr(t, testDB.CreateCollection(ctx, owner.ID, "Mine B", ""))
+	be.NilErr(t, testDB.CreateCollection(ctx, other.ID, "Shared", ""))
+	own, err := testDB.GetCollectionsByUser(ctx, owner.ID)
+	be.NilErr(t, err)
+	be.Equal(t, 2, len(own))
+	shared, err := testDB.GetCollectionsByUser(ctx, other.ID)
+	be.NilErr(t, err)
+	be.Equal(t, 1, len(shared))
+
+	u, err := url.Parse("https://example.com/post")
+	be.NilErr(t, err)
+	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", owner.ID, own[0].ID, nil)
+	be.NilErr(t, err)
+	// other adds the bookmark to their (shared) collection directly
+	_, err = testDB.Pool.Exec(ctx, `insert into collection_bookmarks (collection_id, bookmark_id) values ($1, $2)`, shared[0].ID, bk.ID)
+	be.NilErr(t, err)
+
+	updated, err := testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, owner.ID, []uuid.UUID{own[0].ID, own[1].ID})
+	be.NilErr(t, err)
+	// all memberships surface, including the shared one (only own are editable)
+	be.Equal(t, 3, len(updated.CollectionIDs))
+	be.True(t, slices.Contains(updated.CollectionIDs, own[0].ID))
+	be.True(t, slices.Contains(updated.CollectionIDs, own[1].ID))
+	be.True(t, slices.Contains(updated.CollectionIDs, shared[0].ID))
+
+	// the shared collection's link is untouched (owner is not a member there)
+	got, err := testDB.GetCollection(ctx, shared[0].ID)
+	be.NilErr(t, err)
+	be.Equal(t, 1, len(got.Bookmarks))
+	be.Equal(t, bk.ID, got.Bookmarks[0].ID)
+
+	// unchecking own[0] drops only that link; the shared one stays
+	updated, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, owner.ID, []uuid.UUID{own[1].ID})
+	be.NilErr(t, err)
+	be.Equal(t, 2, len(updated.CollectionIDs))
+	be.True(t, slices.Contains(updated.CollectionIDs, own[1].ID))
+	be.True(t, slices.Contains(updated.CollectionIDs, shared[0].ID))
+
+	// author-only: another user cannot edit this bookmark's membership
+	_, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, other.ID, []uuid.UUID{shared[0].ID})
+	be.True(t, errors.Is(err, core.ErrNotFound))
+}
+
 func TestBookmarkRepository(t *testing.T) {
 	ctx := context.Background()
 	user, err := testDB.CreateUser(ctx, "bookmark@test.local", "hash")

@@ -9,6 +9,39 @@ import (
 	"context"
 )
 
+// iteratorForCreateBookmarkCollectionLinks implements pgx.CopyFromSource.
+type iteratorForCreateBookmarkCollectionLinks struct {
+	rows                 []CreateBookmarkCollectionLinksParams
+	skippedFirstNextCall bool
+}
+
+func (r *iteratorForCreateBookmarkCollectionLinks) Next() bool {
+	if len(r.rows) == 0 {
+		return false
+	}
+	if !r.skippedFirstNextCall {
+		r.skippedFirstNextCall = true
+		return true
+	}
+	r.rows = r.rows[1:]
+	return len(r.rows) > 0
+}
+
+func (r iteratorForCreateBookmarkCollectionLinks) Values() ([]interface{}, error) {
+	return []interface{}{
+		r.rows[0].CollectionID,
+		r.rows[0].BookmarkID,
+	}, nil
+}
+
+func (r iteratorForCreateBookmarkCollectionLinks) Err() error {
+	return nil
+}
+
+func (q *Queries) CreateBookmarkCollectionLinks(ctx context.Context, arg []CreateBookmarkCollectionLinksParams) (int64, error) {
+	return q.db.CopyFrom(ctx, []string{"collection_bookmarks"}, []string{"collection_id", "bookmark_id"}, &iteratorForCreateBookmarkCollectionLinks{rows: arg})
+}
+
 // iteratorForCreateBookmarkTags implements pgx.CopyFromSource.
 type iteratorForCreateBookmarkTags struct {
 	rows                 []CreateBookmarkTagsParams

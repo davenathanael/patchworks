@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v0.6 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v0.7 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -10,6 +10,7 @@
 | 0.4 | 2026-09-04 | Row-actions design settled (see `docs/mockups/design-bookmark-actions.html`): one 3-item menu per bookmark (Edit notes & tags · Edit collections · Archive); notes = 1-line clamp + native expand; title/domain immutable; FR-1/FR-3/FR-13/FR-22 reworded; FR-13, FR-22 moved to §6.1 |
 | 0.5 | 2026-09-04 | FR-22 landed in §5.2 as **BK-7** — notes column + row display (1-line clamp, native More/Less expand via CSS `:has()`) |
 | 0.6 | 2026-09-04 | FR-3 edit half landed in §5.2 as **BK-8** — inline Edit notes & tags panel (author-only, title/domain immutable); FR-3 remainder (hard-delete) stays in §6.1 |
+| 0.7 | 2026-09-04 | FR-13 landed in §5.3 as **CL-8** — Edit collections popover (search + checkboxes, preloaded membership, one save; own links only) |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -90,6 +91,7 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **CL-5** Invite members by email with a role (default **viewer**); a new bookmark form offers only the user's own collections.
 - **CL-6** Remove members from a collection.
 - **CL-7** Members of a collection can view it and its bookmarks; shared bookmarks retain their original author.
+- **CL-8** *(formerly FR-13)* "Edit collections" — add an existing bookmark to / remove it from the user's collections via an inline row panel: a search field plus a checkbox list of the user's collections with current membership pre-checked; one save replaces membership. Works from the dashboard and collection detail — from a collection page, unchecking that collection removes the row from the list. Only the user's own membership links are replaced; links into shared collections are never touched (no-JS fallback: a full edit page). Design: `docs/mockups/design-bookmark-actions.html`.
 - **Gaps:** roles are stored and displayed but **not yet enforced** — any member can currently manage the collection (→ FR-6). No public/guest sharing (→ FR-15).
 
 ### 5.4 Tags — *impl*
@@ -127,7 +129,6 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 - **FR-3** *(remainder)* Hard-delete a bookmark (author-only) — only meaningful for archived bookmarks; destructive, so it gets its own confirm. Edit of notes + tags landed as BK-8.
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 - **FR-5** Write `users.last_login_at` on successful login. *(schema-ready)*
-- **FR-13** "Edit collections" — add an existing bookmark to / remove it from collections via a search + checkbox popover (preloaded with the user's own collections and their current membership), one save round-trip; works from dashboard and collection detail (on a collection page the current collection arrives pre-checked, so unchecking removes). Today saving chooses exactly one collection. *(join table exists)* Design: `docs/mockups/design-bookmark-actions.html`.
 
 ### 6.2 Medium-term
 

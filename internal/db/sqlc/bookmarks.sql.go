@@ -46,6 +46,11 @@ func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) 
 	return i, err
 }
 
+type CreateBookmarkCollectionLinksParams struct {
+	CollectionID uuid.UUID
+	BookmarkID   uuid.UUID
+}
+
 type CreateBookmarkTagsParams struct {
 	BookmarkID uuid.UUID
 	Tag        string
@@ -68,6 +73,21 @@ func (q *Queries) CreateCollectionBookmark(ctx context.Context, arg CreateCollec
 	var i CollectionBookmark
 	err := row.Scan(&i.CollectionID, &i.BookmarkID, &i.AddedAt)
 	return i, err
+}
+
+const deleteBookmarkCollectionLinks = `-- name: DeleteBookmarkCollectionLinks :exec
+DELETE FROM collection_bookmarks
+WHERE bookmark_id = $1 AND collection_id = ANY($2::uuid[])
+`
+
+type DeleteBookmarkCollectionLinksParams struct {
+	BookmarkID uuid.UUID
+	Column2    []uuid.UUID
+}
+
+func (q *Queries) DeleteBookmarkCollectionLinks(ctx context.Context, arg DeleteBookmarkCollectionLinksParams) error {
+	_, err := q.db.Exec(ctx, deleteBookmarkCollectionLinks, arg.BookmarkID, arg.Column2)
+	return err
 }
 
 const deleteBookmarkTags = `-- name: DeleteBookmarkTags :exec
@@ -401,6 +421,37 @@ func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTags
 			&i.User.LastLoginAt,
 			&i.User.PasswordHash,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCollectionIdsByBookmarkIds = `-- name: GetCollectionIdsByBookmarkIds :many
+SELECT bookmark_id, collection_id
+FROM collection_bookmarks
+WHERE bookmark_id = ANY($1::uuid[])
+`
+
+type GetCollectionIdsByBookmarkIdsRow struct {
+	BookmarkID   uuid.UUID
+	CollectionID uuid.UUID
+}
+
+func (q *Queries) GetCollectionIdsByBookmarkIds(ctx context.Context, bookmarkIds []uuid.UUID) ([]GetCollectionIdsByBookmarkIdsRow, error) {
+	rows, err := q.db.Query(ctx, getCollectionIdsByBookmarkIds, bookmarkIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCollectionIdsByBookmarkIdsRow
+	for rows.Next() {
+		var i GetCollectionIdsByBookmarkIdsRow
+		if err := rows.Scan(&i.BookmarkID, &i.CollectionID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

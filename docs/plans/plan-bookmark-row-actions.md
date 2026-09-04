@@ -36,15 +36,13 @@ Order of implementation (each step is a committable unit):
    fragment for Cancel. Shared `splitTags`. Spec: FR-3 edit half → §5.2 as
    BK-8, remainder (hard-delete) stays FR-3; Rev 0.6. `check` + integration green.
 
-5. **Edit collections popover (FR-13)** — search + checkbox list, **preloaded**
-   server-side at page render with all user's own collections + current
-   membership; Save = one htmx post (add/remove via existing
-   `collection_bookmarks` table); `hx-confirm` not needed (Save/Cancel).
-   - Views: popover fragment in LinkRow (needs current membership per bookmark —
-     repo method `GetCollectionIDsByBookmark` or batch); handlers `POST
-     /bookmarks/{id}/collections`.
-   - From a collection page the current collection arrives pre-checked (uncheck =
-     remove). Shared `LinkRow` needs membership data → view-model extension.
+5. **✅ Edit collections popover (FR-13 → CL-8)** (done) — second menu item,
+   preloaded search+checkbox picker (`popover="auto"`, anchored like the menu);
+   POST /bookmarks/{id}/collections replaces the user's own membership links
+   (shared links untouched); from a collection page, unchecking that collection
+   drops the row (HX-Reswap: delete). Membership rides on `core.Bookmark.
+   CollectionIDs` (batched `attachCollectionIDs` in the repo). Spec: FR-13 →
+   §5.3 as CL-8; Rev 0.7. `check` + integration green.
 
 6. **Archive (FR-1, action only)** — menu item Archive everywhere (dashboard +
    collection detail), `hx-confirm="Archive this bookmark? You can restore it

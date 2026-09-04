@@ -134,7 +134,12 @@ func getCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 		return fmt.Errorf("get collection: %w", err)
 	}
 
-	if err := views.CollectionPage(collection.Collection, collection.Bookmarks, user).Render(w); err != nil {
+	allCollections, err := collections.GetCollectionsByUser(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("get collections: %w", err)
+	}
+
+	if err := views.CollectionPage(collection.Collection, collection.Bookmarks, user, allCollections).Render(w); err != nil {
 		return fmt.Errorf("render collection page: %w", err)
 	}
 	return nil

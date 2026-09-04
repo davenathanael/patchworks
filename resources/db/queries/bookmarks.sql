@@ -109,3 +109,16 @@ VALUES ($1, $2, $3);
 INSERT INTO collection_bookmarks (collection_id, bookmark_id)
 VALUES ($1, $2)
 RETURNING *;
+
+-- name: GetCollectionIdsByBookmarkIds :many
+SELECT bookmark_id, collection_id
+FROM collection_bookmarks
+WHERE bookmark_id = ANY(@bookmark_ids::uuid[]);
+
+-- name: DeleteBookmarkCollectionLinks :exec
+DELETE FROM collection_bookmarks
+WHERE bookmark_id = $1 AND collection_id = ANY($2::uuid[]);
+
+-- name: CreateBookmarkCollectionLinks :copyfrom
+INSERT INTO collection_bookmarks (collection_id, bookmark_id)
+VALUES ($1, $2);

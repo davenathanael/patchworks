@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/google/uuid"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -53,36 +54,28 @@ func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
 			ID("add-link"), Placeholder("https://example.com"), Required(),
 			Attr("inputmode", "url"), Attr("enterkeyhint", "go"),
 		),
-		Label(Text("Collection"),
-			Select(Name("collection_id"),
-				Option(Value(""), Text("None"), Selected()),
-				Map(collections, func(i core.Collection) Node {
-					return Option(Value(i.ID.String()), Text(i.Name))
-				}),
-			),
-		),
 		TextInput("Tags", "tags", "text", form.Tags, form.Errors, Placeholder("go, css, reading")),
 		Button(Type("submit"), Text("Save")),
 	)
 }
 
-func RecentLinks(links []core.Bookmark) Node {
+func RecentLinks(links []core.Bookmark, collections []core.Collection) Node {
 	return Section(
 		H2(Text("Recent")),
 		IfElse(
 			len(links) > 0,
-			Links(links),
+			Links(links, collections, ""),
 			P(Class("muted"), Text("No links yet. Add one above to get started.")),
 		),
 	)
 }
 
-func FilteredLinksView(links []core.Bookmark, p PaginationProps) Node {
+func FilteredLinksView(links []core.Bookmark, collections []core.Collection, p PaginationProps) Node {
 	return Section(
 		H2(Text("Filtered Links")),
 		IfElse(
 			len(links) > 0,
-			Group{Links(links), Pagination(p)},
+			Group{Links(links, collections, ""), Pagination(p)},
 			P(Class("muted"), Text("No links to display.")),
 		),
 	)
@@ -95,17 +88,22 @@ func IfElse(condition bool, trueNode, falseNode Node) Node {
 	return falseNode
 }
 
-func Links(links []core.Bookmark) Node {
-	return Ul(Class("link-list"), Map(links, LinkRow))
+func Links(links []core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
+	return Ul(Class("link-list"), Map(links, func(link core.Bookmark) Node {
+		return LinkRow(link, collections, currentCollectionID)
+	}))
 }
 
-func LinkRow(link core.Bookmark) Node {
-	return Li(BookmarkArticle(link))
+func LinkRow(link core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
+	return Li(BookmarkArticle(link, collections, currentCollectionID))
 }
 
 // BookmarkArticle renders one bookmark row's article — the swap target for the
-// row menu: the edit panel, updated rows, and cancellations all replace it.
-func BookmarkArticle(link core.Bookmark) Node {
+// row menu: the edit panel, the collections picker result, and cancellations
+// all replace it. currentCollectionID is the page the row is rendered on
+// ("" on the dashboard) — it lets the collections save drop the row when this
+// collection is unchecked.
+func BookmarkArticle(link core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
 	relTime := relativeTime(link.CreatedAt)
 
 	tags := make([]Node, 0, len(link.Tags))
@@ -126,7 +124,7 @@ func BookmarkArticle(link core.Bookmark) Node {
 		Footer(
 			Small(Text(link.URL.Host)),
 			Ul(tags...),
-			Span(Class("row-actions"), bookmarkMenu(link)),
+			Span(Class("row-actions"), bookmarkMenu(link, collections, currentCollectionID)),
 		),
 		noteBlock(link),
 	)
@@ -140,36 +138,130 @@ func EditBookmarkPage(user core.User, panel Node) Node {
 	)))
 }
 
+// EditPanelRow wraps an inline edit panel in the list item the row swap
+// expects: swap targets are `closest li` + outerHTML, so fragments must be Li
+// (a bare article would replace the li and break .link-list > li > article).
+func EditPanelRow(panel Node) Node {
+	return Li(panel)
+}
+
 // bookmarkMenu is the row's kebab menu. The trigger opens a native popover
-// (popover="auto") so click-outside / Esc dismiss it with no JS; the popover
-// anchors itself to the trigger. "Edit notes & tags" swaps the article for the
-// inline edit panel (htmx) or navigates to the edit page (no-JS).
-// Edit-collections and Archive join this menu in later steps.
-func bookmarkMenu(link core.Bookmark) Node {
+// (popover="auto") with light-dismiss; both items swap the row for an inline
+// edit panel (htmx) or navigate to a full edit page (no-JS).
+func bookmarkMenu(link core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
 	editURL := fmt.Sprintf("/bookmarks/%s/edit", link.ID)
-	popoverID := "bookmark-menu-" + link.ID.String()
+	collectionsURL := fmt.Sprintf("/bookmarks/%s/collections/edit", link.ID)
+	if currentCollectionID != "" {
+		collectionsURL += "?collection=" + currentCollectionID
+	}
+	menuID := "bookmark-menu-" + link.ID.String()
 	return Group{
 		Button(
 			Class("button ghost small"),
 			Type("button"),
-			Attr("popovertarget", popoverID),
+			Attr("popovertarget", menuID),
 			Attr("aria-label", "Bookmark actions"),
 			Text("⋯"),
 		),
 		Div(
-			ID(popoverID),
+			ID(menuID),
 			Class("menu-card"),
 			Attr("popover", "auto"),
 			A(
 				Class("menu-item"),
 				Href(editURL),
 				Attr("hx-get", editURL),
-				Attr("hx-target", "closest article"),
+				Attr("hx-target", "closest li"),
 				Attr("hx-swap", "outerHTML"),
 				Text("Edit notes & tags"),
 			),
+			A(
+				Class("menu-item"),
+				Href(collectionsURL),
+				Attr("hx-get", collectionsURL),
+				Attr("hx-target", "closest li"),
+				Attr("hx-swap", "outerHTML"),
+				Text("Edit collections"),
+			),
 		),
 	}
+}
+
+// CollectionEditPanel is the inline edit state for collection membership — the
+// same row-replacement pattern as the notes panel: a search field plus a
+// checkbox list of the user's collections, current membership pre-checked.
+// One save replaces membership (add + remove in one go). currentCollectionID
+// is hidden so the server can drop the row when this collection is unchecked.
+func CollectionEditPanel(link core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
+	postURL := fmt.Sprintf("/bookmarks/%s/collections", link.ID)
+
+	memberOf := make(map[uuid.UUID]bool, len(link.CollectionIDs))
+	for _, cid := range link.CollectionIDs {
+		memberOf[cid] = true
+	}
+	items := Map(collections, func(c core.Collection) Node {
+		return Li(
+			Label(
+				Input(Type("checkbox"), Name("collections"), Value(c.ID.String()), If(memberOf[c.ID], Checked())),
+				Text(c.Name),
+				Span(Class("count"), Text(fmt.Sprintf("%d", c.BookmarkCount))),
+			),
+		)
+	})
+	tags := make([]Node, 0, len(link.Tags))
+	for _, tag := range link.Tags {
+		tags = append(tags, Li(Text(tag)))
+	}
+
+	return Article(
+		Header(
+			A(
+				Href(link.URL.String()),
+				Target("_blank"),
+				Rel("noopener"),
+				Text(link.Title),
+			),
+			Time(Attr("datetime", link.CreatedAt.Format(time.RFC3339)), Text(relativeTime(link.CreatedAt))),
+		),
+		Footer(
+			Small(Text(link.URL.Host)),
+			Ul(tags...), // collections editing changes membership, not tags — keep them visible
+		),
+		noteBlock(link),
+		Form(
+			Class("edit-panel"),
+			Method("POST"),
+			Action(postURL),
+			Attr("hx-post", postURL),
+			Attr("hx-target", "closest li"),
+			Attr("hx-swap", "outerHTML"),
+			If(currentCollectionID != "",
+				Input(Type("hidden"), Name("current_collection"), Value(currentCollectionID)),
+			),
+			Div(Class("picker-title"), Text("Edit collections")),
+			Input(Type("search"), Name("q"), Placeholder("Search collections"), Attr("enterkeyhint", "search")),
+			Ul(Class("pick-list"), items),
+			Div(Class("edit-actions"),
+				Button(Type("submit"), Class("button small"), Text("Save")),
+				A(
+					Class("button ghost small"),
+					Href("/"),
+					Attr("hx-get", fmt.Sprintf("/bookmarks/%s", link.ID)),
+					Attr("hx-target", "closest li"),
+					Attr("hx-swap", "outerHTML"),
+					Text("Cancel"),
+				),
+			),
+		),
+	)
+}
+
+// EditCollectionsPage is the no-JS fallback: a full page wrapping the panel.
+func EditCollectionsPage(user core.User, panel Node) Node {
+	return Page("Edit Collections — Patchworks", AppShell(user, Main(
+		A(Class("back-link"), Href("/"), Text("← Dashboard")),
+		panel,
+	)))
 }
 
 // BookmarkEditPanel is the inline edit state replacing the row's article:
@@ -193,7 +285,7 @@ func BookmarkEditPanel(link core.Bookmark, errs FormErrors) Node {
 			Method("POST"),
 			Action(editURL),
 			Attr("hx-post", editURL),
-			Attr("hx-target", "closest article"),
+			Attr("hx-target", "closest li"),
 			Attr("hx-swap", "outerHTML"),
 			Label(Text("Note"),
 				Textarea(Name("notes"), Rows("2"), Text(link.Notes)),
@@ -205,7 +297,7 @@ func BookmarkEditPanel(link core.Bookmark, errs FormErrors) Node {
 					Class("button ghost small"),
 					Href("/"),
 					Attr("hx-get", rowURL),
-					Attr("hx-target", "closest article"),
+					Attr("hx-target", "closest li"),
 					Attr("hx-swap", "outerHTML"),
 					Text("Cancel"),
 				),
