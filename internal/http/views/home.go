@@ -35,7 +35,6 @@ func (vm *HomePageViewModel) bookmarks() Node {
 	}
 	return Group{
 		If(len(vm.RecentBookmarks) > 0, RecentLinks(vm.RecentBookmarks)),
-		BookmarksList(vm.AllBookmarks, stubPagination),
 	}
 }
 

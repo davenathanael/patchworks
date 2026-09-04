@@ -1,11 +1,12 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v0.2 · **Last updated:** 2026-09-03 · **Owner:** TBD
+**Status:** Draft v0.3 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
 | 0.1 | 2026-09-02 | Initial draft from codebase + docs audit |
 | 0.2 | 2026-09-03 | Per review: answered §7 Q1–Q5, Q7 (kept Q6 parked); archive ≈ soft-delete + archived filter; 3 fixed roles; 3 share-link types; bookmark notes added (FR-22); dropped §8 (tech → `docs/`); doc workflow → `docs/process.md` |
+| 0.3 | 2026-09-04 | BK-4: dashboard shows recent bookmarks only; all bookmarks reached via search/filter (removed redundant "Your Bookmarks" show-all list) |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -70,7 +71,7 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-1** Add a bookmark from the dashboard: URL + optional title, optional collection, optional tags.
 - **BK-2** When no title is given, the server fetches the page's `<title>` at save time. The fetch is bounded (1 MiB body read) and never blocks saving — on any failure the URL string is used as the title. (No scheduler: linking in the fetch, not a background job.)
 - **BK-3** Malformed URLs are rejected with an inline field error and the form re-renders with submitted values preserved.
-- **BK-4** The dashboard shows *recent bookmarks* (latest 10) and *all bookmarks* (server `LIMIT 20`), newest first.
+- **BK-4** The dashboard shows *recent bookmarks* (latest 10), newest first. Everything else is reached through search and filters (SR-1–SR-5).
 - **BK-5** After adding, htmx requests re-render just the bookmark list; non-htmx requests redirect to the dashboard.
 - **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable, *unused*).
 - **Gaps:** no edit, delete, or archive/restore UI (→ FR-1, FR-3); no per-bookmark notes (→ FR-22). The `page` query param is parsed but pagination rendering is a stub (→ FR-4). Saving targets one collection only (→ FR-13).
@@ -158,4 +159,3 @@ Resolved (2026-09-03, answers folded into the relevant requirement):
 - Q4 → FR-6 — three fixed roles.
 - Q5 → FR-15 — secret, time-based, and public (pretty slug) share links.
 - Q7 → §3 non-goals + FR-3 — the list is the interface; no detail page.
-

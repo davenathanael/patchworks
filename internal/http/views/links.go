@@ -76,17 +76,6 @@ func RecentLinks(links []core.Bookmark) Node {
 	)
 }
 
-func BookmarksList(links []core.Bookmark, p PaginationProps) Node {
-	return Section(
-		H2(Text("Your Bookmarks")),
-		IfElse(
-			len(links) > 0,
-			Group{Links(links), Pagination(p)},
-			P(Class("muted"), Text("No bookmarks to display.")),
-		),
-	)
-}
-
 func FilteredLinksView(links []core.Bookmark, p PaginationProps) Node {
 	return Section(
 		H2(Text("Filtered Links")),

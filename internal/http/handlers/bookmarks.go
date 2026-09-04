@@ -122,12 +122,15 @@ func loadBookmarks(ctx context.Context, bookmarks BookmarkStore, userID uuid.UUI
 		all, err := bookmarks.GetBookmarksByTags(ctx, userID, filterTags, search)
 		return nil, all, err
 	}
-	recent, err := bookmarks.GetRecentBookmarksByUser(ctx, userID, search)
+	if search != "" {
+		all, err := bookmarks.GetAllBookmarksByUser(ctx, userID, search)
+		return nil, all, err
+	}
+	recent, err := bookmarks.GetRecentBookmarksByUser(ctx, userID, "")
 	if err != nil {
 		return nil, nil, err
 	}
-	all, err := bookmarks.GetAllBookmarksByUser(ctx, userID, search)
-	return recent, all, err
+	return recent, nil, nil
 }
 
 func handlePostBookmarks(comp *components.Components) Handler {
@@ -225,16 +228,11 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections Collectio
 		if err != nil {
 			return fmt.Errorf("get recent bookmarks: %w", err)
 		}
-		all, err := bookmarks.GetAllBookmarksByUser(ctx, user.ID, "")
-		if err != nil {
-			return fmt.Errorf("get all bookmarks: %w", err)
-		}
 		vm := views.HomePageViewModel{
 			User:            user,
 			Collections:     collectionsList,
 			Tags:            tags,
 			RecentBookmarks: recent,
-			AllBookmarks:    all,
 			CurrentQuery:    url.Values{},
 		}
 		if err := vm.RenderFiltered(w); err != nil {

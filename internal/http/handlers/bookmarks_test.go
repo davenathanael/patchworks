@@ -30,7 +30,7 @@ func TestGetHomeNoFilters(t *testing.T) {
 	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/", nil), col, bm))
 
 	be.Equal(t, http.StatusOK, rec.Code)
-	be.Equal(t, "all", bm.last) // else-branch ran (only it calls GetAllBookmarksByUser)
+	be.Equal(t, "recent", bm.last) // else-branch ran (only it calls GetRecentBookmarksByUser)
 }
 
 func TestGetHomeCollectionFilter(t *testing.T) {
