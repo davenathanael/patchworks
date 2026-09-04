@@ -244,15 +244,16 @@ SELECT
     collection_bookmarks.added_at as added_at
 FROM bookmarks
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
-JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
+LEFT JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 JOIN users ON bookmarks.author_id = users.id
 WHERE collection_bookmarks.collection_id = $1
+ORDER BY bookmarks.created_at DESC
 `
 
 type GetBookmarksByCollectionIdRow struct {
 	Bookmark Bookmark
 	User     User
-	Tag      string
+	Tag      pgtype.Text
 	AddedAt  pgtype.Timestamp
 }
 

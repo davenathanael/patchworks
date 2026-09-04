@@ -111,7 +111,7 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 	members := groupMembersByCollectionID(memberRows)[id]
 
 	bookmarksByID := make(map[uuid.UUID]*core.Bookmark)
-	var bookmarks []core.Bookmark
+	var ordered []*core.Bookmark
 	for _, row := range bookmarkRows {
 		bm, exists := bookmarksByID[row.Bookmark.ID]
 		if !exists {
@@ -126,11 +126,15 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 				Author:     toUser(row.User),
 			}
 			bookmarksByID[row.Bookmark.ID] = bm
-			bookmarks = append(bookmarks, *bm)
+			ordered = append(ordered, bm)
 		}
-		if row.Tag != "" {
-			bm.Tags = append(bm.Tags, row.Tag)
+		if row.Tag.Valid {
+			bm.Tags = append(bm.Tags, row.Tag.String)
 		}
+	}
+	bookmarks := make([]core.Bookmark, len(ordered))
+	for i, bm := range ordered {
+		bookmarks[i] = *bm // dereference after tags are fully collected
 	}
 
 	return core.CollectionWithBookmarks{

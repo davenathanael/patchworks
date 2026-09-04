@@ -141,6 +141,52 @@ func TestCollectionRepository(t *testing.T) {
 	be.Equal(t, 0, len(left))
 }
 
+// TestCollectionBookmarksIncludeUntagged guards the collection-detail data
+// path: bookmarks without tags must appear in GetCollection (LEFT JOIN), with
+// tags only on tagged bookmarks — mirroring the dashboard list behavior.
+func TestCollectionBookmarksIncludeUntagged(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "colbookmark@test.local", "hash")
+	be.NilErr(t, err)
+
+	be.NilErr(t, testDB.CreateCollection(ctx, user.ID, "Reading", ""))
+	lists, err := testDB.GetCollectionsByUser(ctx, user.ID)
+	be.NilErr(t, err)
+	colID := lists[0].ID
+
+	u1, err := url.Parse("https://example.com/tagged")
+	be.NilErr(t, err)
+	_, err = testDB.CreateBookmark(ctx, u1, "Tagged Post", user.ID, colID, []string{"go", "web"})
+	be.NilErr(t, err)
+
+	u2, err := url.Parse("https://example.com/plain")
+	be.NilErr(t, err)
+	_, err = testDB.CreateBookmark(ctx, u2, "Plain Post", user.ID, colID, nil)
+	be.NilErr(t, err)
+
+	full, err := testDB.GetCollection(ctx, colID)
+	be.NilErr(t, err)
+	be.Equal(t, 2, len(full.Bookmarks))
+
+	var taggedTags, plainTags []string
+	found := make(map[string]bool)
+	for i := range full.Bookmarks {
+		found[full.Bookmarks[i].Title] = true
+		if full.Bookmarks[i].Title == "Tagged Post" {
+			taggedTags = full.Bookmarks[i].Tags
+		}
+		if full.Bookmarks[i].Title == "Plain Post" {
+			plainTags = full.Bookmarks[i].Tags
+		}
+	}
+	be.True(t, found["Tagged Post"])
+	be.True(t, found["Plain Post"])
+	be.Equal(t, 2, len(taggedTags))
+	be.True(t, slices.Contains(taggedTags, "go"))
+	be.True(t, slices.Contains(taggedTags, "web"))
+	be.Equal(t, 0, len(plainTags))
+}
+
 func TestBookmarkRepository(t *testing.T) {
 	ctx := context.Background()
 	user, err := testDB.CreateUser(ctx, "bookmark@test.local", "hash")
