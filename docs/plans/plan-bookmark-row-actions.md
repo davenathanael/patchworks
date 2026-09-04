@@ -21,12 +21,12 @@ Order of implementation (each step is a committable unit):
    sqlc regen; integration test asserts notes round-trip (`mise run check` +
    `test-integration` green). Dev DB still needs `mise run migrate`.
 
-3. **Notes display + expand (LinkRow)** — Variant A: clamp to 1 line, native
-   `<details class="note-toggle">` + CSS `:has()` expand (no JS, no text
-   duplication). Render the toggle only when the note overflows (server decides:
-   render toggle iff note length implies > 1 line, or always render — collapse is
-   harmless for short notes). Views: `views/links.go LinkRow`; CSS in `app.css`.
-   - Spec: move FR-22 → §5.2 (impl), Rev bump.
+3. **✅ Notes display + expand (LinkRow)** (done) — `views/links.go`
+   `noteBlock` renders the note under domain & tags, `-webkit-line-clamp: 1` +
+   native `details.note-toggle` with CSS `:has()` expand (no JS, no text
+   duplication); `shouldShowNoteToggle` server-side overflow heuristic (>60
+   chars, table-tested in `links_test.go`). CSS in `app.css` components layer.
+   Spec: FR-22 landed → §5.2, Rev 0.5. `mise run check` green.
 
 4. **Edit notes & tags panel (FR-3 + FR-22)** — menu item opens inline panel
    (note textarea + comma-separated tags), title/domain read-only display.

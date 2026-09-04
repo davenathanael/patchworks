@@ -550,6 +550,59 @@
         }
     }
 
+    /* bookmark note — clamped to one line, native More/Less expand */
+    .note {
+        margin-top: var(--size-1);
+        padding-left: var(--size-2);
+        border-left: 2px solid var(--border);
+        color: var(--text-2);
+        font-size: var(--font-size-0);
+
+        .note-text {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            line-clamp: 1;
+            -webkit-line-clamp: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0;
+        }
+
+        .note-toggle {
+            display: inline-block;
+            margin-inline-start: var(--size-1);
+
+            summary {
+                list-style: none;
+                cursor: pointer;
+                color: var(--primary);
+                font-size: var(--font-size-0);
+                text-decoration: underline;
+                text-underline-offset: 0.15em;
+
+                &::-webkit-details-marker {
+                    display: none;
+                }
+
+                &::before {
+                    content: "More";
+                }
+            }
+        }
+
+        /* unclamp + flip the label when open — pure CSS, no JS */
+        &:has(.note-toggle[open]) {
+            .note-text {
+                line-clamp: unset;
+                -webkit-line-clamp: unset;
+            }
+
+            .note-toggle summary::before {
+                content: "Less";
+            }
+        }
+    }
+
     /* collections index — clickable cards */
     .collection-list {
         display: grid;

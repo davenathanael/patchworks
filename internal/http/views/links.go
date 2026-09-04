@@ -121,8 +121,34 @@ func LinkRow(link core.Bookmark) Node {
 				Small(Text(link.URL.Host)),
 				Ul(tags...),
 			),
+			noteBlock(link),
 		),
 	)
+}
+
+// noteBlock renders the bookmark's note under the domain & tags, clamped to one
+// line with a native More/Less toggle when it likely overflows. The toggle is a
+// <details>; CSS :has() unclamps the text on open — no JS, and the text lives
+// in the DOM exactly once.
+func noteBlock(link core.Bookmark) Node {
+	if link.Notes == "" {
+		return nil
+	}
+	return Div(
+		Class("note"),
+		P(Class("note-text"), Text(link.Notes)),
+		If(shouldShowNoteToggle(link.Notes), Details(Class("note-toggle"), Summary())),
+	)
+}
+
+// shouldShowNoteToggle is a conservative server-side heuristic for "the note
+// overflows one line": CSS can't detect overflow, so we approximate by length.
+// At note size (--font-size-0) a row column holds roughly 45-80 characters per
+// line; a toggle that over-renders is merely redundant (clamped text hides
+// nothing), and one that under-renders leaves the note truncated without a way
+// to expand.
+func shouldShowNoteToggle(notes string) bool {
+	return len(notes) > 45
 }
 
 func Pagination(p PaginationProps) Node {
