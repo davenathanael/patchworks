@@ -1,6 +1,7 @@
 -- name: ListUserCollections :many
 SELECT
     sqlc.embed(collections),
+    collection_members.role,
     (SELECT COUNT(*) FROM collection_bookmarks cb WHERE cb.collection_id = collections.id) AS bookmark_count
 FROM collections
 JOIN collection_members ON collections.id = collection_members.collection_id
@@ -18,6 +19,9 @@ FROM collections
 JOIN collection_members ON collections.id = collection_members.collection_id
 JOIN collection_bookmarks ON collections.id = collection_bookmarks.collection_id
 WHERE collection_members.user_id = $1;
+
+-- name: GetCollectionAccess :one
+SELECT role FROM collection_members WHERE collection_id = $1 AND user_id = $2;
 
 -- name: GetCollectionById :one
 SELECT sqlc.embed(collections), sqlc.embed(collection_members)

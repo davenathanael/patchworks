@@ -55,10 +55,13 @@ func TestPostCollectionWithoutUser(t *testing.T) {
 }
 
 func TestGetCollectionById(t *testing.T) {
-	col := &fakeCollectionStore{got: core.CollectionWithBookmarks{
-		Collection: core.Collection{ID: uuid.New(), Name: "Work"},
-		Bookmarks:  []core.Bookmark{mustBookmark(t, "https://a.com", "A")},
-	}}
+	col := &fakeCollectionStore{
+		accessRole: core.RoleOwner,
+		got: core.CollectionWithBookmarks{
+			Collection: core.Collection{ID: uuid.New(), Name: "Work"},
+			Bookmarks:  []core.Bookmark{mustBookmark(t, "https://a.com", "A")},
+		},
+	}
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
@@ -79,7 +82,7 @@ func TestGetCollectionByIdInvalidID(t *testing.T) {
 }
 
 func TestPutCollectionById(t *testing.T) {
-	col := &fakeCollectionStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
@@ -91,11 +94,11 @@ func TestPutCollectionById(t *testing.T) {
 }
 
 func TestPostCollectionMemberDefaultsRole(t *testing.T) {
-	col := &fakeCollectionStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
-	be.NilErr(t, postCollectionMember(rec, routeFormRequest(t, id, "email=bob%40x.com"), col))
+	be.NilErr(t, postCollectionMember(rec, routeMemberFormRequest(t, id, "email=bob%40x.com"), col))
 
 	be.Equal(t, http.StatusSeeOther, rec.Code)
 	be.Equal(t, 1, len(col.members))
@@ -104,7 +107,7 @@ func TestPostCollectionMemberDefaultsRole(t *testing.T) {
 }
 
 func TestDeleteCollectionById(t *testing.T) {
-	col := &fakeCollectionStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
@@ -116,15 +119,11 @@ func TestDeleteCollectionById(t *testing.T) {
 }
 
 func TestDeleteCollectionMember(t *testing.T) {
-	col := &fakeCollectionStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
 	colID, userID := uuid.New(), uuid.New()
 	target := "/collections/" + colID.String() + "/members/" + userID.String() + "/delete"
 
-	r := mustAuthedRequest(t, http.MethodPost, target, nil)
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Keys = []string{"collectionId", "userId"}
-	rctx.URLParams.Values = []string{colID.String(), userID.String()}
-	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+	r := routeCollectionMemberRequest(t, http.MethodPost, target, colID, userID)
 
 	rec := httptest.NewRecorder()
 	be.NilErr(t, deleteCollectionMember(rec, r, col))
@@ -160,7 +159,7 @@ func TestPostCollectionInvalidFormData(t *testing.T) {
 }
 
 func TestPutCollectionByIdMissingNameRerenders(t *testing.T) {
-	col := &fakeCollectionStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
 	id := uuid.New()
 
 	rec := httptest.NewRecorder()
@@ -194,6 +193,159 @@ func TestValidateCollection(t *testing.T) {
 	}
 }
 
+func TestNonMemberCollectionIs404(t *testing.T) {
+	col := &fakeCollectionStore{accessErr: core.ErrNotFound}
+	id := uuid.New()
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return getCollectionById(w, r, col)
+	}, routeRequest(t, http.MethodGet, "/collections/"+id.String(), id.String()))
+
+	be.Equal(t, http.StatusNotFound, rec.Code) // non-membership classifies like not-found
+	be.Equal(t, 0, col.getCalls)               // body is never fetched
+}
+
+func TestViewerCollectionAccess(t *testing.T) {
+	id := uuid.New()
+	viewer := func() *fakeCollectionStore {
+		return &fakeCollectionStore{
+			accessRole: core.RoleViewer,
+			got: core.CollectionWithBookmarks{
+				Collection: core.Collection{ID: id, Name: "Work"},
+			},
+		}
+	}
+
+	t.Run("view ok", func(t *testing.T) {
+		col := viewer()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return getCollectionById(w, r, col)
+		}, routeRequest(t, http.MethodGet, "/collections/"+id.String(), id.String()))
+
+		be.Equal(t, http.StatusOK, rec.Code)
+		be.Equal(t, 1, col.accessCalls)
+		be.True(t, !containsBody(rec, "Add member")) // member management hidden from viewers
+	})
+
+	t.Run("edit page forbidden", func(t *testing.T) {
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return getCollectionEdit(w, r, viewer())
+		}, routeRequest(t, http.MethodGet, "/collections/"+id.String()+"/edit", id.String()))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("edit save forbidden", func(t *testing.T) {
+		col := viewer()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return putCollectionById(w, r, col)
+		}, routeFormRequest(t, id, "name=Renamed"))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+		be.Equal(t, uuid.Nil, col.updatedID)
+	})
+
+	t.Run("add member forbidden", func(t *testing.T) {
+		col := viewer()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return postCollectionMember(w, r, col)
+		}, routeMemberFormRequest(t, id, "email=bob%40x.com"))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+		be.Equal(t, 0, len(col.members))
+	})
+
+	t.Run("delete forbidden", func(t *testing.T) {
+		col := viewer()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return deleteCollectionById(w, r, col)
+		}, routeRequest(t, http.MethodDelete, "/collections/"+id.String(), id.String()))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+		be.Equal(t, 0, len(col.deletedIDs))
+	})
+}
+
+func TestEditorCollectionAccess(t *testing.T) {
+	id := uuid.New()
+	editor := func() *fakeCollectionStore {
+		return &fakeCollectionStore{
+			accessRole: core.RoleEditor,
+			got: core.CollectionWithBookmarks{
+				Collection: core.Collection{ID: id, Name: "Work"},
+			},
+		}
+	}
+
+	t.Run("edit page ok", func(t *testing.T) {
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return getCollectionEdit(w, r, editor())
+		}, routeRequest(t, http.MethodGet, "/collections/"+id.String()+"/edit", id.String()))
+
+		be.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("edit save ok", func(t *testing.T) {
+		col := editor()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return putCollectionById(w, r, col)
+		}, routeFormRequest(t, id, "name=Renamed&description=new"))
+
+		be.Equal(t, http.StatusSeeOther, rec.Code)
+		be.Equal(t, id, col.updatedID)
+	})
+
+	t.Run("add member forbidden", func(t *testing.T) {
+		col := editor()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return postCollectionMember(w, r, col)
+		}, routeMemberFormRequest(t, id, "email=bob%40x.com"))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+		be.Equal(t, 0, len(col.members))
+	})
+
+	t.Run("remove member forbidden", func(t *testing.T) {
+		col := editor()
+		target := "/collections/" + id.String() + "/members/" + uuid.New().String() + "/delete"
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return deleteCollectionMember(w, r, col)
+		}, routeCollectionMemberRequest(t, http.MethodPost, target, id, uuid.New()))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+		be.Equal(t, 0, len(col.removed))
+	})
+
+	t.Run("delete forbidden", func(t *testing.T) {
+		col := editor()
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return deleteCollectionById(w, r, col)
+		}, routeRequest(t, http.MethodDelete, "/collections/"+id.String(), id.String()))
+
+		be.Equal(t, http.StatusForbidden, rec.Code)
+		be.Equal(t, 0, len(col.deletedIDs))
+	})
+}
+
+func TestInvalidMemberRouteIs404(t *testing.T) {
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
+	colID, userID := uuid.New(), uuid.New()
+	target := "/collections/" + colID.String() + "/members/" + userID.String() + "/delete"
+
+	r := mustAuthedRequest(t, http.MethodPost, target, nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Keys = []string{"id", "userId"}
+	rctx.URLParams.Values = []string{"nope", userID.String()}
+	r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return deleteCollectionMember(w, r, col)
+	}, r)
+
+	be.Equal(t, http.StatusNotFound, rec.Code)
+	be.Equal(t, 0, len(col.removed))
+}
+
 // --- fakes & helpers ---
 
 type fakeCollectionStore struct {
@@ -216,7 +368,10 @@ type fakeCollectionStore struct {
 		collectionID uuid.UUID
 		userID       uuid.UUID
 	}
-	getCalls int
+	accessRole  core.CollectionRole
+	accessErr   error
+	accessCalls int
+	getCalls    int
 }
 
 func (f *fakeCollectionStore) GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([]core.Collection, error) {
@@ -260,9 +415,39 @@ func (f *fakeCollectionStore) RemoveMember(ctx context.Context, collectionID uui
 	return f.err
 }
 
+func (f *fakeCollectionStore) GetCollectionAccess(ctx context.Context, collectionID, userID uuid.UUID) (core.CollectionRole, error) {
+	f.accessCalls++
+	if f.accessErr != nil {
+		return "", f.accessErr
+	}
+	return f.accessRole, nil
+}
+
 func (f *fakeCollectionStore) DeleteCollection(ctx context.Context, id uuid.UUID) error {
 	f.deletedIDs = append(f.deletedIDs, id)
 	return f.err
+}
+
+// routeCollectionMemberRequest returns an authed request carrying chi params
+// "id" and "userId", as used on /collections/{id}/members/*.
+func routeCollectionMemberRequest(t *testing.T, method, target string, colID, userID uuid.UUID) *http.Request {
+	t.Helper()
+	r := mustAuthedRequest(t, method, target, nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Keys = []string{"id", "userId"}
+	rctx.URLParams.Values = []string{colID.String(), userID.String()}
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}
+
+// routeMemberFormRequest is a form request carrying the chi "id"
+// route param, as used on POST /collections/{id}/members.
+func routeMemberFormRequest(t *testing.T, colID uuid.UUID, encoded string) *http.Request {
+	t.Helper()
+	r := mustFormRequest(t, encoded)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Keys = []string{"id"}
+	rctx.URLParams.Values = []string{colID.String()}
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
 
 // routeRequest returns an authed request carrying a chi route param under key "id".

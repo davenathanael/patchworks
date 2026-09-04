@@ -85,7 +85,7 @@ func groupMembersByCollectionID(memberRows []sqlc.GetMembersByCollectionIdsRow) 
 			membersByCollection[mr.CollectionMember.CollectionID],
 			core.CollectionMember{
 				User:    toUser(mr.User),
-				Role:    mr.CollectionMember.Role,
+				Role:    core.CollectionRole(mr.CollectionMember.Role),
 				AddedAt: mr.CollectionMember.AddedAt.Time,
 			},
 		)

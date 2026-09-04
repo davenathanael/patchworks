@@ -89,7 +89,8 @@ func CreateCollectionsPage(user core.User, f CollectionForm) Node {
 	return Page("Create New Collection - Patchworks", AppShell(user, content))
 }
 
-func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User, collections []core.Collection) Node {
+func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User, collections []core.Collection, role core.CollectionRole) Node {
+	canManageMembers := role.Allows(core.PermManageMembers)
 	memberSection := Section(
 		H2(Text("Members")),
 		Ul(Class("member-list"), Map(collection.Members, func(m core.CollectionMember) Node {
@@ -98,10 +99,10 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 					Header(
 						Avatar(m.User.Email),
 						Address(Text(m.User.Email)),
-						Small(Text(m.Role)),
+						Small(Text(string(m.Role))),
 						Time(Attr("datetime", m.AddedAt.Format(time.RFC3339)), Text(relativeTime(m.AddedAt))),
 					),
-					If(m.User.ID != user.ID,
+					If(canManageMembers && m.User.ID != user.ID,
 						Form(Method("post"), Action(fmt.Sprintf("/collections/%s/members/%s/delete", collection.ID.String(), m.User.ID.String())),
 							Button(Type("submit"), Class("outline"), Text("Remove")),
 						),
@@ -109,20 +110,22 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 				),
 			)
 		})),
-		Div(
-			Class("add-member"),
-			Small(Text("Add member")),
-			Form(
-				Method("post"),
-				Action(fmt.Sprintf("/collections/%s/members", collection.ID.String())),
-				Label(Text("Email"), Input(Type("email"), Name("email"), Required())),
-				Label(Text("Role"),
-					Select(Name("role"),
-						Option(Value("viewer"), Text("viewer"), Selected()),
-						Option(Value("editor"), Text("editor")),
+		If(canManageMembers,
+			Div(
+				Class("add-member"),
+				Small(Text("Add member")),
+				Form(
+					Method("post"),
+					Action(fmt.Sprintf("/collections/%s/members", collection.ID.String())),
+					Label(Text("Email"), Input(Type("email"), Name("email"), Required())),
+					Label(Text("Role"),
+						Select(Name("role"),
+							Option(Value("viewer"), Text("viewer"), Selected()),
+							Option(Value("editor"), Text("editor")),
+						),
 					),
+					Button(Type("submit"), Text("Add")),
 				),
-				Button(Type("submit"), Text("Add")),
 			),
 		),
 	)
@@ -139,9 +142,13 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 		backToCollectionsLink(),
 		Header(
 			H1(Text(collection.Name)),
-			A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline"), Text("Edit")),
-			Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
-				Button(Type("submit"), Class("danger"), Text("Delete")),
+			If(role.Allows(core.PermEditCollection),
+				A(Href("/collections/"+collection.ID.String()+"/edit"), Class("button outline"), Text("Edit")),
+			),
+			If(role.Allows(core.PermDeleteCollection),
+				Form(Method("post"), Action(fmt.Sprintf("/collections/%s/delete", collection.ID.String())),
+					Button(Type("submit"), Class("danger"), Text("Delete")),
+				),
 			),
 		),
 		If(collection.Description != "",

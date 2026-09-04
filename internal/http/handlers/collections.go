@@ -23,7 +23,30 @@ type CollectionStore interface {
 	UpdateCollection(ctx context.Context, id uuid.UUID, name, description string) (core.Collection, error)
 	AddMember(ctx context.Context, collectionID uuid.UUID, email string, role string) error
 	RemoveMember(ctx context.Context, collectionID uuid.UUID, userID uuid.UUID) error
+	GetCollectionAccess(ctx context.Context, collectionID, userID uuid.UUID) (core.CollectionRole, error)
 	DeleteCollection(ctx context.Context, id uuid.UUID) error
+}
+
+// loadCollectionAccess resolves the collection route param and the caller's
+// role in it. Invalid id or non-membership surfaces as core.ErrNotFound (the
+// repo wraps it); callers gate on the returned role.
+func loadCollectionAccess(r *http.Request, collections CollectionStore, param string) (collectionID uuid.UUID, role core.CollectionRole, err error) {
+	user, ok := middleware.UserFromContext(r.Context())
+	if !ok {
+		return uuid.Nil, "", fmt.Errorf("user not found in context")
+	}
+
+	rawID := chi.URLParam(r, param)
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return uuid.Nil, "", fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+	}
+
+	role, err = collections.GetCollectionAccess(r.Context(), id, user.ID)
+	if err != nil {
+		return uuid.Nil, "", fmt.Errorf("get collection access: %w", err)
+	}
+	return id, role, nil
 }
 
 func handleGetCollections(comp *components.Components) Handler {
@@ -120,13 +143,15 @@ func getCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 		return fmt.Errorf("user not found in context")
 	}
 
-	rawID := chi.URLParam(r, "id")
-	id, err := uuid.Parse(rawID)
+	collectionID, role, err := loadCollectionAccess(r, collections, "id")
 	if err != nil {
-		return fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+		return err
+	}
+	if !role.Allows(core.PermView) {
+		return fmt.Errorf("view collection: %w", core.ErrForbidden)
 	}
 
-	collection, err := collections.GetCollection(ctx, id)
+	collection, err := collections.GetCollection(ctx, collectionID)
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
 			return err
@@ -139,7 +164,7 @@ func getCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 		return fmt.Errorf("get collections: %w", err)
 	}
 
-	if err := views.CollectionPage(collection.Collection, collection.Bookmarks, user, allCollections).Render(w); err != nil {
+	if err := views.CollectionPage(collection.Collection, collection.Bookmarks, user, allCollections, role).Render(w); err != nil {
 		return fmt.Errorf("render collection page: %w", err)
 	}
 	return nil
@@ -158,13 +183,15 @@ func getCollectionEdit(w http.ResponseWriter, r *http.Request, collections Colle
 		return fmt.Errorf("user not found in context")
 	}
 
-	rawID := chi.URLParam(r, "id")
-	id, err := uuid.Parse(rawID)
+	collectionID, role, err := loadCollectionAccess(r, collections, "id")
 	if err != nil {
-		return fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+		return err
+	}
+	if !role.Allows(core.PermEditCollection) {
+		return fmt.Errorf("edit collection: %w", core.ErrForbidden)
 	}
 
-	collection, err := collections.GetCollection(ctx, id)
+	collection, err := collections.GetCollection(ctx, collectionID)
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
 			return err
@@ -201,28 +228,30 @@ func putCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 		return fmt.Errorf("user not found in context")
 	}
 
-	rawID := chi.URLParam(r, "id")
-	id, err := uuid.Parse(rawID)
+	collectionID, role, err := loadCollectionAccess(r, collections, "id")
 	if err != nil {
-		return fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+		return err
+	}
+	if !role.Allows(core.PermEditCollection) {
+		return fmt.Errorf("edit collection: %w", core.ErrForbidden)
 	}
 
 	var f views.CollectionForm
 	if err := form.NewDecoder(r.Body).Decode(&f); err != nil {
 		f.Errors = views.FormErrors{"form": "invalid form data"}
-		return renderEditCollectionPage(w, f, user, id)
+		return renderEditCollectionPage(w, f, user, collectionID)
 	}
 
 	if errs := validateCollection(f); len(errs) > 0 {
 		f.Errors = errs
-		return renderEditCollectionPage(w, f, user, id)
+		return renderEditCollectionPage(w, f, user, collectionID)
 	}
 
-	if _, err := collections.UpdateCollection(ctx, id, f.Name, f.Description); err != nil {
+	if _, err := collections.UpdateCollection(ctx, collectionID, f.Name, f.Description); err != nil {
 		return fmt.Errorf("update collection: %w", err)
 	}
 
-	http.Redirect(w, r, "/collections/"+id.String(), http.StatusSeeOther) // #nosec G710 -- id is a validated UUID, no open redirect
+	http.Redirect(w, r, "/collections/"+collectionID.String(), http.StatusSeeOther) // #nosec G710 -- id is a validated UUID, no open redirect
 	return nil
 }
 
@@ -243,10 +272,12 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, collections Co
 		return fmt.Errorf("user not found in context")
 	}
 
-	rawID := chi.URLParam(r, "id")
-	collectionID, err := uuid.Parse(rawID)
+	collectionID, role, err := loadCollectionAccess(r, collections, "id")
 	if err != nil {
-		return fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+		return err
+	}
+	if !role.Allows(core.PermManageMembers) {
+		return fmt.Errorf("manage collection members: %w", core.ErrForbidden)
 	}
 
 	var formData addMemberForm
@@ -255,7 +286,7 @@ func postCollectionMember(w http.ResponseWriter, r *http.Request, collections Co
 	}
 
 	if formData.Role == "" {
-		formData.Role = "viewer"
+		formData.Role = string(core.RoleViewer)
 	}
 
 	if err := collections.AddMember(ctx, collectionID, formData.Email, formData.Role); err != nil {
@@ -278,10 +309,12 @@ func deleteCollectionMember(w http.ResponseWriter, r *http.Request, collections 
 		return fmt.Errorf("user not found in context")
 	}
 
-	rawID := chi.URLParam(r, "collectionId")
-	collectionID, err := uuid.Parse(rawID)
+	collectionID, role, err := loadCollectionAccess(r, collections, "id")
 	if err != nil {
-		return fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+		return err
+	}
+	if !role.Allows(core.PermManageMembers) {
+		return fmt.Errorf("manage collection members: %w", core.ErrForbidden)
 	}
 
 	rawMemberID := chi.URLParam(r, "userId")
@@ -310,13 +343,15 @@ func deleteCollectionById(w http.ResponseWriter, r *http.Request, collections Co
 		return fmt.Errorf("user not found in context")
 	}
 
-	rawID := chi.URLParam(r, "id")
-	id, err := uuid.Parse(rawID)
+	collectionID, role, err := loadCollectionAccess(r, collections, "id")
 	if err != nil {
-		return fmt.Errorf("parse collection id %q: %w", rawID, core.ErrNotFound)
+		return err
+	}
+	if !role.Allows(core.PermDeleteCollection) {
+		return fmt.Errorf("delete collection: %w", core.ErrForbidden)
 	}
 
-	if err := collections.DeleteCollection(ctx, id); err != nil {
+	if err := collections.DeleteCollection(ctx, collectionID); err != nil {
 		return fmt.Errorf("delete collection: %w", err)
 	}
 

@@ -295,6 +295,56 @@ func (q *Queries) GetBookmarkById(ctx context.Context, arg GetBookmarkByIdParams
 	return i, err
 }
 
+const getBookmarkForCollectionEdit = `-- name: GetBookmarkForCollectionEdit :one
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.id = $1::uuid AND bookmarks.archived_at IS NULL
+  AND (
+    bookmarks.author_id = $2::uuid
+    OR EXISTS (
+      SELECT 1
+      FROM collection_bookmarks cb
+      JOIN collection_members cm ON cm.collection_id = cb.collection_id
+      WHERE cb.bookmark_id = bookmarks.id
+        AND cm.user_id = $2::uuid
+        AND cm.role IN ('owner', 'editor')
+    )
+  )
+`
+
+type GetBookmarkForCollectionEditParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+type GetBookmarkForCollectionEditRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetBookmarkForCollectionEdit(ctx context.Context, arg GetBookmarkForCollectionEditParams) (GetBookmarkForCollectionEditRow, error) {
+	row := q.db.QueryRow(ctx, getBookmarkForCollectionEdit, arg.ID, arg.UserID)
+	var i GetBookmarkForCollectionEditRow
+	err := row.Scan(
+		&i.Bookmark.ID,
+		&i.Bookmark.Url,
+		&i.Bookmark.Title,
+		&i.Bookmark.CreatedAt,
+		&i.Bookmark.UpdatedAt,
+		&i.Bookmark.ArchivedAt,
+		&i.Bookmark.AuthorID,
+		&i.Bookmark.Notes,
+		&i.User.ID,
+		&i.User.Email,
+		&i.User.CreatedAt,
+		&i.User.UpdatedAt,
+		&i.User.LastLoginAt,
+		&i.User.PasswordHash,
+	)
+	return i, err
+}
+
 const getBookmarksByCollection = `-- name: GetBookmarksByCollection :many
 SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks

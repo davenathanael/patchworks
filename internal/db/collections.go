@@ -44,6 +44,7 @@ func (db *DB) GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([]cor
 			UpdatedAt:     row.Collection.UpdatedAt.Time,
 			BookmarkCount: int(row.BookmarkCount),
 			Members:       membersByCollection[row.Collection.ID],
+			Role:          core.CollectionRole(row.Role),
 		}
 	}
 
@@ -75,7 +76,7 @@ func (db *DB) CreateCollection(ctx context.Context, userID uuid.UUID, name, desc
 	err = querier.AddCollectionMember(ctx, sqlc.AddCollectionMemberParams{
 		CollectionID: collectionID,
 		UserID:       userID,
-		Role:         "owner",
+		Role:         string(core.RoleOwner),
 	})
 	if err != nil {
 		return err
@@ -173,7 +174,27 @@ func (db *DB) UpdateCollection(ctx context.Context, id uuid.UUID, name, descript
 	}, nil
 }
 
+func (db *DB) GetCollectionAccess(ctx context.Context, collectionID uuid.UUID, userID uuid.UUID) (core.CollectionRole, error) {
+	role, err := db.querier.GetCollectionAccess(ctx, sqlc.GetCollectionAccessParams{
+		CollectionID: collectionID,
+		UserID:       userID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", fmt.Errorf("get collection access: %w", core.ErrNotFound)
+		}
+		return "", err
+	}
+	return core.CollectionRole(role), nil
+}
+
 func (db *DB) AddMember(ctx context.Context, collectionID uuid.UUID, email string, role string) error {
+	switch core.CollectionRole(role) {
+	case core.RoleOwner, core.RoleEditor, core.RoleViewer:
+	default:
+		return fmt.Errorf("invalid member role %q", role)
+	}
+
 	userRow, err := db.querier.GetUserByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
@@ -199,14 +220,14 @@ func (db *DB) RemoveMember(ctx context.Context, collectionID uuid.UUID, userID u
 
 	owners := 0
 	for _, row := range memberRows {
-		if row.CollectionMember.Role == "owner" {
+		if core.CollectionRole(row.CollectionMember.Role) == core.RoleOwner {
 			owners++
 		}
 	}
 
 	isOwner := false
 	for _, row := range memberRows {
-		if row.CollectionMember.UserID == userID && row.CollectionMember.Role == "owner" {
+		if row.CollectionMember.UserID == userID && core.CollectionRole(row.CollectionMember.Role) == core.RoleOwner {
 			isOwner = true
 			break
 		}

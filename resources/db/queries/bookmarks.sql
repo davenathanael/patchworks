@@ -83,6 +83,23 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.id = @id::uuid AND bookmarks.author_id = @author_id::uuid AND bookmarks.archived_at IS NULL;
 
+-- name: GetBookmarkForCollectionEdit :one
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.id = @id::uuid AND bookmarks.archived_at IS NULL
+  AND (
+    bookmarks.author_id = @user_id::uuid
+    OR EXISTS (
+      SELECT 1
+      FROM collection_bookmarks cb
+      JOIN collection_members cm ON cm.collection_id = cb.collection_id
+      WHERE cb.bookmark_id = bookmarks.id
+        AND cm.user_id = @user_id::uuid
+        AND cm.role IN ('owner', 'editor')
+    )
+  );
+
 -- name: ArchiveBookmark :one
 UPDATE bookmarks
 SET archived_at = now()

@@ -15,4 +15,7 @@ var (
 
 	// ErrNotFound is returned when a requested resource does not exist.
 	ErrNotFound = errors.New("not found")
+
+	// ErrForbidden is returned when a user lacks the role needed for an action.
+	ErrForbidden = errors.New("forbidden")
 )

@@ -60,6 +60,8 @@ func classify(err error) (int, string) {
 		return http.StatusConflict, "That email is already registered"
 	case errors.Is(err, core.ErrNotFound):
 		return http.StatusNotFound, "That page or resource could not be found"
+	case errors.Is(err, core.ErrForbidden):
+		return http.StatusForbidden, "You don't have permission to do that"
 	default:
 		return http.StatusInternalServerError, "Something went wrong"
 	}

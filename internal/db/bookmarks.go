@@ -214,11 +214,33 @@ func (db *DB) GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.B
 		}
 		return core.Bookmark{}, err
 	}
+	return db.bookmarkWithTags(ctx, id, row.Bookmark, row.User)
+}
+
+// GetBookmarkForCollectionEdit returns a bookmark for the collections picker:
+// the author themself, or a member with manage rights (owner/editor) in a
+// collection containing the bookmark. Viewers and strangers get ErrNotFound,
+// matching the hidden panel. Fine-grained per-collection role checks stay
+// with the caller.
+func (db *DB) GetBookmarkForCollectionEdit(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	row, err := db.querier.GetBookmarkForCollectionEdit(ctx, sqlc.GetBookmarkForCollectionEditParams{ID: id, UserID: userID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.Bookmark{}, fmt.Errorf("get bookmark for collection edit: %w", core.ErrNotFound)
+		}
+		return core.Bookmark{}, err
+	}
+	return db.bookmarkWithTags(ctx, id, row.Bookmark, row.User)
+}
+
+// bookmarkWithTags resolves a fetched bookmark row into a core.Bookmark with
+// its tags and collection links attached.
+func (db *DB) bookmarkWithTags(ctx context.Context, id uuid.UUID, b sqlc.Bookmark, u sqlc.User) (core.Bookmark, error) {
 	tags, err := db.tagsForBookmarks(ctx, []uuid.UUID{id})
 	if err != nil {
 		return core.Bookmark{}, err
 	}
-	bookmarks := []core.Bookmark{toBookmark(row.Bookmark, tags[id], toUser(row.User))}
+	bookmarks := []core.Bookmark{toBookmark(b, tags[id], toUser(u))}
 	if err := db.attachCollectionIDs(ctx, bookmarks); err != nil {
 		return core.Bookmark{}, err
 	}
@@ -334,10 +356,13 @@ func (db *DB) DeleteBookmark(ctx context.Context, id, userID uuid.UUID) error {
 // UpdateBookmarkCollectionIDs replaces the bookmark's links to the user's own
 // (member) collections, in one transaction. Links to collections the user is
 // not a member of are left untouched — a shared bookmark keeps its place in
-// other users' collections. Author-only: ErrNotFound if not the author.
+// other users' collections. Access: the author, or a member with manage rights
+// (owner/editor) in a collection containing the bookmark (ErrNotFound
+// otherwise); per-collection role enforcement stays with the caller.
 func (db *DB) UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userID uuid.UUID, collectionIDs []uuid.UUID) (core.Bookmark, error) {
-	if _, err := db.GetBookmarkByID(ctx, bookmarkID, userID); err != nil {
-		return core.Bookmark{}, err // author check + 404
+	current, err := db.GetBookmarkForCollectionEdit(ctx, bookmarkID, userID)
+	if err != nil {
+		return core.Bookmark{}, err // author-or-manager check + 404
 	}
 
 	allowed, err := db.GetCollectionsByUser(ctx, userID)
@@ -388,5 +413,20 @@ func (db *DB) UpdateBookmarkCollectionIDs(ctx context.Context, bookmarkID, userI
 		return core.Bookmark{}, err
 	}
 
-	return db.GetBookmarkByID(ctx, bookmarkID, userID)
+	updated := current
+	updated.CollectionIDs = survivingCollectionIDs(current.CollectionIDs, filtered, allowedIDs)
+	return updated, nil
+}
+
+// survivingCollectionIDs returns the bookmark's links outside the caller's
+// collections (they survive the update untouched) followed by the filtered
+// links that remain after it.
+func survivingCollectionIDs(current, filtered []uuid.UUID, allowed map[uuid.UUID]bool) []uuid.UUID {
+	kept := make([]uuid.UUID, 0, len(current)+len(filtered))
+	for _, cid := range current {
+		if !allowed[cid] {
+			kept = append(kept, cid)
+		}
+	}
+	return append(kept, filtered...)
 }

@@ -264,9 +264,62 @@ func TestUpdateBookmarkCollectionIDs(t *testing.T) {
 	be.True(t, slices.Contains(updated.CollectionIDs, own[1].ID))
 	be.True(t, slices.Contains(updated.CollectionIDs, shared[0].ID))
 
-	// author-only: another user cannot edit this bookmark's membership
-	_, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, other.ID, []uuid.UUID{shared[0].ID})
+	// a member with manage rights over a containing collection may also edit:
+	// other owns Shared, so they can manage the bookmark's link to it, while
+	// the author's own links stay untouched
+	updated, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, other.ID, []uuid.UUID{shared[0].ID})
+	be.NilErr(t, err)
+	be.Equal(t, 2, len(updated.CollectionIDs))
+	be.True(t, slices.Contains(updated.CollectionIDs, own[1].ID))
+	be.True(t, slices.Contains(updated.CollectionIDs, shared[0].ID))
+}
+
+func TestBookmarkCollectionEditAccess(t *testing.T) {
+	ctx := context.Background()
+	author, err := testDB.CreateUser(ctx, "bmauthor@test.local", "hash")
+	be.NilErr(t, err)
+	editor, err := testDB.CreateUser(ctx, "bmeditor@test.local", "hash")
+	be.NilErr(t, err)
+	viewer, err := testDB.CreateUser(ctx, "bmviewer@test.local", "hash")
+	be.NilErr(t, err)
+	stranger, err := testDB.CreateUser(ctx, "bmstranger@test.local", "hash")
+	be.NilErr(t, err)
+
+	be.NilErr(t, testDB.CreateCollection(ctx, author.ID, "Authored", ""))
+	colls, err := testDB.GetCollectionsByUser(ctx, author.ID)
+	be.NilErr(t, err)
+
+	u, err := url.Parse("https://example.com/shared")
+	be.NilErr(t, err)
+	bk, err := testDB.CreateBookmark(ctx, u, "Shared Post", author.ID, colls[0].ID, nil)
+	be.NilErr(t, err)
+
+	// author reads their own bookmark through the collection-edit fetch
+	got, err := testDB.GetBookmarkForCollectionEdit(ctx, bk.ID, author.ID)
+	be.NilErr(t, err)
+	be.Equal(t, bk.ID, got.ID)
+
+	// editor member reads + edits (drops the collection link)
+	be.NilErr(t, testDB.AddMember(ctx, colls[0].ID, "bmeditor@test.local", "editor"))
+	got, err = testDB.GetBookmarkForCollectionEdit(ctx, bk.ID, editor.ID)
+	be.NilErr(t, err)
+	be.Equal(t, bk.ID, got.ID)
+
+	// viewer member and stranger cannot read or edit (before the editor's
+	// destructive update, so membership is still the reason)
+	be.NilErr(t, testDB.AddMember(ctx, colls[0].ID, "bmviewer@test.local", "viewer"))
+	_, err = testDB.GetBookmarkForCollectionEdit(ctx, bk.ID, viewer.ID)
 	be.True(t, errors.Is(err, core.ErrNotFound))
+	_, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, viewer.ID, nil)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+	_, err = testDB.GetBookmarkForCollectionEdit(ctx, bk.ID, stranger.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+	_, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, stranger.ID, nil)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+
+	updated, err := testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, editor.ID, nil)
+	be.NilErr(t, err)
+	be.Equal(t, 0, len(updated.CollectionIDs))
 }
 
 func TestArchiveBookmark(t *testing.T) {
@@ -416,7 +469,7 @@ func TestCollectionMembers(t *testing.T) {
 	var viewerRole string
 	for _, m := range full.Members {
 		if m.User.ID == member.ID {
-			viewerRole = m.Role
+			viewerRole = string(m.Role)
 		}
 	}
 	be.Equal(t, "viewer", viewerRole)
@@ -425,6 +478,47 @@ func TestCollectionMembers(t *testing.T) {
 	full, err = testDB.GetCollection(ctx, colID)
 	be.NilErr(t, err)
 	be.Equal(t, 1, len(full.Members)) // owner remains
+}
+
+func TestGetCollectionAccess(t *testing.T) {
+	ctx := context.Background()
+	owner, err := testDB.CreateUser(ctx, "accessowner@test.local", "hash")
+	be.NilErr(t, err)
+	viewer, err := testDB.CreateUser(ctx, "accessviewer@test.local", "hash")
+	be.NilErr(t, err)
+	editor, err := testDB.CreateUser(ctx, "accesseditor@test.local", "hash")
+	be.NilErr(t, err)
+	outsider, err := testDB.CreateUser(ctx, "accessoutsider@test.local", "hash")
+	be.NilErr(t, err)
+
+	be.NilErr(t, testDB.CreateCollection(ctx, owner.ID, "Shared", ""))
+	collections, err := testDB.GetCollectionsByUser(ctx, owner.ID)
+	be.NilErr(t, err)
+	colID := collections[0].ID
+
+	// creator is the owner
+	role, err := testDB.GetCollectionAccess(ctx, colID, owner.ID)
+	be.NilErr(t, err)
+	be.Equal(t, core.RoleOwner, role)
+
+	// added members round-trip their role
+	be.NilErr(t, testDB.AddMember(ctx, colID, viewer.Email, "viewer"))
+	role, err = testDB.GetCollectionAccess(ctx, colID, viewer.ID)
+	be.NilErr(t, err)
+	be.Equal(t, core.RoleViewer, role)
+
+	be.NilErr(t, testDB.AddMember(ctx, colID, editor.Email, "editor"))
+	role, err = testDB.GetCollectionAccess(ctx, colID, editor.ID)
+	be.NilErr(t, err)
+	be.Equal(t, core.RoleEditor, role)
+
+	// non-member has no row → not found
+	role, err = testDB.GetCollectionAccess(ctx, colID, outsider.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
+
+	// nonexistent collection → not found
+	role, err = testDB.GetCollectionAccess(ctx, uuid.New(), owner.ID)
+	be.True(t, errors.Is(err, core.ErrNotFound))
 }
 
 // --- test database setup ---

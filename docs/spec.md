@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v0.9 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v1.0 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -13,6 +13,7 @@
 | 0.7 | 2026-09-04 | FR-13 landed in §5.3 as **CL-8** — Edit collections popover (search + checkboxes, preloaded membership, one save; own links only) |
 | 0.8 | 2026-09-04 | FR-1 archive half landed in §5.2 as **BK-9** — Archive row action (hx-confirm, `archived_at` set, row leaves list) + `archived_at IS NULL` filters on all browse queries; FR-1 remainder (restore/hard-delete/Archived page) stays in §6.1 |
 | 0.9 | 2026-09-04 | FR-1 fully landed in §5.2 as **BK-10** — Archived page (`/archived`) with restore + permanent delete; FR-1 removed from §6.1 |
+| 1.0 | 2026-09-04 | FR-6 landed in §5.3 as **CL-9** — collection roles enforced (404 non-member / 403 insufficient role); new §6 “Access control & permissions” — consolidated action matrix for tickets/tests; roadmap renumbered (Future developments → §7, Open questions → §8); FR-6 removed from roadmap |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -60,7 +61,7 @@ Core ideas:
 
 ## 5. Feature set (current)
 
-Status legend: **impl** = implemented, **partial** = partially implemented (gaps noted), **planned** = not yet built (see §6).
+Status legend: **impl** = implemented, **partial** = partially implemented (gaps noted), **planned** = not yet built (see §7).
 
 ### 5.1 Accounts & authentication — *impl*
 
@@ -96,7 +97,8 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **CL-6** Remove members from a collection.
 - **CL-7** Members of a collection can view it and its bookmarks; shared bookmarks retain their original author.
 - **CL-8** *(formerly FR-13)* "Edit collections" — add an existing bookmark to / remove it from the user's collections via an inline row panel: a search field plus a checkbox list of the user's collections with current membership pre-checked; one save replaces membership. Works from the dashboard and collection detail — from a collection page, unchecking that collection removes the row from the list. Only the user's own membership links are replaced; links into shared collections are never touched (no-JS fallback: a full edit page). Design: `docs/mockups/design-bookmark-actions.html`.
-- **Gaps:** roles are stored and displayed but **not yet enforced** — any member can currently manage the collection (→ FR-6). No public/guest sharing (→ FR-15).
+- **CL-9** *(formerly FR-6)* Enforce collection roles — every collection route checks the caller's role. Matrix: **owner** can view, add/remove bookmarks, edit details/title, remove the collection, and edit members (add/remove); **editor** can view, add/remove bookmarks, and edit details/title; **viewer** can view only. Non-members get **404** (indistinguishable from a missing collection); an insufficient role gets **403**. The member list (names + roles) stays visible read-only to all members. Full matrix: §6.
+- **Gaps:** No public/guest sharing (→ FR-15).
 
 ### 5.4 Tags — *impl*
 
@@ -122,20 +124,65 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **UX-4** Expected validation errors render inline under the offending field with `aria-invalid`/`aria-describedby`; submitted values are preserved across re-renders.
 - **UX-5** Authenticated app shell: top nav + side nav listing collections; relative timestamps ("3h ago") in bookmark lists; avatar from email initials.
 
-## 6. Future developments
+## 6. Access control & permissions — *impl*
+
+Cross-cutting rules for who can do what. Requirement wording lives in the
+`AU-*` / `BK-*` / `CL-*` items; this section is the consolidated, testable
+matrix.
+
+### 6.1 Roles
+
+- Every collection has members with exactly one role; the collection's creator
+  becomes **owner** (CL-4). Invites default to **viewer** (CL-5).
+- Three fixed roles (Q4): **owner**, **editor**, **viewer**. A user's role is
+  scoped per collection — the same user can be owner in one collection and
+  viewer in another.
+- The last owner of a collection cannot be removed.
+- Roles are constrained at the database level (`role ∈ {owner, editor, viewer}`).
+
+### 6.2 Collection actions (CL-9)
+
+| Action | owner | editor | viewer | non-member |
+|---|---|---|---|---|
+| View the collection page & browse its bookmarks | ✅ | ✅ | ✅ | 404 |
+| View the member list (read-only) | ✅ | ✅ | ✅ | 404 |
+| Edit details — name/description (CL-4) | ✅ | ✅ | 403 | 404 |
+| Remove the collection (CL-4) | ✅ | 403 | 403 | 404 |
+| Add/remove members (CL-5, CL-6) | ✅ | 403 | 403 | 404 |
+
+### 6.3 Bookmark actions
+
+| Action | Who is allowed |
+|---|---|
+| Create a personal bookmark (no collection) | any signed-in user (becomes its author) |
+| Create a bookmark into a collection | member with **owner/editor** in that collection |
+| Change a bookmark's collection memberships (CL-8) | the bookmark's **author**, or any **owner/editor** member of a collection containing it; every collection **added or removed** requires owner/editor rights for the actor (else 403) — unchanged memberships pass, so a demoted member keeps existing links |
+| View any bookmark inside a collection | any member of that collection (shared bookmarks keep their original author, CL-7) |
+| Edit notes & tags (BK-8) | author only |
+| Archive / restore (BK-9, BK-10) | author only |
+| Hard-delete (→ FR-3 remainder) | author only |
+
+### 6.4 Error semantics
+
+- A **non-member** (or nonexistent target) gets **404** — the request is
+  indistinguishable from a missing collection; no existence leak.
+- An authenticated **member with an insufficient role** gets **403**.
+- All checks run server-side on every request; hidden UI affordances (menu
+  items, buttons, forms) match the rules but are never the boundary.
+
+## 7. Future developments
 
 Phases are approximate; items marked **(schema-ready)** have database or design work already in the repo and are the cheapest wins.
 
-### 6.1 Near-term — schema/design-ready
+### 7.1 Near-term — schema/design-ready
 
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
 - **FR-3** *(remainder)* Hard-delete a bookmark (author-only) — only meaningful for archived bookmarks; destructive, so it gets its own confirm. Edit of notes + tags landed as BK-8.
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 - **FR-5** Write `users.last_login_at` on successful login. *(schema-ready)*
 
-### 6.2 Medium-term
+### 7.2 Medium-term
 
-- **FR-6** Enforce collection roles — three fixed roles: owner / editor / viewer (default invite role is already `viewer`).
 - **FR-7** Full-text search (Postgres `tsvector` or `pg_trgm`), tag autocomplete in filters.
 - **FR-8** Import from browser HTML export / OPML; export collections to JSON/HTML.
 - **FR-9** Link health: periodic HEAD/GET checks, broken-link badges. *(needs a background job — new infra)*
@@ -143,7 +190,7 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 - **FR-11** Duplicate URL detection with a soft reminder on save.
 - **FR-12** Email verification and password reset flows (prerequisite for serious OAuth/password UX).
 
-### 6.3 Longer-term / exploratory
+### 7.3 Longer-term / exploratory
 
 - **FR-14** Browser extension / bookmarklet for one-click save.
 - **FR-15** Collection sharing links, three kinds: **secret** (tokenized path), **time-based** (secret link with expiry), **public** (pretty slug instead of a token path).
@@ -154,7 +201,7 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 - **FR-20** Activity/audit log for shared collections (who added/removed what).
 - **FR-21** Mobile responsive pass beyond the current support tiers.
 
-## 7. Open questions
+## 8. Open questions
 
 | # | Question | Notes |
 |---|----------|-------|
@@ -164,6 +211,6 @@ Resolved (2026-09-03, answers folded into the relevant requirement):
 
 - Q1/Q3 → FR-3 — per-bookmark editing of tags + collection membership, from the bookmark row; no tag-level management.
 - Q2 → FR-1 — archive hides from default lists, stays in collections; soft-delete; hard-delete only for archived bookmarks.
-- Q4 → FR-6 — three fixed roles.
+- Q4 → CL-9 — three fixed roles.
 - Q5 → FR-15 — secret, time-based, and public (pretty slug) share links.
 - Q7 → §3 non-goals + FR-3 — the list is the interface; no detail page.

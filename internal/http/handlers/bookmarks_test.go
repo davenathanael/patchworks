@@ -278,7 +278,7 @@ func TestGetBookmarkCollectionsEditHtmx(t *testing.T) {
 	cid := uuid.New()
 	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
 	bm.one.CollectionIDs = []uuid.UUID{cid}
-	col := &fakeCollectionStore{collections: []core.Collection{{ID: cid, Name: "Work", BookmarkCount: 3}}}
+	col := &fakeCollectionStore{collections: []core.Collection{{ID: cid, Name: "Work", BookmarkCount: 3, Role: core.RoleOwner}}}
 
 	rec := httptest.NewRecorder()
 	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/collections/edit", bm.one.ID.String())
@@ -286,7 +286,7 @@ func TestGetBookmarkCollectionsEditHtmx(t *testing.T) {
 	be.NilErr(t, getBookmarkCollectionsEdit(rec, r, bm, col))
 
 	be.Equal(t, http.StatusOK, rec.Code)
-	be.Equal(t, "byid", bm.last)
+	be.Equal(t, "byid-collection", bm.last)
 	be.True(t, strings.HasPrefix(rec.Body.String(), "<li>")) // row-swap expects Li
 	be.True(t, containsBody(rec, "Edit collections"))
 	be.True(t, containsBody(rec, "Work"))
@@ -305,9 +305,50 @@ func TestGetBookmarkCollectionsEditFullPage(t *testing.T) {
 	be.True(t, containsBody(rec, "Edit Collections — Patchworks")) // full page, not a fragment
 }
 
+func TestEditorManagesOtherBookmarkCollections(t *testing.T) {
+	cid := uuid.New()
+	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
+	bm.one.CollectionIDs = []uuid.UUID{cid}
+	col := &fakeCollectionStore{accessRole: core.RoleEditor, collections: []core.Collection{{ID: cid, Name: "Work", Role: core.RoleEditor}}}
+
+	// a non-author editor can open the picker for a bookmark they didn't add
+	rec := httptest.NewRecorder()
+	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/collections/edit", bm.one.ID.String())
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, getBookmarkCollectionsEdit(rec, r, bm, col))
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "byid-collection", bm.last)
+	be.True(t, containsBody(rec, "Work"))
+
+	// and can remove it from the collection they manage
+	rec = httptest.NewRecorder()
+	r = routeFormRequest(t, bm.one.ID, "") // empty checked set → removed from Work
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarkCollections(rec, r, bm, col))
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "update-collections", bm.last)
+	be.Equal(t, 0, len(bm.one.CollectionIDs))
+	be.True(t, containsBody(rec, "Post"))
+}
+
+func TestNonManagerCannotEditOthersBookmarkCollections(t *testing.T) {
+	bm := &fakeBookmarkStore{
+		err: errors.Join(core.ErrNotFound), // non-author without manage rights reads as 404
+		one: mustBookmark(t, "https://example.com", "Post"),
+	}
+	col := &fakeCollectionStore{accessRole: core.RoleViewer}
+
+	r := routeRequest(t, http.MethodGet, "/bookmarks/"+bm.one.ID.String()+"/collections/edit", bm.one.ID.String())
+	r.Header.Set("HX-Request", "true")
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return getBookmarkCollectionsEdit(w, r, bm, col)
+	}, r)
+	be.Equal(t, http.StatusNotFound, rec.Code)
+}
+
 func TestPostBookmarkCollectionsHtmx(t *testing.T) {
 	bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Post")}
-	col := &fakeCollectionStore{collections: []core.Collection{{ID: uuid.New(), Name: "Work"}}}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner, collections: []core.Collection{{ID: uuid.New(), Name: "Work", Role: core.RoleOwner}}}
 
 	rec := httptest.NewRecorder()
 	body := "collections=" + col.collections[0].ID.String()
@@ -528,6 +569,11 @@ func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, titl
 
 func (f *fakeBookmarkStore) GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
 	f.last = "byid"
+	return f.one, f.err
+}
+
+func (f *fakeBookmarkStore) GetBookmarkForCollectionEdit(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	f.last = "byid-collection"
 	return f.one, f.err
 }
 

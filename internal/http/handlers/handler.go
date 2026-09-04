@@ -56,8 +56,8 @@ func New(comp *components.Components) http.Handler {
 		r.Method("DELETE", "/collections/{id}", handleDeleteCollectionById(comp))
 		r.Method("POST", "/collections/{id}/delete", handleDeleteCollectionById(comp))
 		r.Method("POST", "/collections/{id}/members", handlePostCollectionMember(comp))
-		r.Method("DELETE", "/collections/{collectionId}/members/{userId}", handleDeleteCollectionMember(comp))
-		r.Method("POST", "/collections/{collectionId}/members/{userId}/delete", handleDeleteCollectionMember(comp))
+		r.Method("DELETE", "/collections/{id}/members/{userId}", handleDeleteCollectionMember(comp))
+		r.Method("POST", "/collections/{id}/members/{userId}/delete", handleDeleteCollectionMember(comp))
 	})
 
 	return r

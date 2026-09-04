@@ -208,7 +208,9 @@ func EditPanelRow(panel Node) Node {
 
 // bookmarkMenu is the row's kebab menu. The trigger opens a native popover
 // (popover="auto") with light-dismiss; both items swap the row for an inline
-// edit panel (htmx) or navigate to a full edit page (no-JS).
+// edit panel (htmx) or navigate to a full edit page (no-JS). The
+// "Edit collections" item renders only when the caller passed a non-empty
+// collections list (callers pre-filter to manageable collections).
 func bookmarkMenu(link core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
 	editURL := fmt.Sprintf("/bookmarks/%s/edit", link.ID)
 	collectionsURL := fmt.Sprintf("/bookmarks/%s/collections/edit", link.ID)
@@ -236,13 +238,15 @@ func bookmarkMenu(link core.Bookmark, collections []core.Collection, currentColl
 				Attr("hx-swap", "outerHTML"),
 				Text("Edit notes & tags"),
 			),
-			A(
-				Class("menu-item"),
-				Href(collectionsURL),
-				Attr("hx-get", collectionsURL),
-				Attr("hx-target", "closest li"),
-				Attr("hx-swap", "outerHTML"),
-				Text("Edit collections"),
+			If(len(collections) > 0,
+				A(
+					Class("menu-item"),
+					Href(collectionsURL),
+					Attr("hx-get", collectionsURL),
+					Attr("hx-target", "closest li"),
+					Attr("hx-swap", "outerHTML"),
+					Text("Edit collections"),
+				),
 			),
 			Button(
 				Class("menu-item danger"),

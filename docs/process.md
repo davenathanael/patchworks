@@ -4,12 +4,12 @@ How Patchwork records decisions, plans work, and keeps the spec alive. Applies t
 
 ## Source of truth: `docs/spec.md`
 
-- spec.md is the single source of truth for the **feature set** (§5), **future intent** (§6), **non-goals** (§3), and **open questions** (§7).
-- Out of ideas for what to build? Read spec.md §6 — that is the backlog.
+- spec.md is the single source of truth for the **feature set** (§5), **access control** (§6), **future intent** (§7), **non-goals** (§3), and **open questions** (§8).
+- Out of ideas for what to build? Read spec.md §7 — that is the backlog.
 - Feature lifecycle inside spec.md:
-  - An implemented FR-* item moves from §6 to the relevant §5 requirement and is renumbered into that section's ID family (e.g. FR-22 → BK-7); provenance is recorded in the Rev table (e.g. "FR-22 landed in §5.2 as BK-7").
+  - An implemented FR-* item moves from §7 to the relevant §5 requirement and is renumbered into that section's ID family (e.g. FR-22 → BK-7); provenance is recorded in the Rev table (e.g. "FR-22 landed in §5.2 as BK-7").
   - Rejected items move to §3 Non-goals with a one-line *why*.
-  - Answered questions leave §7; the answer becomes normative text in §5/§6.
+  - Answered questions leave §8; the answer becomes normative text in §5/§7.
   - Bump the Rev table on every normative change.
 
 ## Planning work

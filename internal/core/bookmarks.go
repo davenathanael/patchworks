@@ -16,11 +16,12 @@ type (
 		UpdatedAt     time.Time
 		Members       []CollectionMember
 		BookmarkCount int
+		Role          CollectionRole
 	}
 
 	CollectionMember struct {
 		User    User
-		Role    string
+		Role    CollectionRole
 		AddedAt time.Time
 	}
 

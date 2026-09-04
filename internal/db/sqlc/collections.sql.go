@@ -59,6 +59,22 @@ func (q *Queries) DeleteCollection(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const getCollectionAccess = `-- name: GetCollectionAccess :one
+SELECT role FROM collection_members WHERE collection_id = $1 AND user_id = $2
+`
+
+type GetCollectionAccessParams struct {
+	CollectionID uuid.UUID
+	UserID       uuid.UUID
+}
+
+func (q *Queries) GetCollectionAccess(ctx context.Context, arg GetCollectionAccessParams) (string, error) {
+	row := q.db.QueryRow(ctx, getCollectionAccess, arg.CollectionID, arg.UserID)
+	var role string
+	err := row.Scan(&role)
+	return role, err
+}
+
 const getCollectionById = `-- name: GetCollectionById :one
 SELECT collections.id, collections.name, collections.description, collections.created_at, collections.updated_at, collection_members.collection_id, collection_members.user_id, collection_members.role, collection_members.added_at
 FROM collections
@@ -177,6 +193,7 @@ func (q *Queries) GetMembersByCollectionIds(ctx context.Context, collectionIds [
 const listUserCollections = `-- name: ListUserCollections :many
 SELECT
     collections.id, collections.name, collections.description, collections.created_at, collections.updated_at,
+    collection_members.role,
     (SELECT COUNT(*) FROM collection_bookmarks cb WHERE cb.collection_id = collections.id) AS bookmark_count
 FROM collections
 JOIN collection_members ON collections.id = collection_members.collection_id
@@ -185,6 +202,7 @@ WHERE collection_members.user_id = $1
 
 type ListUserCollectionsRow struct {
 	Collection    Collection
+	Role          string
 	BookmarkCount int64
 }
 
@@ -203,6 +221,7 @@ func (q *Queries) ListUserCollections(ctx context.Context, userID uuid.UUID) ([]
 			&i.Collection.Description,
 			&i.Collection.CreatedAt,
 			&i.Collection.UpdatedAt,
+			&i.Role,
 			&i.BookmarkCount,
 		); err != nil {
 			return nil, err
