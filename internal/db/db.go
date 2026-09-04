@@ -32,6 +32,10 @@ func New(ctx context.Context, url string) (*DB, error) {
 		return nil, err
 	}
 
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
+
 	return &DB{
 		Pool:    pool,
 		querier: sqlc.New(pool),
