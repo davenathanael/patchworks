@@ -18,6 +18,7 @@
 | 1.2 | 2026-09-04 | FR-5 landed in §5.1 as **AU-7** — successful logins stamp `users.last_login_at`; FR-5 removed from §7.1 |
 | 1.3 | 2026-09-04 | FR-11 landed in §5.2 as **BK-11** — soft duplicate-URL reminder with Save-anyway override; FR-11 removed from §7.2 |
 | 1.4 | 2026-09-04 | Reading list fully designed in §7.2 (**FR-10**, was one-liner): per-user FIFO queue at `/reading`, row-menu toggle, mark-as-read, archive interaction; new **FR-23** (create-form notes) and **FR-24** (multi-collection at save, reusing the CL-8 picker) in §7.1; §5.2 gaps + §6.3 matrix updated to point at them |
+| 1.5 | 2026-09-08 | FR-23 landed in §5.2 as **BK-12** — notes field on the add-bookmark form; FR-24 landed in §5.2 as **BK-13** — multi-collection picker at save (reuses the CL-8 picker); both removed from §7.1 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -91,7 +92,9 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-9** *(formerly FR-1, archive half)* Archive a bookmark from the row menu (dashboard and collection detail): native confirm (`hx-confirm`), one htmx post sets `archived_at`, the row leaves the current list. Archived bookmarks are hidden from recent/search/filtered/collection browse (`archived_at IS NULL` on all browse queries); the management side lives in BK-10.
 - **BK-10** *(formerly FR-1, remainder; also closes FR-3's hard-delete half)* Archived page: `/archived` lists the user's archived bookmarks (newest archive first, tags attached) with inline **Restore** (clears `archived_at`, back into browse) and permanent **Delete** (author-only, own confirm, tags + collection links cascade).
 - **BK-11** *(formerly FR-11)* Duplicate URL detection on save: an exact-URL bookmark by the same author (any archived state) triggers a soft inline reminder — existing title + when it was saved — with a **Save anyway** override (`save_anyway=true` marker on the warned re-render); submitted values are preserved. Exact string match, no URL normalization (a normalized column is a schema-ready follow-up if needed). Non-duplicate saves are unchanged.
-- **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4). The add form takes a single collection and has no notes field; multi-collection membership is post-save via CL-8 (→ FR-23, FR-24).
+- **BK-12** *(formerly FR-23)* Notes on the add-bookmark form: optional free-text notes field at save time, stored and rendered exactly like post-save notes (BK-7/BK-8). No schema change.
+- **BK-13** *(formerly FR-24)* Multi-collection selection at save: the create form offers the CL-8 picker (search + checkbox list) of collections the user can manage (§6.3: owner/editor per collection), nothing pre-checked; one save links the bookmark to every selected collection. Submitting a collection the user can't manage fails the whole save (403) — nothing is created.
+- **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4).
 
 ### 5.3 Collections & sharing — *impl / partial*
 
@@ -161,7 +164,7 @@ matrix.
 | Action | Who is allowed |
 |---|---|
 | Create a personal bookmark (no collection) | any signed-in user (becomes its author) |
-| Create a bookmark into collections | member with **owner/editor** in each selected collection (single select today; multi-select → FR-24) |
+| Create a bookmark into collections | member with **owner/editor** in each selected collection (multi-select via BK-13) |
 | Change a bookmark's collection memberships (CL-8) | the bookmark's **author**, or any **owner/editor** member of a collection containing it; every collection **added or removed** requires owner/editor rights for the actor (else 403) — unchanged memberships pass, so a demoted member keeps existing links |
 | View any bookmark inside a collection | any member of that collection (shared bookmarks keep their original author, CL-7) |
 | Edit notes & tags (BK-8) | author only |
@@ -183,8 +186,7 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 ### 7.1 Near-term — schema/design-ready
 
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
-- **FR-23** Notes on the add-bookmark form: optional free-text notes field at save time, stored and rendered exactly like post-save notes (BK-7/BK-8). No schema change.
-- **FR-24** Multi-collection selection at save: replace the create form's single collection select with the CL-8 picker pattern — search field + checkbox list of manageable collections (§6.3: owner/editor per selected collection), nothing pre-checked (fresh bookmark); one save links all selected collections.
+
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 
 ### 7.2 Medium-term
@@ -194,7 +196,7 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 - **FR-9** Link health: periodic HEAD/GET checks, broken-link badges. *(needs a background job — new infra)*
 - **FR-10** Reading list — a per-user FIFO queue of bookmarks to read, independent of collections:
   - Page **`/reading`** (side-nav entry) lists queued bookmarks **oldest-enqueued first**; each row keeps the usual link/menu plus a **Mark as read** action that dequeues it. Removal only — no read history.
-  - Enqueue paths: an **"Add to reading list"** checkbox on the add-bookmark form (lands together with FR-23's form revision), and an **Add to / remove from reading list** row-menu toggle (like Archive) for existing bookmarks.
+  - Enqueue paths: an **"Add to reading list"** checkbox on the add-bookmark form (lands together with BK-12's form revision), and an **Add to / remove from reading list** row-menu toggle (like Archive) for existing bookmarks.
   - Detached from collections: a queued bookmark may belong to any number of collections or none; the queue is keyed to the author (bookmarks are author-scoped), so enqueue state can be a `queued_at` timestamp on the bookmark rather than a join table.
   - Archiving a queued bookmark auto-dequeues it; restoring does **not** re-enqueue.
   - Queue visibility follows bookmark visibility (own bookmarks only; no sharing).

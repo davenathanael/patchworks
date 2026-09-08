@@ -152,8 +152,8 @@ WHERE author_id = $1
 GROUP BY tag;
 
 -- name: CreateBookmark :one
-INSERT INTO bookmarks (id, url, title, author_id)
-VALUES ($1, $2, $3, @author_id::uuid)
+INSERT INTO bookmarks (id, url, title, notes, author_id)
+VALUES ($1, $2, $3, $4, @author_id::uuid)
 RETURNING *;
 
 -- name: CreateBookmarkTags :copyfrom

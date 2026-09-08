@@ -27,7 +27,7 @@ type BookmarkStore interface {
 	GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
 	GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
 	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
-	CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error)
+	CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string) (core.Bookmark, error)
 	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 	FindUserBookmarkByURL(ctx context.Context, userID uuid.UUID, rawURL string) (core.Bookmark, bool, error)
 	GetBookmarkForCollectionEdit(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
@@ -225,9 +225,18 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 	}
 
 	var formData views.BookmarkForm
-	if err := form.NewDecoder(r.Body).Decode(&formData); err != nil {
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("parse bookmark form: %w", err)
+	}
+	// the picker's q and collection_id keys are handled outside ajg/form
+	decoder := form.NewDecoder(nil)
+	decoder.IgnoreUnknownKeys(true)
+	if err := decoder.DecodeValues(&formData, r.PostForm); err != nil {
 		return fmt.Errorf("decode bookmark form: %w", err)
 	}
+	// checkbox lists arrive as repeated keys, which ajg/form only supports
+	// with explicit indexes — read them natively instead
+	formData.CollectionIDs = r.PostForm["collection_id"]
 
 	parsedURL, err := url.Parse(formData.URL)
 	if err != nil {
@@ -235,15 +244,9 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 		return renderBookmarkFormErrors(w, r, user, collections, bookmarks, formData)
 	}
 
-	collectionID := uuid.Nil
-	if formData.CollectionID != "" {
-		collectionID, err = uuid.Parse(formData.CollectionID)
-		if err != nil {
-			return fmt.Errorf("invalid collection id %q in bookmark form: %w", formData.CollectionID, err)
-		}
-		if err = requireManageBookmarks(ctx, collections, user.ID, collectionID); err != nil {
-			return err
-		}
+	collectionIDs, err := parseBookmarkCollectionIDs(ctx, collections, user.ID, formData.CollectionIDs)
+	if err != nil {
+		return err
 	}
 
 	var dup *views.Duplicate
@@ -260,7 +263,7 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
-	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, collectionID, tags); err != nil {
+	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, formData.Notes, collectionIDs, tags); err != nil {
 		return fmt.Errorf("create bookmark: %w", err)
 	}
 
@@ -292,6 +295,32 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	return nil
+}
+
+// parseBookmarkCollectionIDs validates and dedupes the picker's collection
+// ids, enforcing manage rights per collection: one unmanageable id fails the
+// whole save (nothing is created).
+func parseBookmarkCollectionIDs(ctx context.Context, collections bookmarkCollectionStore, userID uuid.UUID, raws []string) ([]uuid.UUID, error) {
+	collectionIDs := make([]uuid.UUID, 0, len(raws))
+	seen := make(map[uuid.UUID]bool, len(raws))
+	for _, raw := range raws {
+		if raw == "" {
+			continue
+		}
+		cid, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid collection id %q in bookmark form: %w", raw, err)
+		}
+		if seen[cid] {
+			continue
+		}
+		seen[cid] = true
+		if err = requireManageBookmarks(ctx, collections, userID, cid); err != nil {
+			return nil, err
+		}
+		collectionIDs = append(collectionIDs, cid)
+	}
+	return collectionIDs, nil
 }
 
 func handleGetBookmarkById(comp *components.Components) Handler {

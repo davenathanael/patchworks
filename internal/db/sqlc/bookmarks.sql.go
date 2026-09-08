@@ -41,8 +41,8 @@ func (q *Queries) ArchiveBookmark(ctx context.Context, arg ArchiveBookmarkParams
 }
 
 const createBookmark = `-- name: CreateBookmark :one
-INSERT INTO bookmarks (id, url, title, author_id)
-VALUES ($1, $2, $3, $4::uuid)
+INSERT INTO bookmarks (id, url, title, notes, author_id)
+VALUES ($1, $2, $3, $4, $5::uuid)
 RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
 `
 
@@ -50,6 +50,7 @@ type CreateBookmarkParams struct {
 	ID       uuid.UUID
 	Url      string
 	Title    string
+	Notes    string
 	AuthorID uuid.UUID
 }
 
@@ -58,6 +59,7 @@ func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) 
 		arg.ID,
 		arg.Url,
 		arg.Title,
+		arg.Notes,
 		arg.AuthorID,
 	)
 	var i Bookmark

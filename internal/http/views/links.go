@@ -21,12 +21,13 @@ type PaginationProps struct {
 // BookmarkForm is the shared add-bookmark form view-model: the ajg/form
 // decode target and the render model. Zero value renders a fresh form.
 type BookmarkForm struct {
-	URL          string     `form:"url"`
-	CollectionID string     `form:"collection_id"`
-	Tags         string     `form:"tags"`
-	SaveAnyway   bool       `form:"save_anyway"` // set on the warned re-render: confirmed duplicate
-	Duplicate    *Duplicate `form:"-"`
-	Errors       FormErrors `form:"-"`
+	URL           string     `form:"url"`
+	CollectionIDs []string   `form:"-"` // FR-24 picker: repeated keys, read via r.PostForm
+	Tags          string     `form:"tags"`
+	Notes         string     `form:"notes"`
+	SaveAnyway    bool       `form:"save_anyway"` // set on the warned re-render: confirmed duplicate
+	Duplicate     *Duplicate `form:"-"`
+	Errors        FormErrors `form:"-"`
 }
 
 // Duplicate is the FR-11 soft reminder: an existing bookmark of the same
@@ -65,11 +66,28 @@ func NewBookmark(form BookmarkForm, collections []core.Collection) Node {
 // NewBookmarkForm renders the add-bookmark form fragment, optionally with
 // field errors. htmx failure responses retarget the swap to
 // #add-bookmark-form (the form's own hx-target is the bookmarks list).
+// It doubles as a collections picker (FR-24): the edit-panel class powers the
+// live client-side filter, and checked boxes link the new bookmark to those
+// collections in the same save.
 func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
+	memberOf := make(map[string]bool, len(form.CollectionIDs))
+	for _, cid := range form.CollectionIDs {
+		memberOf[cid] = true
+	}
+	items := Map(collections, func(c core.Collection) Node {
+		return Li(
+			Label(
+				Input(Type("checkbox"), Name("collection_id"), Value(c.ID.String()), If(memberOf[c.ID.String()], Checked())),
+				Text(c.Name),
+				Span(Class("count"), Text(fmt.Sprintf("%d", c.BookmarkCount))),
+			),
+		)
+	})
 	nodes := append([]Node{
 		ID("add-bookmark-form"),
 		Method("POST"),
 		Action("/bookmarks"),
+		Class("edit-panel"),
 		Attr("hx-post", "/bookmarks"),
 		Attr("hx-target", "#bookmarks"),
 		Attr("hx-swap", "innerHTML"),
@@ -79,6 +97,12 @@ func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
 			Attr("inputmode", "url"), Attr("enterkeyhint", "go"),
 		),
 		TextInput("Tags", "tags", "text", form.Tags, form.Errors, Placeholder("go, css, reading")),
+		Label(Text("Notes"),
+			Textarea(Name("notes"), Rows("3"), Placeholder("Optional notes"), Text(form.Notes)),
+		),
+		Div(Class("picker-title"), Text("Collections")),
+		Input(Type("search"), Name("q"), Placeholder("Search collections"), Attr("enterkeyhint", "search")),
+		Ul(Class("pick-list"), items),
 	}, duplicateNodes(form)...)
 	return Form(nodes...)
 }

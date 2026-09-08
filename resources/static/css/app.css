@@ -505,6 +505,15 @@
                     margin-top: var(--size-1);
                 }
             }
+
+            /* the add form doubles as the collections picker (.edit-panel) —
+               panel chrome stays on .panel, not on the form inside it */
+            form.edit-panel {
+                margin-top: 0;
+                padding: 0;
+                border: none;
+                background: none;
+            }
         }
     }
 
@@ -983,11 +992,12 @@
         gap: var(--size-2);
     }
 
-    /* one labeled-field pattern across every form */
+    /* one labeled-field pattern across every form; `>` keeps nested
+       picker (.pick-list) labels out — they style themselves */
     main > form label,
     .filter-bar > label,
     .add-member form label,
-    .add .panel form label {
+    .add .panel form > label {
         display: grid;
         gap: var(--size-1);
         font-size: var(--font-size-0);

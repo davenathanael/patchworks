@@ -95,7 +95,7 @@ func (db *DB) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []s
 	return db.toBookmarksWithTags(ctx, recent)
 }
 
-func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error) {
+func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string) (core.Bookmark, error) {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return core.Bookmark{}, err
@@ -109,18 +109,29 @@ func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, us
 		ID:       bookmarkID,
 		Url:      url.String(),
 		Title:    title,
+		Notes:    notes,
 		AuthorID: userID,
 	})
 	if err != nil {
 		return core.Bookmark{}, err
 	}
 
-	if collectionID != uuid.Nil {
-		_, err = querier.CreateCollectionBookmark(ctx, sqlc.CreateCollectionBookmarkParams{
-			BookmarkID:   bookmarkID,
-			CollectionID: collectionID,
-		})
-		if err != nil {
+	// dedupe while keeping order — the form may submit the same collection twice
+	seen := make(map[uuid.UUID]bool, len(collectionIDs))
+	links := make([]uuid.UUID, 0, len(collectionIDs))
+	for _, cid := range collectionIDs {
+		if !seen[cid] {
+			seen[cid] = true
+			links = append(links, cid)
+		}
+	}
+
+	if len(links) > 0 {
+		linkParams := make([]sqlc.CreateBookmarkCollectionLinksParams, 0, len(links))
+		for _, cid := range links {
+			linkParams = append(linkParams, sqlc.CreateBookmarkCollectionLinksParams{CollectionID: cid, BookmarkID: bookmarkID})
+		}
+		if _, err = querier.CreateBookmarkCollectionLinks(ctx, linkParams); err != nil {
 			return core.Bookmark{}, err
 		}
 	}
@@ -151,9 +162,7 @@ func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, us
 	}
 
 	b := toBookmark(createdBookmark, tags, user)
-	if collectionID != uuid.Nil {
-		b.CollectionIDs = []uuid.UUID{collectionID}
-	}
+	b.CollectionIDs = links
 	return b, nil
 }
 

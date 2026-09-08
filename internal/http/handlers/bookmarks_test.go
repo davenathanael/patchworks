@@ -104,7 +104,7 @@ func TestPostBookmarksCreatesAndRedirects(t *testing.T) {
 	be.Equal(t, "http://example.com", created.bk.URL.String())
 	be.Equal(t, "Example", created.bk.Title)
 	be.Equal(t, testUser.ID, created.bk.Author.ID)
-	be.Equal(t, uuid.Nil, created.colID)
+	be.Equal(t, 0, len(created.colIDs))
 	be.AllEqual(t, []string{"go", "web"}, created.bk.Tags)
 }
 
@@ -223,6 +223,68 @@ func TestPostBookmarksForceSavesDuplicate(t *testing.T) {
 	be.NilErr(t, postBookmarks(rec, r, col, bm, fakeTitleFetcher{title: "Fresh"}))
 
 	be.Equal(t, 1, len(bm.created)) // confirmed → saves
+}
+
+func TestPostBookmarksWithNotes(t *testing.T) {
+	saved := mustBookmark(t, "https://example.com", "Example")
+	saved.Notes = "Worth rereading"
+	bm := &fakeBookmarkStore{recent: []core.Bookmark{saved}}
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	r := mustFormRequest(t, "url=http%3A%2F%2Fexample.com&notes=Worth+rereading")
+	r.Header.Set("HX-Request", "true")
+	be.NilErr(t, postBookmarks(rec, r, col, bm, fakeTitleFetcher{title: "Example"}))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, 1, len(bm.created))
+	be.Equal(t, "Worth rereading", bm.created[0].bk.Notes) // notes stored
+	be.True(t, containsBody(rec, "Worth rereading"))       // note rendered in the row fragment
+}
+
+func TestPostBookmarksMultipleCollections(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleOwner}
+	first, second := uuid.New(), uuid.New()
+
+	rec := httptest.NewRecorder()
+	body := "url=http%3A%2F%2Fexample.com&collection_id=" + first.String() +
+		"&collection_id=" + second.String() + "&collection_id=" + first.String()
+	be.NilErr(t, postBookmarks(rec, mustFormRequest(t, body), col, bm, fakeTitleFetcher{title: "Example"}))
+
+	be.Equal(t, http.StatusSeeOther, rec.Code)
+	be.Equal(t, 1, len(bm.created))
+	be.AllEqual(t, []uuid.UUID{first, second}, bm.created[0].colIDs) // deduped, order kept
+	be.Equal(t, 2, col.accessCalls)                                  // manage rights checked per distinct collection
+}
+
+func TestPostBookmarksCollectionAccessDenied(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+	col := &fakeCollectionStore{accessRole: core.RoleViewer}
+
+	rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarks(w, r, col, bm, fakeTitleFetcher{})
+	}, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&collection_id="+uuid.New().String()))
+
+	be.Equal(t, http.StatusForbidden, rec.Code)
+	be.Equal(t, 0, len(bm.created)) // whole save fails, nothing created
+}
+
+func TestPostBookmarkFormErrorsPreserveNotesAndPicks(t *testing.T) {
+	cid := uuid.New()
+	bm := &fakeBookmarkStore{}
+	col := &fakeCollectionStore{collections: []core.Collection{{ID: cid, Name: "Work", BookmarkCount: 2, Role: core.RoleOwner}}}
+
+	rec := httptest.NewRecorder()
+	body := "url=http%3A%2F%2F%25&tags=go&notes=keep+me&collection_id=" + cid.String()
+	be.NilErr(t, postBookmarks(rec, mustFormRequest(t, body), col, bm, fakeTitleFetcher{}))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, 0, len(bm.created))
+	be.True(t, containsBody(rec, "valid URL"))
+	be.True(t, containsBody(rec, "keep me"))    // notes preserved on re-render
+	be.True(t, containsBody(rec, "checked"))    // selected collection re-checked
+	be.True(t, containsBody(rec, `value="go"`)) // tags preserved
 }
 
 func TestGetBookmarkByIdHtmx(t *testing.T) {
@@ -544,8 +606,8 @@ func serve(h Handler, r *http.Request) *httptest.ResponseRecorder {
 var errFake = errors.New("boom")
 
 type createdBookmark struct {
-	bk    core.Bookmark
-	colID uuid.UUID
+	bk     core.Bookmark
+	colIDs []uuid.UUID
 }
 
 type fakeBookmarkStore struct {
@@ -592,9 +654,9 @@ func (f *fakeBookmarkStore) GetBookmarksByTags(ctx context.Context, userID uuid.
 	return f.all, f.err
 }
 
-func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, title string, userID, collectionID uuid.UUID, tags []string) (core.Bookmark, error) {
-	b := core.Bookmark{ID: uuid.New(), URL: u, Title: title, Author: core.User{ID: userID}, Tags: tags}
-	f.created = append(f.created, createdBookmark{bk: b, colID: collectionID})
+func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string) (core.Bookmark, error) {
+	b := core.Bookmark{ID: uuid.New(), URL: u, Title: title, Notes: notes, Author: core.User{ID: userID}, Tags: tags}
+	f.created = append(f.created, createdBookmark{bk: b, colIDs: collectionIDs})
 	return b, f.err
 }
 
