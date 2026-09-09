@@ -25,7 +25,8 @@ type BookmarkForm struct {
 	CollectionIDs []string   `form:"-"` // FR-24 picker: repeated keys, read via r.PostForm
 	Tags          string     `form:"tags"`
 	Notes         string     `form:"notes"`
-	SaveAnyway    bool       `form:"save_anyway"` // set on the warned re-render: confirmed duplicate
+	SaveAnyway    bool       `form:"save_anyway"`    // set on the warned re-render: confirmed duplicate
+	Queued        bool       `form:"add_to_reading"` // "Add to reading list" checkbox (FR-10)
 	Duplicate     *Duplicate `form:"-"`
 	Errors        FormErrors `form:"-"`
 }
@@ -103,6 +104,11 @@ func NewBookmarkForm(form BookmarkForm, collections []core.Collection) Node {
 		Div(Class("picker-title"), Text("Collections")),
 		Input(Type("search"), Name("q"), Placeholder("Search collections"), Attr("enterkeyhint", "search")),
 		Ul(Class("pick-list"), items),
+		Label(
+			Class("form-options"),
+			Input(Type("checkbox"), Name("add_to_reading"), Value("true"), If(form.Queued, Checked())),
+			Text("Add to reading list"),
+		),
 	}, duplicateNodes(form)...)
 	return Form(nodes...)
 }
@@ -260,6 +266,61 @@ func ArchivedRow(link core.Bookmark) Node {
 	)
 }
 
+// ReadingPage lists the user's FIFO reading queue; "Mark as read" dequeues
+// (FR-10).
+func ReadingPage(user core.User, bookmarks []core.Bookmark) Node {
+	content := Main(
+		Header(H1(Text("Reading list"))),
+		IfElse(len(bookmarks) > 0,
+			Ul(Class("link-list"), Map(bookmarks, ReadingRow)),
+			P(Class("muted"), Text("Nothing queued yet.")),
+		),
+	)
+	return Page("Reading list — Patchworks", AppShell(user, content))
+}
+
+// ReadingRow is a queued bookmark: plain external link plus "Mark as read",
+// which deletes the row client-side via htmx (non-JS falls back to the hidden
+// next redirect).
+func ReadingRow(link core.Bookmark) Node {
+	relTime := relativeTime(link.CreatedAt)
+	tags := make([]Node, 0, len(link.Tags))
+	for _, tag := range link.Tags {
+		tags = append(tags, Li(Text(tag)))
+	}
+	readURL := fmt.Sprintf("/bookmarks/%s/reading", link.ID)
+
+	return Li(
+		Article(
+			Header(
+				A(
+					Href(link.URL.String()),
+					Target("_blank"),
+					Rel("noopener"),
+					Text(link.Title),
+				),
+				Time(Attr("datetime", link.CreatedAt.Format(time.RFC3339)), Text(relTime)),
+			),
+			Footer(
+				Small(Text(link.URL.Host)),
+				Ul(tags...),
+				Span(Class("row-actions"),
+					Form(
+						Method("POST"),
+						Action(readURL),
+						Input(Type("hidden"), Name("next"), Value("/reading")),
+						Button(Class("button outline small"), Type("submit"), Text("Mark as read")),
+						Attr("hx-post", readURL),
+						Attr("hx-target", "closest li"),
+						Attr("hx-swap", "delete"),
+					),
+				),
+			),
+			noteBlock(link),
+		),
+	)
+}
+
 // EditPanelRow wraps an inline edit panel in the list item the row swap
 // expects: swap targets are `closest li` + outerHTML, so fragments must be Li
 // (a bare article would replace the li and break .link-list > li > article).
@@ -279,6 +340,11 @@ func bookmarkMenu(link core.Bookmark, collections []core.Collection, currentColl
 		collectionsURL += "?collection=" + currentCollectionID
 	}
 	menuID := "bookmark-menu-" + link.ID.String()
+	readingURL := fmt.Sprintf("/bookmarks/%s/reading", link.ID)
+	readingLabel := "Add to reading list"
+	if !link.QueuedAt.IsZero() {
+		readingLabel = "Remove from reading list"
+	}
 	return Group{
 		Button(
 			Class("button ghost small"),
@@ -307,6 +373,15 @@ func bookmarkMenu(link core.Bookmark, collections []core.Collection, currentColl
 					Attr("hx-target", "closest li"),
 					Attr("hx-swap", "outerHTML"),
 					Text("Edit collections"),
+				),
+			),
+			Form(
+				Method("POST"),
+				Action(readingURL),
+				Button(
+					Class("menu-item"),
+					Type("submit"),
+					Text(readingLabel),
 				),
 			),
 			Button(

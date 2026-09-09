@@ -27,7 +27,7 @@ type BookmarkStore interface {
 	GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
 	GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
 	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
-	CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string) (core.Bookmark, error)
+	CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string, queued bool) (core.Bookmark, error)
 	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 	FindUserBookmarkByURL(ctx context.Context, userID uuid.UUID, rawURL string) (core.Bookmark, bool, error)
 	GetBookmarkForCollectionEdit(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
@@ -37,6 +37,9 @@ type BookmarkStore interface {
 	GetArchivedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
 	RestoreBookmark(ctx context.Context, id, userID uuid.UUID) error
 	DeleteBookmark(ctx context.Context, id, userID uuid.UUID) error
+	GetQueuedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error)
+	EnqueueBookmark(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
+	DequeueBookmark(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 }
 
 // bookmarkCollectionStore is CollectionStore plus per-collection role lookups,
@@ -263,7 +266,7 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 
 	title := fetcher.FetchPageTitle(ctx, parsedURL)
 
-	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, formData.Notes, collectionIDs, tags); err != nil {
+	if _, err := bookmarks.CreateBookmark(ctx, parsedURL, title, user.ID, formData.Notes, collectionIDs, tags, formData.Queued); err != nil {
 		return fmt.Errorf("create bookmark: %w", err)
 	}
 
@@ -510,6 +513,73 @@ func postBookmarkArchive(w http.ResponseWriter, r *http.Request, bookmarks Bookm
 	return nil
 }
 
+func handlePostBookmarkReading(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return postBookmarkReading(w, r, comp.DB)
+	}
+}
+
+// postBookmarkReading toggles the reading-list queue: queued bookmarks are
+// dequeued ("mark as read"), everything else is enqueued. htmx requests get
+// an empty 200 so the client deletes the row; plain submits redirect to next
+// (validated same-site relative, else /).
+func postBookmarkReading(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+
+	rawID := chi.URLParam(r, "id")
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return fmt.Errorf("parse bookmark id %q: %w", rawID, core.ErrNotFound)
+	}
+
+	b, err := bookmarks.GetBookmarkByID(ctx, id, user.ID)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return err
+		}
+		return fmt.Errorf("get bookmark: %w", err)
+	}
+
+	if b.QueuedAt.IsZero() {
+		if _, err := bookmarks.EnqueueBookmark(ctx, id, user.ID); err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				return err
+			}
+			return fmt.Errorf("enqueue bookmark: %w", err)
+		}
+	} else {
+		if _, err := bookmarks.DequeueBookmark(ctx, id, user.ID); err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				return err
+			}
+			return fmt.Errorf("dequeue bookmark: %w", err)
+		}
+	}
+
+	if views.IsHtmx(r) {
+		return nil
+	}
+	if err := r.ParseForm(); err != nil {
+		return fmt.Errorf("parse reading form: %w", err)
+	}
+	//nolint:gosec // next is restricted to same-site relative paths (or "/") by safeNext
+	http.Redirect(w, r, safeNext(r.PostForm.Get("next")), http.StatusSeeOther)
+	return nil
+}
+
+// safeNext allows only same-site relative redirects: a path starting with a
+// single slash, never protocol-relative //host.
+func safeNext(next string) string {
+	if strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+		return next
+	}
+	return "/"
+}
+
 func handlePostBookmarkCollections(comp *components.Components) Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		return postBookmarkCollections(w, r, comp.DB, comp.DB)
@@ -535,6 +605,30 @@ func getArchived(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore
 	}
 	if err := views.ArchivedPage(user, archived).Render(w); err != nil {
 		return fmt.Errorf("render archived page: %w", err)
+	}
+	return nil
+}
+
+func handleGetReading(comp *components.Components) Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return getReading(w, r, comp.DB)
+	}
+}
+
+// getReading renders the FIFO reading list (FR-10); rows dequeue themselves
+// via "Mark as read".
+func getReading(w http.ResponseWriter, r *http.Request, bookmarks BookmarkStore) error {
+	ctx := r.Context()
+	user, ok := middleware.UserFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("user not found in context")
+	}
+	queued, err := bookmarks.GetQueuedBookmarksByUser(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("get queued bookmarks: %w", err)
+	}
+	if err := views.ReadingPage(user, queued).Render(w); err != nil {
+		return fmt.Errorf("render reading page: %w", err)
 	}
 	return nil
 }

@@ -165,12 +165,12 @@ func TestCollectionBookmarksIncludeUntagged(t *testing.T) {
 
 	u1, err := url.Parse("https://example.com/tagged")
 	be.NilErr(t, err)
-	_, err = testDB.CreateBookmark(ctx, u1, "Tagged Post", user.ID, "", []uuid.UUID{colID}, []string{"go", "web"})
+	_, err = testDB.CreateBookmark(ctx, u1, "Tagged Post", user.ID, "", []uuid.UUID{colID}, []string{"go", "web"}, false)
 	be.NilErr(t, err)
 
 	u2, err := url.Parse("https://example.com/plain")
 	be.NilErr(t, err)
-	_, err = testDB.CreateBookmark(ctx, u2, "Plain Post", user.ID, "", []uuid.UUID{colID}, nil)
+	_, err = testDB.CreateBookmark(ctx, u2, "Plain Post", user.ID, "", []uuid.UUID{colID}, nil, false)
 	be.NilErr(t, err)
 
 	full, err := testDB.GetCollection(ctx, colID)
@@ -205,7 +205,7 @@ func TestUpdateBookmarkNotesTags(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/post")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", user.ID, "", nil, []string{"go", "web"})
+	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", user.ID, "", nil, []string{"go", "web"}, false)
 	be.NilErr(t, err)
 
 	updated, err := testDB.UpdateBookmarkNotesTags(ctx, bk.ID, user.ID, "a note", []string{"css"})
@@ -244,7 +244,7 @@ func TestUpdateBookmarkCollectionIDs(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/post")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", owner.ID, "", []uuid.UUID{own[0].ID}, nil)
+	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", owner.ID, "", []uuid.UUID{own[0].ID}, nil, false)
 	be.NilErr(t, err)
 	// other adds the bookmark to their (shared) collection directly
 	_, err = testDB.Pool.Exec(ctx, `insert into collection_bookmarks (collection_id, bookmark_id) values ($1, $2)`, shared[0].ID, bk.ID)
@@ -298,7 +298,7 @@ func TestBookmarkCollectionEditAccess(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/shared")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Shared Post", author.ID, "", []uuid.UUID{colls[0].ID}, nil)
+	bk, err := testDB.CreateBookmark(ctx, u, "Shared Post", author.ID, "", []uuid.UUID{colls[0].ID}, nil, false)
 	be.NilErr(t, err)
 
 	// author reads their own bookmark through the collection-edit fetch
@@ -338,7 +338,7 @@ func TestFindUserBookmarkByURL(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/dup-check")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Dup Check", author.ID, "", nil, nil)
+	bk, err := testDB.CreateBookmark(ctx, u, "Dup Check", author.ID, "", nil, nil, false)
 	be.NilErr(t, err)
 
 	// exact URL, same author → found
@@ -380,7 +380,7 @@ func TestArchiveBookmark(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/archived")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, "", []uuid.UUID{colID}, []string{"go"})
+	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, "", []uuid.UUID{colID}, []string{"go"}, false)
 	be.NilErr(t, err)
 
 	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
@@ -414,7 +414,7 @@ func TestArchivedLifecycle(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/archived")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, "", nil, []string{"go"})
+	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, "", nil, []string{"go"}, false)
 	be.NilErr(t, err)
 
 	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID))
@@ -447,7 +447,7 @@ func TestArchivedLifecycle(t *testing.T) {
 	// author-only restore/delete — on a fresh bookmark
 	u2, err := url.Parse("https://example.com/again")
 	be.NilErr(t, err)
-	bk2, err := testDB.CreateBookmark(ctx, u2, "Another Post", user.ID, "", nil, nil)
+	bk2, err := testDB.CreateBookmark(ctx, u2, "Another Post", user.ID, "", nil, nil, false)
 	be.NilErr(t, err)
 	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk2.ID, user.ID))
 	err = testDB.RestoreBookmark(ctx, bk2.ID, other.ID)
@@ -463,7 +463,7 @@ func TestBookmarkRepository(t *testing.T) {
 
 	u, err := url.Parse("https://example.com/post")
 	be.NilErr(t, err)
-	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", user.ID, "", nil, []string{"go", "web"})
+	bk, err := testDB.CreateBookmark(ctx, u, "Example Post", user.ID, "", nil, []string{"go", "web"}, false)
 	be.NilErr(t, err)
 	be.Equal(t, "Example Post", bk.Title)
 

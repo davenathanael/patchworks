@@ -14,9 +14,9 @@ import (
 
 const archiveBookmark = `-- name: ArchiveBookmark :one
 UPDATE bookmarks
-SET archived_at = now()
+SET archived_at = now(), queued_at = NULL
 WHERE id = $1::uuid AND author_id = $2::uuid
-RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes, queued_at
 `
 
 type ArchiveBookmarkParams struct {
@@ -36,14 +36,15 @@ func (q *Queries) ArchiveBookmark(ctx context.Context, arg ArchiveBookmarkParams
 		&i.ArchivedAt,
 		&i.AuthorID,
 		&i.Notes,
+		&i.QueuedAt,
 	)
 	return i, err
 }
 
 const createBookmark = `-- name: CreateBookmark :one
-INSERT INTO bookmarks (id, url, title, notes, author_id)
-VALUES ($1, $2, $3, $4, $5::uuid)
-RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+INSERT INTO bookmarks (id, url, title, notes, queued_at, author_id)
+VALUES ($1, $2, $3, $4, $5::timestamp, $6::uuid)
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes, queued_at
 `
 
 type CreateBookmarkParams struct {
@@ -51,6 +52,7 @@ type CreateBookmarkParams struct {
 	Url      string
 	Title    string
 	Notes    string
+	QueuedAt pgtype.Timestamp
 	AuthorID uuid.UUID
 }
 
@@ -60,6 +62,7 @@ func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) 
 		arg.Url,
 		arg.Title,
 		arg.Notes,
+		arg.QueuedAt,
 		arg.AuthorID,
 	)
 	var i Bookmark
@@ -72,6 +75,7 @@ func (q *Queries) CreateBookmark(ctx context.Context, arg CreateBookmarkParams) 
 		&i.ArchivedAt,
 		&i.AuthorID,
 		&i.Notes,
+		&i.QueuedAt,
 	)
 	return i, err
 }
@@ -153,8 +157,67 @@ func (q *Queries) DeleteBookmarkTags(ctx context.Context, arg DeleteBookmarkTags
 	return err
 }
 
+const dequeueBookmark = `-- name: DequeueBookmark :one
+UPDATE bookmarks
+SET queued_at = NULL
+WHERE id = $1::uuid AND author_id = $2::uuid
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes, queued_at
+`
+
+type DequeueBookmarkParams struct {
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) DequeueBookmark(ctx context.Context, arg DequeueBookmarkParams) (Bookmark, error) {
+	row := q.db.QueryRow(ctx, dequeueBookmark, arg.ID, arg.AuthorID)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+		&i.AuthorID,
+		&i.Notes,
+		&i.QueuedAt,
+	)
+	return i, err
+}
+
+const enqueueBookmark = `-- name: EnqueueBookmark :one
+UPDATE bookmarks
+SET queued_at = now()
+WHERE id = $1::uuid AND author_id = $2::uuid
+  AND queued_at IS NULL AND archived_at IS NULL
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes, queued_at
+`
+
+type EnqueueBookmarkParams struct {
+	ID       uuid.UUID
+	AuthorID uuid.UUID
+}
+
+func (q *Queries) EnqueueBookmark(ctx context.Context, arg EnqueueBookmarkParams) (Bookmark, error) {
+	row := q.db.QueryRow(ctx, enqueueBookmark, arg.ID, arg.AuthorID)
+	var i Bookmark
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Title,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+		&i.AuthorID,
+		&i.Notes,
+		&i.QueuedAt,
+	)
+	return i, err
+}
+
 const findUserBookmarkByUrl = `-- name: FindUserBookmarkByUrl :one
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid AND bookmarks.url = $2
@@ -184,6 +247,7 @@ func (q *Queries) FindUserBookmarkByUrl(ctx context.Context, arg FindUserBookmar
 		&i.Bookmark.ArchivedAt,
 		&i.Bookmark.AuthorID,
 		&i.Bookmark.Notes,
+		&i.Bookmark.QueuedAt,
 		&i.User.ID,
 		&i.User.Email,
 		&i.User.CreatedAt,
@@ -195,7 +259,7 @@ func (q *Queries) FindUserBookmarkByUrl(ctx context.Context, arg FindUserBookmar
 }
 
 const getAllBookmarksByUserId = `-- name: GetAllBookmarksByUserId :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
@@ -233,6 +297,7 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmar
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -251,7 +316,7 @@ func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmar
 }
 
 const getArchivedBookmarksByUserId = `-- name: GetArchivedBookmarksByUserId :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
@@ -282,6 +347,7 @@ func (q *Queries) GetArchivedBookmarksByUserId(ctx context.Context, authorID uui
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -300,7 +366,7 @@ func (q *Queries) GetArchivedBookmarksByUserId(ctx context.Context, authorID uui
 }
 
 const getBookmarkById = `-- name: GetBookmarkById :one
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.id = $1::uuid AND bookmarks.author_id = $2::uuid AND bookmarks.archived_at IS NULL
@@ -328,6 +394,7 @@ func (q *Queries) GetBookmarkById(ctx context.Context, arg GetBookmarkByIdParams
 		&i.Bookmark.ArchivedAt,
 		&i.Bookmark.AuthorID,
 		&i.Bookmark.Notes,
+		&i.Bookmark.QueuedAt,
 		&i.User.ID,
 		&i.User.Email,
 		&i.User.CreatedAt,
@@ -339,7 +406,7 @@ func (q *Queries) GetBookmarkById(ctx context.Context, arg GetBookmarkByIdParams
 }
 
 const getBookmarkForCollectionEdit = `-- name: GetBookmarkForCollectionEdit :one
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.id = $1::uuid AND bookmarks.archived_at IS NULL
@@ -378,6 +445,7 @@ func (q *Queries) GetBookmarkForCollectionEdit(ctx context.Context, arg GetBookm
 		&i.Bookmark.ArchivedAt,
 		&i.Bookmark.AuthorID,
 		&i.Bookmark.Notes,
+		&i.Bookmark.QueuedAt,
 		&i.User.ID,
 		&i.User.Email,
 		&i.User.CreatedAt,
@@ -389,7 +457,7 @@ func (q *Queries) GetBookmarkForCollectionEdit(ctx context.Context, arg GetBookm
 }
 
 const getBookmarksByCollection = `-- name: GetBookmarksByCollection :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
@@ -428,6 +496,7 @@ func (q *Queries) GetBookmarksByCollection(ctx context.Context, arg GetBookmarks
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -446,7 +515,7 @@ func (q *Queries) GetBookmarksByCollection(ctx context.Context, arg GetBookmarks
 }
 
 const getBookmarksByCollectionAndTags = `-- name: GetBookmarksByCollectionAndTags :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
@@ -488,6 +557,7 @@ func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBo
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -507,7 +577,7 @@ func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBo
 
 const getBookmarksByCollectionId = `-- name: GetBookmarksByCollectionId :many
 SELECT
-    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes,
+    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at,
     users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash,
     bookmark_tags.tag as tag,
     collection_bookmarks.added_at as added_at
@@ -545,6 +615,7 @@ func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID u
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -566,7 +637,7 @@ func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID u
 
 const getBookmarksByTags = `-- name: GetBookmarksByTags :many
 SELECT DISTINCT ON (bookmarks.id)
-    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
@@ -607,6 +678,7 @@ func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTags
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -655,8 +727,59 @@ func (q *Queries) GetCollectionIdsByBookmarkIds(ctx context.Context, bookmarkIds
 	return items, nil
 }
 
+const getQueuedBookmarksByUserId = `-- name: GetQueuedBookmarksByUserId :many
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = $1::uuid
+AND bookmarks.queued_at IS NOT NULL
+AND bookmarks.archived_at IS NULL
+ORDER BY bookmarks.queued_at ASC
+`
+
+type GetQueuedBookmarksByUserIdRow struct {
+	Bookmark Bookmark
+	User     User
+}
+
+func (q *Queries) GetQueuedBookmarksByUserId(ctx context.Context, authorID uuid.UUID) ([]GetQueuedBookmarksByUserIdRow, error) {
+	rows, err := q.db.Query(ctx, getQueuedBookmarksByUserId, authorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetQueuedBookmarksByUserIdRow
+	for rows.Next() {
+		var i GetQueuedBookmarksByUserIdRow
+		if err := rows.Scan(
+			&i.Bookmark.ID,
+			&i.Bookmark.Url,
+			&i.Bookmark.Title,
+			&i.Bookmark.CreatedAt,
+			&i.Bookmark.UpdatedAt,
+			&i.Bookmark.ArchivedAt,
+			&i.Bookmark.AuthorID,
+			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
+			&i.User.ID,
+			&i.User.Email,
+			&i.User.CreatedAt,
+			&i.User.UpdatedAt,
+			&i.User.LastLoginAt,
+			&i.User.PasswordHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRecentBookmarksByUserId = `-- name: GetRecentBookmarksByUserId :many
-SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
@@ -694,6 +817,7 @@ func (q *Queries) GetRecentBookmarksByUserId(ctx context.Context, arg GetRecentB
 			&i.Bookmark.ArchivedAt,
 			&i.Bookmark.AuthorID,
 			&i.Bookmark.Notes,
+			&i.Bookmark.QueuedAt,
 			&i.User.ID,
 			&i.User.Email,
 			&i.User.CreatedAt,
@@ -780,7 +904,7 @@ const restoreBookmark = `-- name: RestoreBookmark :one
 UPDATE bookmarks
 SET archived_at = NULL
 WHERE id = $1::uuid AND author_id = $2::uuid
-RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes, queued_at
 `
 
 type RestoreBookmarkParams struct {
@@ -800,6 +924,7 @@ func (q *Queries) RestoreBookmark(ctx context.Context, arg RestoreBookmarkParams
 		&i.ArchivedAt,
 		&i.AuthorID,
 		&i.Notes,
+		&i.QueuedAt,
 	)
 	return i, err
 }
@@ -808,7 +933,7 @@ const updateBookmarkNotesTags = `-- name: UpdateBookmarkNotesTags :one
 UPDATE bookmarks
 SET notes = $1::text
 WHERE id = $2::uuid AND author_id = $3::uuid
-RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes
+RETURNING id, url, title, created_at, updated_at, archived_at, author_id, notes, queued_at
 `
 
 type UpdateBookmarkNotesTagsParams struct {
@@ -829,6 +954,7 @@ func (q *Queries) UpdateBookmarkNotesTags(ctx context.Context, arg UpdateBookmar
 		&i.ArchivedAt,
 		&i.AuthorID,
 		&i.Notes,
+		&i.QueuedAt,
 	)
 	return i, err
 }

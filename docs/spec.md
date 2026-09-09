@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v1.4 · **Last updated:** 2026-09-04 · **Owner:** Dave Nathanael
+**Status:** Draft v1.6 · **Last updated:** 2026-09-09 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -19,6 +19,7 @@
 | 1.3 | 2026-09-04 | FR-11 landed in §5.2 as **BK-11** — soft duplicate-URL reminder with Save-anyway override; FR-11 removed from §7.2 |
 | 1.4 | 2026-09-04 | Reading list fully designed in §7.2 (**FR-10**, was one-liner): per-user FIFO queue at `/reading`, row-menu toggle, mark-as-read, archive interaction; new **FR-23** (create-form notes) and **FR-24** (multi-collection at save, reusing the CL-8 picker) in §7.1; §5.2 gaps + §6.3 matrix updated to point at them |
 | 1.5 | 2026-09-08 | FR-23 landed in §5.2 as **BK-12** — notes field on the add-bookmark form; FR-24 landed in §5.2 as **BK-13** — multi-collection picker at save (reuses the CL-8 picker); both removed from §7.1 |
+| 1.6 | 2026-09-09 | FR-10 landed in §5.2 as **BK-14** — reading list (FIFO queue at `/reading`, `queued_at` on bookmarks, add-form checkbox + row-menu toggle, mark-as-read dequeue, archive auto-dequeues); **FR-25** added to §7.1; FR-10 removed from §7.2 |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -94,6 +95,7 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-11** *(formerly FR-11)* Duplicate URL detection on save: an exact-URL bookmark by the same author (any archived state) triggers a soft inline reminder — existing title + when it was saved — with a **Save anyway** override (`save_anyway=true` marker on the warned re-render); submitted values are preserved. Exact string match, no URL normalization (a normalized column is a schema-ready follow-up if needed). Non-duplicate saves are unchanged.
 - **BK-12** *(formerly FR-23)* Notes on the add-bookmark form: optional free-text notes field at save time, stored and rendered exactly like post-save notes (BK-7/BK-8). No schema change.
 - **BK-13** *(formerly FR-24)* Multi-collection selection at save: the create form offers the CL-8 picker (search + checkbox list) of collections the user can manage (§6.3: owner/editor per collection), nothing pre-checked; one save links the bookmark to every selected collection. Submitting a collection the user can't manage fails the whole save (403) — nothing is created.
+- **BK-14** *(formerly FR-10)* Reading list — a per-user FIFO queue at **`/reading`** (side-nav entry), listed **oldest-enqueued first**. Enqueue paths: an **"Add to reading list"** checkbox on the add-bookmark form (unchecked by default) and an **Add to / remove from reading list** row-menu toggle on existing bookmarks; **Mark as read** on `/reading` dequeues the row — removal only, no read history. Archiving a queued bookmark auto-dequeues it; restoring does **not** re-enqueue. Own bookmarks only, detached from collections; queue state is a `queued_at` timestamp on the bookmark (no join table). Without JavaScript the toggles fall back to plain form POSTs that redirect.
 - **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4).
 
 ### 5.3 Collections & sharing — *impl / partial*
@@ -170,6 +172,7 @@ matrix.
 | Edit notes & tags (BK-8) | author only |
 | Archive / restore (BK-9, BK-10) | author only |
 | Hard-delete (BK-10) | author only |
+| Add to / remove from the reading list, mark as read (BK-14) | author only |
 
 ### 6.4 Error semantics
 
@@ -189,17 +192,13 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 
 - **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 
+- **FR-25** Per-user **"add new bookmarks to the reading list by default"** setting on a settings page (follows BK-14's add-form checkbox).
+
 ### 7.2 Medium-term
 
 - **FR-7** Full-text search (Postgres `tsvector` or `pg_trgm`), tag autocomplete in filters.
 - **FR-8** Import from browser HTML export / OPML; export collections to JSON/HTML.
 - **FR-9** Link health: periodic HEAD/GET checks, broken-link badges. *(needs a background job — new infra)*
-- **FR-10** Reading list — a per-user FIFO queue of bookmarks to read, independent of collections:
-  - Page **`/reading`** (side-nav entry) lists queued bookmarks **oldest-enqueued first**; each row keeps the usual link/menu plus a **Mark as read** action that dequeues it. Removal only — no read history.
-  - Enqueue paths: an **"Add to reading list"** checkbox on the add-bookmark form (lands together with BK-12's form revision), and an **Add to / remove from reading list** row-menu toggle (like Archive) for existing bookmarks.
-  - Detached from collections: a queued bookmark may belong to any number of collections or none; the queue is keyed to the author (bookmarks are author-scoped), so enqueue state can be a `queued_at` timestamp on the bookmark rather than a join table.
-  - Archiving a queued bookmark auto-dequeues it; restoring does **not** re-enqueue.
-  - Queue visibility follows bookmark visibility (own bookmarks only; no sharing).
 - **FR-12** Email verification and password reset flows (prerequisite for serious OAuth/password UX).
 
 ### 7.3 Longer-term / exploratory

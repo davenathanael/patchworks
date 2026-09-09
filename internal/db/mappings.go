@@ -53,6 +53,7 @@ func toBookmarks(rows []sqlc.GetRecentBookmarksByUserIdRow, tagRows []sqlc.GetTa
 			CreatedAt:  row.Bookmark.CreatedAt.Time,
 			UpdatedAt:  row.Bookmark.UpdatedAt.Time,
 			ArchivedAt: row.Bookmark.ArchivedAt.Time,
+			QueuedAt:   row.Bookmark.QueuedAt.Time,
 			Author:     toUser(row.User),
 			Tags:       tagsByBookmark[row.Bookmark.ID],
 		}
@@ -71,6 +72,7 @@ func toBookmark(createdBookmark sqlc.Bookmark, tags []string, user core.User) co
 		CreatedAt:  createdBookmark.CreatedAt.Time,
 		UpdatedAt:  createdBookmark.UpdatedAt.Time,
 		ArchivedAt: createdBookmark.ArchivedAt.Time,
+		QueuedAt:   createdBookmark.QueuedAt.Time,
 		Author:     user,
 		Tags:       tags,
 	}

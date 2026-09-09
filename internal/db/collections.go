@@ -125,6 +125,7 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 				CreatedAt:  row.Bookmark.CreatedAt.Time,
 				UpdatedAt:  row.Bookmark.UpdatedAt.Time,
 				ArchivedAt: row.Bookmark.ArchivedAt.Time,
+				QueuedAt:   row.Bookmark.QueuedAt.Time,
 				Author:     toUser(row.User),
 			}
 			bookmarksByID[row.Bookmark.ID] = bm

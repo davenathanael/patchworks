@@ -38,6 +38,7 @@ type (
 		CreatedAt     time.Time
 		UpdatedAt     time.Time
 		ArchivedAt    time.Time
+		QueuedAt      time.Time
 		Author        User
 		Tags          []string
 		CollectionIDs []uuid.UUID

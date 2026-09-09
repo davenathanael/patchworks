@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/carlmjohnson/be"
 	"github.com/davenathanael/patchwork/internal/core"
@@ -593,6 +594,103 @@ func TestPostBookmarkDeleteNotAuthor(t *testing.T) {
 	be.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestGetReadingPage(t *testing.T) {
+	bm := &fakeBookmarkStore{queued: []core.Bookmark{
+		mustBookmark(t, "https://first.com", "First"),
+		mustBookmark(t, "https://second.com", "Second"),
+	}}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getReading(rec, mustAuthedRequest(t, http.MethodGet, "/reading", nil), bm))
+
+	be.Equal(t, http.StatusOK, rec.Code)
+	be.Equal(t, "queued", bm.last)
+	be.True(t, containsBody(rec, "Reading list"))
+	be.True(t, containsBody(rec, "Mark as read"))
+	first := strings.Index(rec.Body.String(), "First")
+	second := strings.Index(rec.Body.String(), "Second")
+	be.True(t, first != -1 && first < second) // FIFO: queue order preserved
+}
+
+func TestPostBookmarkReading(t *testing.T) {
+	t.Run("enqueues when not queued", func(t *testing.T) {
+		bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Fresh")}
+
+		rec := httptest.NewRecorder()
+		be.NilErr(t, postBookmarkReading(rec, routeFormRequest(t, bm.one.ID, ""), bm))
+
+		be.Equal(t, http.StatusSeeOther, rec.Code)
+		be.Equal(t, "enqueue", bm.last)
+		be.Equal(t, "/", rec.Header().Get("Location")) // no next → default
+	})
+
+	t.Run("dequeues when queued", func(t *testing.T) {
+		bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Queued")}
+		bm.one.QueuedAt = time.Now()
+
+		rec := httptest.NewRecorder()
+		be.NilErr(t, postBookmarkReading(rec, routeFormRequest(t, bm.one.ID, "next=/reading"), bm))
+
+		be.Equal(t, http.StatusSeeOther, rec.Code)
+		be.Equal(t, "dequeue", bm.last)
+		be.Equal(t, "/reading", rec.Header().Get("Location"))
+	})
+
+	t.Run("htmx deletes the row", func(t *testing.T) {
+		bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Queued")}
+		bm.one.QueuedAt = time.Now()
+
+		rec := httptest.NewRecorder()
+		r := routeFormRequest(t, bm.one.ID, "next=/reading")
+		r.Header.Set("HX-Request", "true")
+		be.NilErr(t, postBookmarkReading(rec, r, bm))
+
+		be.Equal(t, http.StatusOK, rec.Code)
+		be.Equal(t, "", rec.Body.String())
+	})
+
+	t.Run("plain submit follows next", func(t *testing.T) {
+		bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Fresh")}
+
+		rec := httptest.NewRecorder()
+		be.NilErr(t, postBookmarkReading(rec, routeFormRequest(t, bm.one.ID, "next=/collections"), bm))
+
+		be.Equal(t, http.StatusSeeOther, rec.Code)
+		be.Equal(t, "/collections", rec.Header().Get("Location"))
+	})
+
+	t.Run("plain submit rejects off-site next", func(t *testing.T) {
+		bm := &fakeBookmarkStore{one: mustBookmark(t, "https://example.com", "Fresh")}
+
+		rec := httptest.NewRecorder()
+		be.NilErr(t, postBookmarkReading(rec, routeFormRequest(t, bm.one.ID, "next=//evil.example.com"), bm))
+
+		be.Equal(t, http.StatusSeeOther, rec.Code)
+		be.Equal(t, "/", rec.Header().Get("Location"))
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		bm := &fakeBookmarkStore{err: core.ErrNotFound}
+
+		rec := serve(func(w http.ResponseWriter, r *http.Request) error {
+			return postBookmarkReading(w, r, bm)
+		}, routeFormRequest(t, uuid.New(), ""))
+
+		be.Equal(t, http.StatusNotFound, rec.Code)
+	})
+}
+
+func TestPostBookmarksQueued(t *testing.T) {
+	bm := &fakeBookmarkStore{}
+	col := &fakeCollectionStore{}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, postBookmarks(rec, mustFormRequest(t, "url=http%3A%2F%2Fexample.com&add_to_reading=true"), col, bm, fakeTitleFetcher{title: "Example"}))
+
+	be.Equal(t, http.StatusSeeOther, rec.Code)
+	be.True(t, bm.created[0].queued)
+}
+
 // --- fakes & helpers ---
 
 // serve runs a Handler through Adapt so status codes are written by the
@@ -608,6 +706,7 @@ var errFake = errors.New("boom")
 type createdBookmark struct {
 	bk     core.Bookmark
 	colIDs []uuid.UUID
+	queued bool
 }
 
 type fakeBookmarkStore struct {
@@ -616,6 +715,7 @@ type fakeBookmarkStore struct {
 	recent          []core.Bookmark
 	all             []core.Bookmark
 	archived        []core.Bookmark
+	queued          []core.Bookmark
 	one             core.Bookmark  // single-bookmark target (edit routes)
 	dup             *core.Bookmark // FR-11 reminder: author's existing bookmark for the URL
 	last            string         // which query method ran last
@@ -654,9 +754,9 @@ func (f *fakeBookmarkStore) GetBookmarksByTags(ctx context.Context, userID uuid.
 	return f.all, f.err
 }
 
-func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string) (core.Bookmark, error) {
+func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string, queued bool) (core.Bookmark, error) {
 	b := core.Bookmark{ID: uuid.New(), URL: u, Title: title, Notes: notes, Author: core.User{ID: userID}, Tags: tags}
-	f.created = append(f.created, createdBookmark{bk: b, colIDs: collectionIDs})
+	f.created = append(f.created, createdBookmark{bk: b, colIDs: collectionIDs, queued: queued})
 	return b, f.err
 }
 
@@ -718,6 +818,27 @@ func (f *fakeBookmarkStore) RestoreBookmark(ctx context.Context, id, userID uuid
 func (f *fakeBookmarkStore) DeleteBookmark(ctx context.Context, id, userID uuid.UUID) error {
 	f.last = "delete"
 	return f.err
+}
+
+func (f *fakeBookmarkStore) GetQueuedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error) {
+	f.last = "queued"
+	return f.queued, f.err
+}
+
+func (f *fakeBookmarkStore) EnqueueBookmark(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	f.last = "enqueue"
+	if f.err != nil {
+		return core.Bookmark{}, f.err
+	}
+	return f.one, nil
+}
+
+func (f *fakeBookmarkStore) DequeueBookmark(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	f.last = "dequeue"
+	if f.err != nil {
+		return core.Bookmark{}, f.err
+	}
+	return f.one, nil
 }
 
 // fakeTitleFetcher returns a fixed title for any URL.

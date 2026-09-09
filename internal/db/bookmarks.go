@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/davenathanael/patchwork/internal/core"
 	"github.com/davenathanael/patchwork/internal/db/sqlc"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (db *DB) GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, error) {
@@ -95,7 +97,7 @@ func (db *DB) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []s
 	return db.toBookmarksWithTags(ctx, recent)
 }
 
-func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string) (core.Bookmark, error) {
+func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string, queued bool) (core.Bookmark, error) {
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return core.Bookmark{}, err
@@ -110,6 +112,7 @@ func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, us
 		Url:      url.String(),
 		Title:    title,
 		Notes:    notes,
+		QueuedAt: pgtype.Timestamp{Time: time.Now(), Valid: queued},
 		AuthorID: userID,
 	})
 	if err != nil {
@@ -350,6 +353,56 @@ func (db *DB) GetArchivedBookmarksByUser(ctx context.Context, userID uuid.UUID) 
 		return sqlc.GetRecentBookmarksByUserIdRow(r)
 	})
 	return db.toBookmarksWithTags(ctx, recent)
+}
+
+// GetQueuedBookmarksByUser lists the user's reading-list bookmarks, oldest
+// queue entry first (FIFO), with tags and collection membership attached.
+func (db *DB) GetQueuedBookmarksByUser(ctx context.Context, userID uuid.UUID) ([]core.Bookmark, error) {
+	rows, err := db.querier.GetQueuedBookmarksByUserId(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	recent := Map(rows, func(r sqlc.GetQueuedBookmarksByUserIdRow) sqlc.GetRecentBookmarksByUserIdRow {
+		return sqlc.GetRecentBookmarksByUserIdRow(r)
+	})
+	return db.toBookmarksWithTags(ctx, recent)
+}
+
+// EnqueueBookmark stamps queued_at (reading-list add). Author-only; ErrNotFound
+// if not the author. The guard rejects already-queued or archived rows — the
+// toggle decides between enqueue and dequeue before calling.
+func (db *DB) EnqueueBookmark(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	row, err := db.querier.EnqueueBookmark(ctx, sqlc.EnqueueBookmarkParams{ID: id, AuthorID: userID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.Bookmark{}, fmt.Errorf("enqueue bookmark: %w", core.ErrNotFound)
+		}
+		return core.Bookmark{}, err
+	}
+	return db.updatedBookmark(ctx, id, userID, row)
+}
+
+// DequeueBookmark clears queued_at ("mark as read"). Author-only; ErrNotFound
+// if not the author.
+func (db *DB) DequeueBookmark(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error) {
+	row, err := db.querier.DequeueBookmark(ctx, sqlc.DequeueBookmarkParams{ID: id, AuthorID: userID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return core.Bookmark{}, fmt.Errorf("dequeue bookmark: %w", core.ErrNotFound)
+		}
+		return core.Bookmark{}, err
+	}
+	return db.updatedBookmark(ctx, id, userID, row)
+}
+
+// updatedBookmark resolves a just-returned bookmark row into a full
+// core.Bookmark, like GetBookmarkByID does.
+func (db *DB) updatedBookmark(ctx context.Context, id, userID uuid.UUID, b sqlc.Bookmark) (core.Bookmark, error) {
+	user, err := db.querier.GetUserById(ctx, userID)
+	if err != nil {
+		return core.Bookmark{}, err
+	}
+	return db.bookmarkWithTags(ctx, id, b, user)
 }
 
 // RestoreBookmark clears archived_at, bringing the bookmark back into the

@@ -110,7 +110,7 @@ LIMIT 1;
 
 -- name: ArchiveBookmark :one
 UPDATE bookmarks
-SET archived_at = now()
+SET archived_at = now(), queued_at = NULL
 WHERE id = @id::uuid AND author_id = @author_id::uuid
 RETURNING *;
 
@@ -125,6 +125,28 @@ ORDER BY bookmarks.archived_at DESC;
 -- name: RestoreBookmark :one
 UPDATE bookmarks
 SET archived_at = NULL
+WHERE id = @id::uuid AND author_id = @author_id::uuid
+RETURNING *;
+
+-- name: GetQueuedBookmarksByUserId :many
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
+FROM bookmarks
+JOIN users ON bookmarks.author_id = users.id
+WHERE bookmarks.author_id = @author_id::uuid
+AND bookmarks.queued_at IS NOT NULL
+AND bookmarks.archived_at IS NULL
+ORDER BY bookmarks.queued_at ASC;
+
+-- name: EnqueueBookmark :one
+UPDATE bookmarks
+SET queued_at = now()
+WHERE id = @id::uuid AND author_id = @author_id::uuid
+  AND queued_at IS NULL AND archived_at IS NULL
+RETURNING *;
+
+-- name: DequeueBookmark :one
+UPDATE bookmarks
+SET queued_at = NULL
 WHERE id = @id::uuid AND author_id = @author_id::uuid
 RETURNING *;
 
@@ -152,8 +174,8 @@ WHERE author_id = $1
 GROUP BY tag;
 
 -- name: CreateBookmark :one
-INSERT INTO bookmarks (id, url, title, notes, author_id)
-VALUES ($1, $2, $3, $4, @author_id::uuid)
+INSERT INTO bookmarks (id, url, title, notes, queued_at, author_id)
+VALUES ($1, $2, $3, $4, @queued_at::timestamp, @author_id::uuid)
 RETURNING *;
 
 -- name: CreateBookmarkTags :copyfrom
