@@ -90,6 +90,125 @@ func TestGetHomeStoreError(t *testing.T) {
 	be.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
+func TestGetHomeRecentCursorPage(t *testing.T) {
+	cursor := core.BookmarkCursor{CreatedAt: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC), ID: uuid.New()}
+	bm := &fakeBookmarkStore{recent: []core.Bookmark{mustBookmark(t, "https://a.com", "A")}, hasOlder: true}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?older="+core.EncodeCursor(cursor), nil), &fakeCollectionStore{}, bm))
+
+	be.Equal(t, "recent", bm.last)
+	be.Equal(t, 10, bm.page.Limit) // recent page size
+	be.Equal(t, cursor, *bm.page.Older)
+}
+
+func TestGetHomeFilteredPageSizes(t *testing.T) {
+	colID := uuid.New()
+	tests := []struct {
+		name      string
+		target    string
+		wantLast  string
+		wantLimit int
+	}{
+		{"search", "/?search=go", "all", 20},
+		{"collection", "/?collection_id=" + colID.String(), "collection", 20},
+		{"tags", "/?tags=go", "tags", 20},
+		{"collection+tags", "/?collection_id=" + colID.String() + "&tags=go", "collection+tags", 20},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			bm := &fakeBookmarkStore{all: []core.Bookmark{mustBookmark(t, "https://b.com", "B")}}
+			rec := httptest.NewRecorder()
+			be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, tc.target, nil), &fakeCollectionStore{}, bm))
+			be.Equal(t, tc.wantLast, bm.last)
+			be.Equal(t, tc.wantLimit, bm.page.Limit)
+		})
+	}
+}
+
+func TestGetHomeCursorEdgeCases(t *testing.T) {
+	cursor := core.BookmarkCursor{CreatedAt: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC), ID: uuid.New()}
+	tests := []struct {
+		name      string
+		target    string
+		wantOlder *core.BookmarkCursor
+	}{
+		{"invalid cursor ignored", "/?older=!!!garbage!!!", nil},
+		{"empty cursor ignored", "/?older=", nil},
+		{"newer param ignored", "/?newer=" + core.EncodeCursor(cursor), nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			bm := &fakeBookmarkStore{recent: []core.Bookmark{mustBookmark(t, "https://a.com", "A")}}
+			rec := httptest.NewRecorder()
+			be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, tc.target, nil), &fakeCollectionStore{}, bm))
+			b := bm.page
+			be.Equal(t, tc.wantOlder != nil, b.Older != nil)
+			if b.Older != nil {
+				be.Equal(t, *tc.wantOlder, *b.Older)
+			}
+		})
+	}
+}
+
+func TestGetHomeRecentShowsLoadMoreOnly(t *testing.T) {
+	bm := &fakeBookmarkStore{recent: []core.Bookmark{mustBookmark(t, "https://a.com", "A")}, hasOlder: true}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/", nil), &fakeCollectionStore{}, bm))
+
+	be.True(t, containsBody(rec, "Load more"))
+	be.True(t, !containsBody(rec, "Load previous"))
+	be.True(t, containsBody(rec, `id="recent-pager"`))
+	be.True(t, containsBody(rec, `id="recent-list"`))
+}
+
+func TestGetHomeFilteredPagerPreservesFilters(t *testing.T) {
+	colID := uuid.New()
+	bm := &fakeBookmarkStore{all: []core.Bookmark{mustBookmark(t, "https://b.com", "B")}, hasOlder: true}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, "/?tags=go&collection_id="+colID.String(), nil), &fakeCollectionStore{}, bm))
+
+	be.True(t, containsBody(rec, `id="bookmarks-pager"`))
+	be.True(t, containsBody(rec, "Load more"))
+	be.True(t, containsBody(rec, "tags=go")) // plain hrefs keep filters
+	be.True(t, containsBody(rec, "collection_id="+colID.String()))
+	// fresh load: no back link, no load previous
+	be.False(t, containsBody(rec, "Back to latest"))
+	be.False(t, containsBody(rec, "Load previous"))
+}
+
+func TestGetHomeOlderBatchShowsBackToLatest(t *testing.T) {
+	cursor := core.BookmarkCursor{CreatedAt: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC), ID: uuid.New()}
+	colID := uuid.New()
+	bm := &fakeBookmarkStore{all: []core.Bookmark{mustBookmark(t, "https://b.com", "B")}, hasOlder: true, hasNewer: true}
+
+	rec := httptest.NewRecorder()
+	target := "/?tags=go&collection_id=" + colID.String() + "&older=" + core.EncodeCursor(cursor)
+	be.NilErr(t, getHome(rec, mustAuthedRequest(t, http.MethodGet, target, nil), &fakeCollectionStore{}, bm))
+
+	be.True(t, containsBody(rec, "Back to latest"))
+	be.True(t, containsBody(rec, `href="/?collection_id=`+colID.String()+`&amp;tags=go"`)) // cursor params stripped, filters kept
+	be.True(t, !containsBody(rec, "Load previous"))
+}
+
+func TestGetHomeHtmxPagerFragment(t *testing.T) {
+	cursor := core.BookmarkCursor{CreatedAt: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC), ID: uuid.New()}
+	bm := &fakeBookmarkStore{recent: []core.Bookmark{mustBookmark(t, "https://a.com", "A")}, hasOlder: true, hasNewer: true}
+
+	r := mustAuthedRequest(t, http.MethodGet, "/?older="+core.EncodeCursor(cursor), nil)
+	r.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getHome(rec, r, &fakeCollectionStore{}, bm))
+
+	be.True(t, containsBody(rec, "A"))                               // the fetched rows
+	be.True(t, strings.Count(rec.Body.String(), "hx-swap-oob") == 1) // pager nav only, no filters OOB
+	be.True(t, containsBody(rec, `id="recent-pager"`))
+	be.True(t, containsBody(rec, "Back to latest")) // OOB pager offers the way up
+	be.True(t, !containsBody(rec, "Dashboard"))     // items fragment, not the full page
+}
+
 func TestPostBookmarksCreatesAndRedirects(t *testing.T) {
 	bm := &fakeBookmarkStore{}
 	col := &fakeCollectionStore{}
@@ -720,6 +839,9 @@ type fakeBookmarkStore struct {
 	dup             *core.Bookmark // FR-11 reminder: author's existing bookmark for the URL
 	last            string         // which query method ran last
 	gotCollectionID uuid.UUID
+	page            core.CursorPage // captured from the last list call
+	hasOlder        bool            // pager flags returned by the list calls
+	hasNewer        bool
 	created         []createdBookmark
 }
 
@@ -727,31 +849,36 @@ func (f *fakeBookmarkStore) GetTagsByUser(ctx context.Context, userID uuid.UUID)
 	return f.tags, f.err
 }
 
-func (f *fakeBookmarkStore) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
+func (f *fakeBookmarkStore) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error) {
 	f.last = "recent"
-	return f.recent, f.err
+	f.page = page
+	return core.BookmarkPage{Items: f.recent, HasOlder: f.hasOlder, HasNewer: f.hasNewer}, f.err
 }
 
-func (f *fakeBookmarkStore) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
+func (f *fakeBookmarkStore) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error) {
 	f.last = "all"
-	return f.all, f.err
+	f.page = page
+	return core.BookmarkPage{Items: f.all, HasOlder: f.hasOlder, HasNewer: f.hasNewer}, f.err
 }
 
-func (f *fakeBookmarkStore) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error) {
+func (f *fakeBookmarkStore) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string, page core.CursorPage) (core.BookmarkPage, error) {
 	f.last = "collection+tags"
 	f.gotCollectionID = collectionID
-	return f.all, f.err
+	f.page = page
+	return core.BookmarkPage{Items: f.all, HasOlder: f.hasOlder, HasNewer: f.hasNewer}, f.err
 }
 
-func (f *fakeBookmarkStore) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error) {
+func (f *fakeBookmarkStore) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error) {
 	f.last = "collection"
 	f.gotCollectionID = collectionID
-	return f.all, f.err
+	f.page = page
+	return core.BookmarkPage{Items: f.all, HasOlder: f.hasOlder, HasNewer: f.hasNewer}, f.err
 }
 
-func (f *fakeBookmarkStore) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error) {
+func (f *fakeBookmarkStore) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string, page core.CursorPage) (core.BookmarkPage, error) {
 	f.last = "tags"
-	return f.all, f.err
+	f.page = page
+	return core.BookmarkPage{Items: f.all, HasOlder: f.hasOlder, HasNewer: f.hasNewer}, f.err
 }
 
 func (f *fakeBookmarkStore) CreateBookmark(ctx context.Context, u *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string, queued bool) (core.Bookmark, error) {

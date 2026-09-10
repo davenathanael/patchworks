@@ -1,16 +1,29 @@
 -- name: GetBookmarksByCollectionId :many
+-- The CTE applies the keyset predicate + LIMIT to bookmark ids before the
+-- tag join, so the page counts bookmarks, not joined tag rows.
+WITH page AS (
+    SELECT bookmarks.id
+    FROM bookmarks
+    JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
+    WHERE collection_bookmarks.collection_id = @collection_id::uuid
+    AND bookmarks.archived_at IS NULL
+    AND (
+        (@older_at::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < (@older_at::timestamp, @older_id::uuid))
+    )
+    ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+    LIMIT @page_limit::int
+)
 SELECT
     sqlc.embed(bookmarks),
     sqlc.embed(users),
     bookmark_tags.tag as tag,
     collection_bookmarks.added_at as added_at
-FROM bookmarks
+FROM page
+JOIN bookmarks ON bookmarks.id = page.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 LEFT JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 JOIN users ON bookmarks.author_id = users.id
-WHERE collection_bookmarks.collection_id = $1
-AND bookmarks.archived_at IS NULL
-ORDER BY bookmarks.created_at DESC;
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC;
 
 -- name: GetRecentBookmarksByUserId :many
 SELECT sqlc.embed(bookmarks), sqlc.embed(users)
@@ -19,8 +32,11 @@ JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = @author_id::uuid
 AND bookmarks.archived_at IS NULL
 AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 10;
+AND (
+    (@older_at::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < (@older_at::timestamp, @older_id::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT @page_limit::int;
 
 
 -- name: GetAllBookmarksByUserId :many
@@ -30,8 +46,11 @@ JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = @author_id::uuid
 AND bookmarks.archived_at IS NULL
 AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 20;
+AND (
+    (@older_at::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < (@older_at::timestamp, @older_id::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT @page_limit::int;
 
 -- name: GetBookmarksByCollectionAndTags :many
 SELECT sqlc.embed(bookmarks), sqlc.embed(users)
@@ -39,36 +58,49 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
-WHERE collection_bookmarks.collection_id = $1
+WHERE collection_bookmarks.collection_id = @collection_id::uuid
 AND bookmark_tags.tag = ANY(@tags::text[])
 AND bookmarks.archived_at IS NULL
 AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 20;
+AND (
+    (@older_at::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < (@older_at::timestamp, @older_id::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT @page_limit::int;
 
 -- name: GetBookmarksByCollection :many
 SELECT sqlc.embed(bookmarks), sqlc.embed(users)
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
-WHERE collection_bookmarks.collection_id = $1
+WHERE collection_bookmarks.collection_id = @collection_id::uuid
 AND bookmarks.archived_at IS NULL
 AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 20;
+AND (
+    (@older_at::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < (@older_at::timestamp, @older_id::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT @page_limit::int;
 
 -- name: GetBookmarksByTags :many
-SELECT DISTINCT ON (bookmarks.id)
-    sqlc.embed(bookmarks), sqlc.embed(users)
+-- EXISTS keeps the original join's match-any-tag semantics while dropping the
+-- DISTINCT ON workaround: each bookmark row appears exactly once, so the
+-- keyset ordering is well-defined.
+SELECT sqlc.embed(bookmarks), sqlc.embed(users)
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
-JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
-WHERE bookmark_tags.tag = ANY(@tags::text[])
-AND bookmarks.author_id = @author_id::uuid
+WHERE bookmarks.author_id = @author_id::uuid
 AND bookmarks.archived_at IS NULL
+AND EXISTS (
+    SELECT 1 FROM bookmark_tags bt
+    WHERE bt.bookmark_id = bookmarks.id AND bt.tag = ANY(@tags::text[])
+)
 AND (@search::text = '' OR bookmarks.title ILIKE '%' || @search::text || '%' OR bookmarks.url ILIKE '%' || @search::text || '%')
-ORDER BY bookmarks.id, bookmarks.created_at DESC
-LIMIT 20;
+AND (
+    (@older_at::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < (@older_at::timestamp, @older_id::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT @page_limit::int;
 
 
 -- name: GetTagsByBookmarkIds :many

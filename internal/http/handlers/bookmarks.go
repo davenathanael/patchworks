@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/ajg/form"
@@ -19,14 +18,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// Page sizes per list (FR-4): dashboard recent 10, filtered and collection
+// detail 20.
+const (
+	recentPageSize   = 10
+	filteredPageSize = 20
+)
+
 // BookmarkStore is the interface for bookmark and tag persistence.
 type BookmarkStore interface {
 	GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, error)
-	GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
-	GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error)
-	GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
-	GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error)
-	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error)
+	GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error)
+	GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error)
+	GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string, page core.CursorPage) (core.BookmarkPage, error)
+	GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error)
+	GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string, page core.CursorPage) (core.BookmarkPage, error)
 	CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string, queued bool) (core.Bookmark, error)
 	GetBookmarkByID(ctx context.Context, id, userID uuid.UUID) (core.Bookmark, error)
 	FindUserBookmarkByURL(ctx context.Context, userID uuid.UUID, rawURL string) (core.Bookmark, bool, error)
@@ -68,7 +74,11 @@ func getHome(w http.ResponseWriter, r *http.Request, collections CollectionStore
 	}
 
 	if views.IsHtmx(r) {
-		err = vm.RenderFiltered(w)
+		if isPaging(r) {
+			err = vm.RenderListItems(w)
+		} else {
+			err = vm.RenderFiltered(w)
+		}
 	} else {
 		err = vm.Render(w)
 	}
@@ -88,10 +98,6 @@ func loadHomeVM(r *http.Request, user core.User, collections CollectionStore, bo
 	filterCollectionID, err := uuid.Parse(qs.Get("collection_id"))
 	if err != nil {
 		filterCollectionID = uuid.Nil
-	}
-	filterPage, err := strconv.Atoi(qs.Get("page"))
-	if err != nil {
-		filterPage = 0
 	}
 	filterSearch := qs.Get("search")
 	collectionID := ""
@@ -115,44 +121,80 @@ func loadHomeVM(r *http.Request, user core.User, collections CollectionStore, bo
 		Tags:         tags,
 		CollectionID: collectionID,
 		TagsFilter:   filterTags,
-		Page:         filterPage,
 		Search:       filterSearch,
 		CurrentQuery: qs,
 	}
-	recent, all, err := loadBookmarks(ctx, bookmarks, user.ID, filterCollectionID, filterTags, filterSearch)
+	older := parseCursor(qs)
+	recent, filtered, err := loadBookmarks(ctx, bookmarks, user.ID, filterCollectionID, filterTags, filterSearch, core.CursorPage{Older: older})
 	if err != nil {
 		return nil, fmt.Errorf("load bookmarks: %w", err)
 	}
-	vm.RecentBookmarks = recent
-	vm.AllBookmarks = all
+	vm.Recent = recent
+	vm.Filtered = filtered
 	return vm, nil
 }
 
-// loadBookmarks returns the bookmark lists for a user given the active filters.
-// With a collection and/or tags filter, only the all list is populated; with no
-// filters the recent list is populated too.
-func loadBookmarks(ctx context.Context, bookmarks BookmarkStore, userID uuid.UUID, collectionID uuid.UUID, filterTags []string, search string) ([]core.Bookmark, []core.Bookmark, error) {
+// parseCursor reads the ?older paging cursor; a malformed value yields nil so
+// a stale or hand-edited link degrades to a fresh view.
+func parseCursor(qs url.Values) *core.BookmarkCursor {
+	return core.DecodeCursor(qs.Get("older"))
+}
+
+// isPaging reports whether the request is a pager click rather than a
+// filter navigation.
+func isPaging(r *http.Request) bool {
+	return r.URL.Query().Has("older")
+}
+
+// cursorPageOf builds the keyset page request for a list endpoint from the
+// request's cursor and the list's page size.
+func cursorPageOf(r *http.Request, limit int) core.CursorPage {
+	return core.CursorPage{Older: parseCursor(r.URL.Query()), Limit: limit}
+}
+
+// listPagerProps builds the pager view-model for one paginated list: buttons
+// target the list UL, the nav is OOB-swapped on pager clicks.
+func listPagerProps(navID, listID, base string, qs url.Values, page core.BookmarkPage) views.ListPagerProps {
+	return views.ListPagerProps{
+		NavID:  navID,
+		ListID: listID,
+		Base:   base,
+		Query:  qs,
+		Page:   page,
+	}
+}
+
+// loadBookmarks returns the bookmark pages for a user given the active
+// filters. With a collection and/or tags filter, only the filtered page is
+// populated; with no filters the recent page is populated too. The recent
+// list is capped at 10 items, the filtered lists at 20 (BK-4, FR-4).
+func loadBookmarks(ctx context.Context, bookmarks BookmarkStore, userID uuid.UUID, collectionID uuid.UUID, filterTags []string, search string, cursors core.CursorPage) (core.BookmarkPage, core.BookmarkPage, error) {
 	if collectionID != uuid.Nil && len(filterTags) != 0 {
-		all, err := bookmarks.GetBookmarksByCollectionAndTags(ctx, collectionID, filterTags, search)
-		return nil, all, err
+		cursors.Limit = filteredPageSize
+		filtered, err := bookmarks.GetBookmarksByCollectionAndTags(ctx, collectionID, filterTags, search, cursors)
+		return core.BookmarkPage{}, filtered, err
 	}
 	if collectionID != uuid.Nil {
-		all, err := bookmarks.GetBookmarksByCollection(ctx, collectionID, search)
-		return nil, all, err
+		cursors.Limit = filteredPageSize
+		filtered, err := bookmarks.GetBookmarksByCollection(ctx, collectionID, search, cursors)
+		return core.BookmarkPage{}, filtered, err
 	}
 	if len(filterTags) != 0 {
-		all, err := bookmarks.GetBookmarksByTags(ctx, userID, filterTags, search)
-		return nil, all, err
+		cursors.Limit = filteredPageSize
+		filtered, err := bookmarks.GetBookmarksByTags(ctx, userID, filterTags, search, cursors)
+		return core.BookmarkPage{}, filtered, err
 	}
 	if search != "" {
-		all, err := bookmarks.GetAllBookmarksByUser(ctx, userID, search)
-		return nil, all, err
+		cursors.Limit = filteredPageSize
+		filtered, err := bookmarks.GetAllBookmarksByUser(ctx, userID, search, cursors)
+		return core.BookmarkPage{}, filtered, err
 	}
-	recent, err := bookmarks.GetRecentBookmarksByUser(ctx, userID, "")
+	cursors.Limit = recentPageSize
+	recent, err := bookmarks.GetRecentBookmarksByUser(ctx, userID, "", cursors)
 	if err != nil {
-		return nil, nil, err
+		return core.BookmarkPage{}, core.BookmarkPage{}, err
 	}
-	return recent, nil, nil
+	return recent, core.BookmarkPage{}, nil
 }
 
 // manageableCollections keeps only the collections whose role for the
@@ -279,16 +321,16 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 		if err != nil {
 			return fmt.Errorf("get tags: %w", err)
 		}
-		recent, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, "")
+		recent, err := bookmarks.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: recentPageSize})
 		if err != nil {
 			return fmt.Errorf("get recent bookmarks: %w", err)
 		}
 		vm := views.HomePageViewModel{
-			User:            user,
-			Collections:     manageableCollections(collectionsList),
-			Tags:            tags,
-			RecentBookmarks: recent,
-			CurrentQuery:    url.Values{},
+			User:         user,
+			Collections:  manageableCollections(collectionsList),
+			Tags:         tags,
+			Recent:       recent,
+			CurrentQuery: url.Values{},
 		}
 		if err := vm.RenderFiltered(w); err != nil {
 			return fmt.Errorf("render filtered home: %w", err)

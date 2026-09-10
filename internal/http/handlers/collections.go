@@ -19,7 +19,8 @@ import (
 type CollectionStore interface {
 	GetCollectionsByUser(ctx context.Context, userID uuid.UUID) ([]core.Collection, error)
 	CreateCollection(ctx context.Context, userID uuid.UUID, name, description string) error
-	GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionWithBookmarks, error)
+	GetCollection(ctx context.Context, id uuid.UUID) (core.Collection, error)
+	GetCollectionBookmarks(ctx context.Context, id uuid.UUID, page core.CursorPage) (core.BookmarkPage, error)
 	UpdateCollection(ctx context.Context, id uuid.UUID, name, description string) (core.Collection, error)
 	AddMember(ctx context.Context, collectionID uuid.UUID, email string, role string) error
 	RemoveMember(ctx context.Context, collectionID uuid.UUID, userID uuid.UUID) error
@@ -164,7 +165,21 @@ func getCollectionById(w http.ResponseWriter, r *http.Request, collections Colle
 		return fmt.Errorf("get collections: %w", err)
 	}
 
-	if err := views.CollectionPage(collection.Collection, collection.Bookmarks, user, allCollections, role).Render(w); err != nil {
+	page, err := collections.GetCollectionBookmarks(ctx, collectionID, cursorPageOf(r, filteredPageSize))
+	if err != nil {
+		return fmt.Errorf("get collection bookmarks: %w", err)
+	}
+	pager := listPagerProps("collection-bookmarks-pager", "collection-bookmarks",
+		"/collections/"+collectionID.String(), r.URL.Query(), page)
+
+	if views.IsHtmx(r) && isPaging(r) {
+		if err := views.ListFragment(page, allCollections, collectionID.String(), pager).Render(w); err != nil {
+			return fmt.Errorf("render collection bookmarks: %w", err)
+		}
+		return nil
+	}
+
+	if err := views.CollectionPage(collection, page, user, allCollections, role, pager).Render(w); err != nil {
 		return fmt.Errorf("render collection page: %w", err)
 	}
 	return nil

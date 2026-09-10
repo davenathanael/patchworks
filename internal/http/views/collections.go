@@ -89,7 +89,7 @@ func CreateCollectionsPage(user core.User, f CollectionForm) Node {
 	return Page("Create New Collection - Patchworks", AppShell(user, content))
 }
 
-func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user core.User, collections []core.Collection, role core.CollectionRole) Node {
+func CollectionPage(collection core.Collection, page core.BookmarkPage, user core.User, collections []core.Collection, role core.CollectionRole, pager ListPagerProps) Node {
 	canManageMembers := role.Allows(core.PermManageMembers)
 	memberSection := Section(
 		H2(Text("Members")),
@@ -132,8 +132,11 @@ func CollectionPage(collection core.Collection, bookmarks []core.Bookmark, user 
 
 	bookmarkSection := Section(
 		H2(Text("Bookmarks")),
-		IfElse(len(bookmarks) > 0,
-			Links(bookmarks, collections, collection.ID.String()),
+		IfElse(len(page.Items) > 0,
+			Group{
+				LinkList(pager.ListID, page.Items, collections, collection.ID.String()),
+				ListPager(pager),
+			},
 			P(Class("muted"), Text("No bookmarks yet.")),
 		),
 	)

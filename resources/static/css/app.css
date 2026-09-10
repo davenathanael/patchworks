@@ -798,6 +798,11 @@
             padding-top: var(--size-2);
         }
 
+        .pager {
+            display: flex;
+            gap: var(--size-2);
+        }
+
         .edit-actions {
             display: flex;
             gap: var(--size-1);

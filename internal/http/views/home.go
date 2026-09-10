@@ -10,31 +10,52 @@ import (
 )
 
 type HomePageViewModel struct {
-	User            core.User
-	Collections     []core.Collection
-	Tags            []core.Tag
-	RecentBookmarks []core.Bookmark
-	AllBookmarks    []core.Bookmark
-	AddBookmark     BookmarkForm
-	CollectionID    string
-	TagsFilter      []string
-	Page            int
-	Search          string
-	CurrentQuery    url.Values
+	User         core.User
+	Collections  []core.Collection
+	Tags         []core.Tag
+	Recent       core.BookmarkPage // no filters: latest 10 with Load more
+	Filtered     core.BookmarkPage // any filter active
+	AddBookmark  BookmarkForm
+	CollectionID string
+	TagsFilter   []string
+	Search       string
+	CurrentQuery url.Values
 }
 
 func (vm *HomePageViewModel) bookmarks() Node {
-	stubPagination := PaginationProps{
-		CurrentPage: 1,
-		TotalPages:  3,
-		BaseURL:     "/",
-	}
-	hasFilters := vm.CollectionID != "" || len(vm.TagsFilter) > 0 || vm.Search != ""
-	if hasFilters {
-		return FilteredLinksView(vm.AllBookmarks, vm.Collections, stubPagination)
+	if vm.hasFilters() {
+		return FilteredLinksView(vm.Filtered, vm.Collections, vm.filteredPager())
 	}
 	return Group{
-		If(len(vm.RecentBookmarks) > 0, RecentLinks(vm.RecentBookmarks, vm.Collections)),
+		If(len(vm.Recent.Items) > 0, RecentLinks(vm.Recent, vm.Collections, vm.recentPager())),
+	}
+}
+
+// hasFilters reports whether a filtered list (not the recent list) is active.
+func (vm *HomePageViewModel) hasFilters() bool {
+	return vm.CollectionID != "" || len(vm.TagsFilter) > 0 || vm.Search != ""
+}
+
+// recentPager pages the dashboard's recent list: the nav rides inside the
+// bookmarks area, buttons swap into the recent UL.
+func (vm *HomePageViewModel) recentPager() ListPagerProps {
+	return ListPagerProps{
+		NavID:  "recent-pager",
+		ListID: "recent-list",
+		Base:   "/",
+		Query:  vm.CurrentQuery,
+		Page:   vm.Recent,
+	}
+}
+
+// filteredPager pages the dashboard's filtered list.
+func (vm *HomePageViewModel) filteredPager() ListPagerProps {
+	return ListPagerProps{
+		NavID:  "bookmarks-pager",
+		ListID: "filtered-list",
+		Base:   "/",
+		Query:  vm.CurrentQuery,
+		Page:   vm.Filtered,
 	}
 }
 
@@ -65,4 +86,14 @@ func (vm *HomePageViewModel) RenderFiltered(w io.Writer) error {
 		return err
 	}
 	return vm.bookmarks().Render(w)
+}
+
+// RenderListItems renders the htmx response for a pager click: bare list
+// rows for the active list (the swap target is the list UL) plus the
+// out-of-band pager nav with fresh cursors.
+func (vm *HomePageViewModel) RenderListItems(w io.Writer) error {
+	if vm.hasFilters() {
+		return ListFragment(vm.Filtered, vm.Collections, "", vm.filteredPager()).Render(w)
+	}
+	return ListFragment(vm.Recent, vm.Collections, "", vm.recentPager()).Render(w)
 }

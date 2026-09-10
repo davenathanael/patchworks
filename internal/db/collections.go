@@ -90,30 +90,62 @@ func (db *DB) CreateCollection(ctx context.Context, userID uuid.UUID, name, desc
 	return nil
 }
 
-func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionWithBookmarks, error) {
+func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.Collection, error) {
 	collectionRow, err := db.querier.GetCollectionById(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return core.CollectionWithBookmarks{}, fmt.Errorf("get collection: %w", core.ErrNotFound)
+			return core.Collection{}, fmt.Errorf("get collection: %w", core.ErrNotFound)
 		}
-		return core.CollectionWithBookmarks{}, err
+		return core.Collection{}, err
 	}
 
 	memberRows, err := db.querier.GetMembersByCollectionIds(ctx, []uuid.UUID{id})
 	if err != nil {
-		return core.CollectionWithBookmarks{}, err
+		return core.Collection{}, err
 	}
 
-	bookmarkRows, err := db.querier.GetBookmarksByCollectionId(ctx, id)
+	return core.Collection{
+		ID:          collectionRow.Collection.ID,
+		Name:        collectionRow.Collection.Name,
+		Description: collectionRow.Collection.Description.String,
+		CreatedAt:   collectionRow.Collection.CreatedAt.Time,
+		UpdatedAt:   collectionRow.Collection.UpdatedAt.Time,
+		Members:     groupMembersByCollectionID(memberRows)[id],
+	}, nil
+}
+
+// GetCollectionBookmarks returns one keyset page of the collection's bookmark
+// list with tags and collections attached.
+func (db *DB) GetCollectionBookmarks(ctx context.Context, id uuid.UUID, page core.CursorPage) (core.BookmarkPage, error) {
+	args := cursorArgsOf(page)
+	rows, err := db.querier.GetBookmarksByCollectionId(ctx, sqlc.GetBookmarksByCollectionIdParams{
+		CollectionID: id,
+		OlderAt:      args.olderAt,
+		OlderID:      args.olderID,
+		PageLimit:    args.limit,
+	})
 	if err != nil {
-		return core.CollectionWithBookmarks{}, err
+		return core.BookmarkPage{}, err
 	}
 
-	members := groupMembersByCollectionID(memberRows)[id]
+	// The CTE already applied the keyset predicate and LIMIT+1 to bookmark
+	// ids, so the trim counts bookmarks — folding tags first does not change
+	// how many distinct ids came back.
+	bookmarks := taggedRowsToBookmarks(rows)
+	lo, hi, hasOlder, hasNewer := pageSlice(len(bookmarks), page)
+	bookmarks = bookmarks[lo:hi]
+	if err := db.attachCollectionIDs(ctx, bookmarks); err != nil {
+		return core.BookmarkPage{}, err
+	}
+	return core.BookmarkPage{Items: bookmarks, HasOlder: hasOlder, HasNewer: hasNewer}, nil
+}
 
+// taggedRowsToBookmarks folds the per-tag joined rows into one bookmark per
+// id, preserving row order.
+func taggedRowsToBookmarks(rows []sqlc.GetBookmarksByCollectionIdRow) []core.Bookmark {
 	bookmarksByID := make(map[uuid.UUID]*core.Bookmark)
-	var ordered []*core.Bookmark
-	for _, row := range bookmarkRows {
+	ordered := make([]*core.Bookmark, 0, len(rows))
+	for _, row := range rows {
 		bm, exists := bookmarksByID[row.Bookmark.ID]
 		if !exists {
 			parsedURL, _ := url.Parse(row.Bookmark.Url)
@@ -139,21 +171,7 @@ func (db *DB) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionW
 	for i, bm := range ordered {
 		bookmarks[i] = *bm // dereference after tags are fully collected
 	}
-	if err := db.attachCollectionIDs(ctx, bookmarks); err != nil {
-		return core.CollectionWithBookmarks{}, err
-	}
-
-	return core.CollectionWithBookmarks{
-		Collection: core.Collection{
-			ID:          collectionRow.Collection.ID,
-			Name:        collectionRow.Collection.Name,
-			Description: collectionRow.Collection.Description.String,
-			CreatedAt:   collectionRow.Collection.CreatedAt.Time,
-			UpdatedAt:   collectionRow.Collection.UpdatedAt.Time,
-			Members:     members,
-		},
-		Bookmarks: bookmarks,
-	}, nil
+	return bookmarks
 }
 
 func (db *DB) UpdateCollection(ctx context.Context, id uuid.UUID, name, description string) (core.Collection, error) {

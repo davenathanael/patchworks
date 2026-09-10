@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/carlmjohnson/be"
 	"github.com/davenathanael/patchwork/internal/core"
@@ -57,9 +59,10 @@ func TestPostCollectionWithoutUser(t *testing.T) {
 func TestGetCollectionById(t *testing.T) {
 	col := &fakeCollectionStore{
 		accessRole: core.RoleOwner,
-		got: core.CollectionWithBookmarks{
-			Collection: core.Collection{ID: uuid.New(), Name: "Work"},
-			Bookmarks:  []core.Bookmark{mustBookmark(t, "https://a.com", "A")},
+		got:        core.Collection{ID: uuid.New(), Name: "Work"},
+		bookmarkPage: core.BookmarkPage{
+			Items:    []core.Bookmark{mustBookmark(t, "https://a.com", "A")},
+			HasOlder: true,
 		},
 	}
 	id := uuid.New()
@@ -69,6 +72,49 @@ func TestGetCollectionById(t *testing.T) {
 
 	be.Equal(t, http.StatusOK, rec.Code)
 	be.Equal(t, 1, col.getCalls)
+}
+
+func TestGetCollectionByIdPager(t *testing.T) {
+	cursor := core.BookmarkCursor{CreatedAt: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC), ID: uuid.New()}
+	id := uuid.New()
+	col := &fakeCollectionStore{
+		accessRole: core.RoleOwner,
+		got:        core.Collection{ID: id, Name: "Work"},
+		bookmarkPage: core.BookmarkPage{
+			Items:    []core.Bookmark{mustBookmark(t, "https://a.com", "A")},
+			HasOlder: true,
+		},
+	}
+
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getCollectionById(rec, routeRequest(t, http.MethodGet, "/collections/"+id.String()+"?older="+core.EncodeCursor(cursor), id.String()), col))
+
+	be.Equal(t, cursor, *col.paged.Older)
+	be.Equal(t, 20, col.paged.Limit)
+	be.True(t, containsBody(rec, "Load more"))
+	be.True(t, containsBody(rec, `id="collection-bookmarks-pager"`))
+	be.True(t, containsBody(rec, `hx-target="#collection-bookmarks"`))
+}
+
+func TestGetCollectionByIdHtmxPagerFragment(t *testing.T) {
+	id := uuid.New()
+	col := &fakeCollectionStore{
+		accessRole: core.RoleOwner,
+		got:        core.Collection{ID: id, Name: "Work"},
+		bookmarkPage: core.BookmarkPage{
+			Items:    []core.Bookmark{mustBookmark(t, "https://a.com", "A")},
+			HasOlder: true,
+		},
+	}
+
+	r := routeRequest(t, http.MethodGet, "/collections/"+id.String()+"?older="+core.EncodeCursor(core.BookmarkCursor{CreatedAt: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC), ID: uuid.New()}), id.String())
+	r.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	be.NilErr(t, getCollectionById(rec, r, col))
+
+	be.True(t, containsBody(rec, "A"))                               // the fetched rows
+	be.True(t, strings.Count(rec.Body.String(), "hx-swap-oob") == 1) // pager nav only
+	be.True(t, !containsBody(rec, "Members"))                        // items fragment, not the full page
 }
 
 func TestGetCollectionByIdInvalidID(t *testing.T) {
@@ -210,9 +256,7 @@ func TestViewerCollectionAccess(t *testing.T) {
 	viewer := func() *fakeCollectionStore {
 		return &fakeCollectionStore{
 			accessRole: core.RoleViewer,
-			got: core.CollectionWithBookmarks{
-				Collection: core.Collection{ID: id, Name: "Work"},
-			},
+			got:        core.Collection{ID: id, Name: "Work"},
 		}
 	}
 
@@ -271,9 +315,7 @@ func TestEditorCollectionAccess(t *testing.T) {
 	editor := func() *fakeCollectionStore {
 		return &fakeCollectionStore{
 			accessRole: core.RoleEditor,
-			got: core.CollectionWithBookmarks{
-				Collection: core.Collection{ID: id, Name: "Work"},
-			},
+			got:        core.Collection{ID: id, Name: "Work"},
 		}
 	}
 
@@ -349,10 +391,12 @@ func TestInvalidMemberRouteIs404(t *testing.T) {
 // --- fakes & helpers ---
 
 type fakeCollectionStore struct {
-	err         error
-	collections []core.Collection
-	got         core.CollectionWithBookmarks
-	created     []struct {
+	err          error
+	collections  []core.Collection
+	got          core.Collection
+	bookmarkPage core.BookmarkPage // returned by GetCollectionBookmarks
+	paged        core.CursorPage   // captured from GetCollectionBookmarks
+	created      []struct {
 		userID      uuid.UUID
 		name        string
 		description string
@@ -387,10 +431,15 @@ func (f *fakeCollectionStore) CreateCollection(ctx context.Context, userID uuid.
 	return f.err
 }
 
-func (f *fakeCollectionStore) GetCollection(ctx context.Context, id uuid.UUID) (core.CollectionWithBookmarks, error) {
+func (f *fakeCollectionStore) GetCollection(ctx context.Context, id uuid.UUID) (core.Collection, error) {
 	f.getCalls++
 	f.got.ID = id
 	return f.got, f.err
+}
+
+func (f *fakeCollectionStore) GetCollectionBookmarks(ctx context.Context, id uuid.UUID, page core.CursorPage) (core.BookmarkPage, error) {
+	f.paged = page
+	return f.bookmarkPage, f.err
 }
 
 func (f *fakeCollectionStore) UpdateCollection(ctx context.Context, id uuid.UUID, name, description string) (core.Collection, error) {

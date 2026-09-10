@@ -155,6 +155,35 @@ func BuildQueryString(qs url.Values, key, value string) string {
 	return "?" + queries.Encode()
 }
 
+// pagerURL renders a pager link's query string: the cursor param replaces any
+// current cursor, all other filters are preserved. Unlike BuildQueryString it
+// sets rather than toggles — cursor links are absolute.
+func pagerURL(qs url.Values, key string, cursor core.BookmarkCursor) string {
+	queries := withoutCursors(qs)
+	queries.Set(key, core.EncodeCursor(cursor))
+	return "?" + queries.Encode()
+}
+
+// pagerURLWithoutCursors strips the cursor params, keeping filters — the
+// "Back to latest" link returns to the unpaginated head of the list.
+// No trailing "?" when no filters remain.
+func pagerURLWithoutCursors(qs url.Values) string {
+	if q := withoutCursors(qs).Encode(); q != "" {
+		return "?" + q
+	}
+	return ""
+}
+
+func withoutCursors(qs url.Values) url.Values {
+	queries := make(url.Values, len(qs))
+	for k, v := range qs {
+		queries[k] = slices.Clone(v)
+	}
+	queries.Del("older")
+	queries.Del("newer")
+	return queries
+}
+
 // searchURL returns the current filter query without the search param, so the
 // search input's own value is appended fresh by htmx.
 func searchURL(currentQuery url.Values) string {

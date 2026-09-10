@@ -1,6 +1,6 @@
 # Patchwork — Product Specification
 
-**Status:** Draft v1.6 · **Last updated:** 2026-09-09 · **Owner:** Dave Nathanael
+**Status:** Draft v1.10 · **Last updated:** 2026-09-09 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -20,6 +20,10 @@
 | 1.4 | 2026-09-04 | Reading list fully designed in §7.2 (**FR-10**, was one-liner): per-user FIFO queue at `/reading`, row-menu toggle, mark-as-read, archive interaction; new **FR-23** (create-form notes) and **FR-24** (multi-collection at save, reusing the CL-8 picker) in §7.1; §5.2 gaps + §6.3 matrix updated to point at them |
 | 1.5 | 2026-09-08 | FR-23 landed in §5.2 as **BK-12** — notes field on the add-bookmark form; FR-24 landed in §5.2 as **BK-13** — multi-collection picker at save (reuses the CL-8 picker); both removed from §7.1 |
 | 1.6 | 2026-09-09 | FR-10 landed in §5.2 as **BK-14** — reading list (FIFO queue at `/reading`, `queued_at` on bookmarks, add-form checkbox + row-menu toggle, mark-as-read dequeue, archive auto-dequeues); **FR-25** added to §7.1; FR-10 removed from §7.2 |
+| 1.7 | 2026-09-09 | **FR-4** landed in §5.2 as **BK-15** — cursor pagination (Load previous / Load more) for dashboard recent + filtered lists and collection page; BK-4 amended; FR-4 removed from §7.1 |
+| 1.8 | 2026-09-09 | **BK-15** amended — dropped Load previous (append flow already holds newer rows); added Back-to-latest link for deep-linked windows; single-direction Load more only |
+| 1.9 | 2026-09-09 | **BK-15** amended — htmx Load more no longer pushes the cursor into the URL (position is ephemeral; refresh returns to the list head); `?older` windows remain for the no-JS fallback with the Back-to-latest link |
+| 1.10 | 2026-09-09 | **BK-15** clarified — documented the intentional htmx/no-JS discrepancy: cumulative append vs window-stepping (each full load renders only the batch older than the cursor) |
 
 > Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
@@ -80,14 +84,14 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **AU-7** A successful login stamps `users.last_login_at` (server time). Failed logins don't touch it; a failed stamp aborts the login before a session is created.
 - **Gaps:** no email verification, no password reset (→ FR-12).
 
-### 5.2 Bookmarks — *impl / partial*
+### 5.2 Bookmarks — *impl*
 
 - **BK-1** Add a bookmark from the dashboard: URL + optional title, optional collection, optional tags.
 - **BK-2** When no title is given, the server fetches the page's `<title>` at save time. The fetch is bounded (1 MiB body read) and never blocks saving — on any failure the URL string is used as the title. (No scheduler: linking in the fetch, not a background job.)
 - **BK-3** Malformed URLs are rejected with an inline field error and the form re-renders with submitted values preserved.
-- **BK-4** The dashboard shows *recent bookmarks* (latest 10), newest first. Everything else is reached through search and filters (SR-1–SR-5).
+- **BK-4** The dashboard shows *recent bookmarks* (latest 10), newest first, with Load more to extend (BK-15). Everything else is reached through search and filters (SR-1–SR-5).
 - **BK-5** After adding, htmx requests re-render just the bookmark list; non-htmx requests redirect to the dashboard.
-- **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable, *unused*).
+- **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable; used by archive — BK-9/BK-10).
 - **BK-7** Bookmark notes: an optional free-text note per bookmark, shown under the domain & tags in the bookmark row, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication; the toggle appears only when the note likely overflows). Editing/clearing via BK-8. Design: `docs/mockups/design-bookmark-actions.html`. *(formerly FR-22 — see Rev 0.5)*
 - **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Design: `docs/mockups/design-bookmark-actions.html`.
 - **BK-9** *(formerly FR-1, archive half)* Archive a bookmark from the row menu (dashboard and collection detail): native confirm (`hx-confirm`), one htmx post sets `archived_at`, the row leaves the current list. Archived bookmarks are hidden from recent/search/filtered/collection browse (`archived_at IS NULL` on all browse queries); the management side lives in BK-10.
@@ -96,7 +100,7 @@ Status legend: **impl** = implemented, **partial** = partially implemented (gaps
 - **BK-12** *(formerly FR-23)* Notes on the add-bookmark form: optional free-text notes field at save time, stored and rendered exactly like post-save notes (BK-7/BK-8). No schema change.
 - **BK-13** *(formerly FR-24)* Multi-collection selection at save: the create form offers the CL-8 picker (search + checkbox list) of collections the user can manage (§6.3: owner/editor per collection), nothing pre-checked; one save links the bookmark to every selected collection. Submitting a collection the user can't manage fails the whole save (403) — nothing is created.
 - **BK-14** *(formerly FR-10)* Reading list — a per-user FIFO queue at **`/reading`** (side-nav entry), listed **oldest-enqueued first**. Enqueue paths: an **"Add to reading list"** checkbox on the add-bookmark form (unchecked by default) and an **Add to / remove from reading list** row-menu toggle on existing bookmarks; **Mark as read** on `/reading` dequeues the row — removal only, no read history. Archiving a queued bookmark auto-dequeues it; restoring does **not** re-enqueue. Own bookmarks only, detached from collections; queue state is a `queued_at` timestamp on the bookmark (no join table). Without JavaScript the toggles fall back to plain form POSTs that redirect.
-- **Gaps:** The `page` query param is parsed but pagination rendering is a stub (→ FR-4).
+- **BK-15** *(formerly FR-4)* Cursor pagination on three lists — the dashboard recent list (BK-4), the dashboard filtered list (search / tags / collection filters), and the `/collections/{id}` bookmark section (CL-3) — via a single conditional **Load more** button per list, shown only when more items exist; every paginated list is newest-first and appends in one direction only (the former **Load previous** button was dropped — in an append flow the newer items are already on the page, so it only duplicated content). Keyset pagination: an opaque composite cursor over `(created_at, id)` (ordering gains an `id` tiebreak), page size 10 for the recent list and 20 for the others, no page numbers, no `OFFSET`/`COUNT` — archiving or deleting while browsing never creates gaps. Cursors travel as a `?older` param (replacing the dead `?page` param); htmx appends do **not** touch the URL (position is ephemeral — a refresh returns to the list head; only filter state lives in the URL), while the no-JS fallback is plain links that re-render the window, flagged with a plain **Back to latest** link so shared/refreshed `?older` URLs can return to the top of the list. The two modes intentionally differ: **htmx browsing is cumulative** (rows accumulate in the page as you Load more), while **no-JS paging steps through windows** — each full load shows only the batch strictly older than the cursor, with the previously seen rows no longer rendered; with JS disabled, expect window-stepping plus the Back-to-latest reset, not the accumulating feed. Out of scope for now: the Archived page (BK-10) and `/reading` (BK-14) stay single unbounded lists.
 
 ### 5.3 Collections & sharing — *impl / partial*
 
@@ -173,6 +177,7 @@ matrix.
 | Archive / restore (BK-9, BK-10) | author only |
 | Hard-delete (BK-10) | author only |
 | Add to / remove from the reading list, mark as read (BK-14) | author only |
+| Load more (BK-15) | author only (dashboard lists); per collection access on collection page (CL-7) |
 
 ### 6.4 Error semantics
 
@@ -189,8 +194,6 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 ### 7.1 Near-term — schema/design-ready
 
 - **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
-
-- **FR-4** Real pagination: `page` param is already plumbed; compute totals/pages server-side and replace the stub renderer.
 
 - **FR-25** Per-user **"add new bookmarks to the reading list by default"** setting on a settings page (follows BK-14's add-form checkbox).
 

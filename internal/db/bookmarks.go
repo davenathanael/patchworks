@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"time"
 
@@ -23,78 +24,135 @@ func (db *DB) GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, 
 	return toTags(tags), nil
 }
 
-func (db *DB) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
+// cursorArgs translates a keyset page request into the nullable cursor
+// parameters the paginated queries take; the +1 fetches the proof row past
+// the page edge.
+func cursorArgsOf(page core.CursorPage) (args struct {
+	olderAt pgtype.Timestamp
+	olderID uuid.UUID
+	limit   int32
+}) {
+	// handlers pass small page-size constants; the clamp only exists so the
+	// int32 LIMIT param can't overflow on a hostile value.
+	limit := page.Limit
+	if limit < 0 || limit > math.MaxInt32-1 {
+		limit = 0
+	}
+	args.limit = int32(limit) + 1
+	if page.Older != nil {
+		args.olderAt = pgtype.Timestamp{Time: page.Older.CreatedAt, Valid: true}
+		args.olderID = page.Older.ID
+	}
+	return args
+}
+
+// pageSlice computes the visible window of an n-row Limit+1 keyset fetch and
+// the pager flags: a surplus row proves the list continues past the fetched
+// edge, and an older cursor in the request marks a mid-feed window (newer
+// items exist client-side by construction).
+func pageSlice(n int, page core.CursorPage) (lo, hi int, hasOlder, hasNewer bool) {
+	lo, hi = 0, n
+	hasNewer = page.Older != nil
+	if n <= page.Limit {
+		return lo, hi, false, hasNewer
+	}
+	return lo, page.Limit, true, hasNewer
+}
+
+func (db *DB) GetRecentBookmarksByUser(ctx context.Context, userID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error) {
+	args := cursorArgsOf(page)
 	rows, err := db.querier.GetRecentBookmarksByUserId(ctx, sqlc.GetRecentBookmarksByUserIdParams{
-		AuthorID: userID,
-		Search:   search,
+		AuthorID:  userID,
+		Search:    search,
+		OlderAt:   args.olderAt,
+		OlderID:   args.olderID,
+		PageLimit: args.limit,
 	})
 	if err != nil {
-		return nil, err
+		return core.BookmarkPage{}, err
 	}
-
-	return db.toBookmarksWithTags(ctx, rows)
+	return db.paged(ctx, rows, page)
 }
 
-func (db *DB) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string) ([]core.Bookmark, error) {
+func (db *DB) GetAllBookmarksByUser(ctx context.Context, userID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error) {
+	args := cursorArgsOf(page)
 	rows, err := db.querier.GetAllBookmarksByUserId(ctx, sqlc.GetAllBookmarksByUserIdParams{
-		AuthorID: userID,
-		Search:   search,
+		AuthorID:  userID,
+		Search:    search,
+		OlderAt:   args.olderAt,
+		OlderID:   args.olderID,
+		PageLimit: args.limit,
 	})
 	if err != nil {
-		return nil, err
+		return core.BookmarkPage{}, err
 	}
-
-	recent := Map(rows, func(r sqlc.GetAllBookmarksByUserIdRow) sqlc.GetRecentBookmarksByUserIdRow {
+	return db.paged(ctx, Map(rows, func(r sqlc.GetAllBookmarksByUserIdRow) sqlc.GetRecentBookmarksByUserIdRow {
 		return sqlc.GetRecentBookmarksByUserIdRow(r)
-	})
-	return db.toBookmarksWithTags(ctx, recent)
+	}), page)
 }
 
-func (db *DB) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string) ([]core.Bookmark, error) {
+func (db *DB) GetBookmarksByCollectionAndTags(ctx context.Context, collectionID uuid.UUID, tags []string, search string, page core.CursorPage) (core.BookmarkPage, error) {
+	args := cursorArgsOf(page)
 	rows, err := db.querier.GetBookmarksByCollectionAndTags(ctx, sqlc.GetBookmarksByCollectionAndTagsParams{
 		CollectionID: collectionID,
 		Tags:         tags,
 		Search:       search,
+		OlderAt:      args.olderAt,
+		OlderID:      args.olderID,
+		PageLimit:    args.limit,
 	})
 	if err != nil {
-		return nil, err
+		return core.BookmarkPage{}, err
 	}
-
-	recent := Map(rows, func(r sqlc.GetBookmarksByCollectionAndTagsRow) sqlc.GetRecentBookmarksByUserIdRow {
+	return db.paged(ctx, Map(rows, func(r sqlc.GetBookmarksByCollectionAndTagsRow) sqlc.GetRecentBookmarksByUserIdRow {
 		return sqlc.GetRecentBookmarksByUserIdRow(r)
-	})
-	return db.toBookmarksWithTags(ctx, recent)
+	}), page)
 }
 
-func (db *DB) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string) ([]core.Bookmark, error) {
+func (db *DB) GetBookmarksByCollection(ctx context.Context, collectionID uuid.UUID, search string, page core.CursorPage) (core.BookmarkPage, error) {
+	args := cursorArgsOf(page)
 	rows, err := db.querier.GetBookmarksByCollection(ctx, sqlc.GetBookmarksByCollectionParams{
 		CollectionID: collectionID,
 		Search:       search,
+		OlderAt:      args.olderAt,
+		OlderID:      args.olderID,
+		PageLimit:    args.limit,
 	})
 	if err != nil {
-		return nil, err
+		return core.BookmarkPage{}, err
 	}
-
-	recent := Map(rows, func(r sqlc.GetBookmarksByCollectionRow) sqlc.GetRecentBookmarksByUserIdRow {
+	return db.paged(ctx, Map(rows, func(r sqlc.GetBookmarksByCollectionRow) sqlc.GetRecentBookmarksByUserIdRow {
 		return sqlc.GetRecentBookmarksByUserIdRow(r)
-	})
-	return db.toBookmarksWithTags(ctx, recent)
+	}), page)
 }
 
-func (db *DB) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string) ([]core.Bookmark, error) {
+func (db *DB) GetBookmarksByTags(ctx context.Context, userID uuid.UUID, tags []string, search string, page core.CursorPage) (core.BookmarkPage, error) {
+	args := cursorArgsOf(page)
 	rows, err := db.querier.GetBookmarksByTags(ctx, sqlc.GetBookmarksByTagsParams{
-		Tags:     tags,
-		AuthorID: userID,
-		Search:   search,
+		Tags:      tags,
+		AuthorID:  userID,
+		Search:    search,
+		OlderAt:   args.olderAt,
+		OlderID:   args.olderID,
+		PageLimit: args.limit,
 	})
 	if err != nil {
-		return nil, err
+		return core.BookmarkPage{}, err
 	}
-
-	recent := Map(rows, func(r sqlc.GetBookmarksByTagsRow) sqlc.GetRecentBookmarksByUserIdRow {
+	return db.paged(ctx, Map(rows, func(r sqlc.GetBookmarksByTagsRow) sqlc.GetRecentBookmarksByUserIdRow {
 		return sqlc.GetRecentBookmarksByUserIdRow(r)
-	})
-	return db.toBookmarksWithTags(ctx, recent)
+	}), page)
+}
+
+// paged trims the Limit+1 fetch to the visible rows and attaches their tags
+// and collections, so only the page's ids hit those queries.
+func (db *DB) paged(ctx context.Context, rows []sqlc.GetRecentBookmarksByUserIdRow, page core.CursorPage) (core.BookmarkPage, error) {
+	lo, hi, hasOlder, hasNewer := pageSlice(len(rows), page)
+	items, err := db.toBookmarksWithTags(ctx, rows[lo:hi])
+	if err != nil {
+		return core.BookmarkPage{}, err
+	}
+	return core.BookmarkPage{Items: items, HasOlder: hasOlder, HasNewer: hasNewer}, nil
 }
 
 func (db *DB) CreateBookmark(ctx context.Context, url *url.URL, title string, userID uuid.UUID, notes string, collectionIDs []uuid.UUID, tags []string, queued bool) (core.Bookmark, error) {

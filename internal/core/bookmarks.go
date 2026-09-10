@@ -25,11 +25,6 @@ type (
 		AddedAt time.Time
 	}
 
-	CollectionWithBookmarks struct {
-		Collection
-		Bookmarks []Bookmark
-	}
-
 	Bookmark struct {
 		ID            uuid.UUID
 		URL           *url.URL

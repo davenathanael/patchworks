@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -10,13 +11,6 @@ import (
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
-
-// PaginationProps holds pagination metadata.
-type PaginationProps struct {
-	CurrentPage int
-	TotalPages  int
-	BaseURL     string
-}
 
 // BookmarkForm is the shared add-bookmark form view-model: the ajg/form
 // decode target and the render model. Zero value renders a fresh form.
@@ -126,23 +120,23 @@ func duplicateNodes(form BookmarkForm) []Node {
 	}
 }
 
-func RecentLinks(links []core.Bookmark, collections []core.Collection) Node {
+func RecentLinks(page core.BookmarkPage, collections []core.Collection, pager ListPagerProps) Node {
 	return Section(
 		H2(Text("Recent")),
 		IfElse(
-			len(links) > 0,
-			Links(links, collections, ""),
+			len(page.Items) > 0,
+			Group{LinkList(pager.ListID, page.Items, collections, ""), ListPager(pager)},
 			P(Class("muted"), Text("No links yet. Add one above to get started.")),
 		),
 	)
 }
 
-func FilteredLinksView(links []core.Bookmark, collections []core.Collection, p PaginationProps) Node {
+func FilteredLinksView(page core.BookmarkPage, collections []core.Collection, pager ListPagerProps) Node {
 	return Section(
 		H2(Text("Filtered Links")),
 		IfElse(
-			len(links) > 0,
-			Group{Links(links, collections, ""), Pagination(p)},
+			len(page.Items) > 0,
+			Group{LinkList(pager.ListID, page.Items, collections, ""), ListPager(pager)},
 			P(Class("muted"), Text("No links to display.")),
 		),
 	)
@@ -155,10 +149,21 @@ func IfElse(condition bool, trueNode, falseNode Node) Node {
 	return falseNode
 }
 
+// LinkList renders the bookmark list UL, optionally with an element id so
+// htmx pager buttons can target its rows.
+func LinkList(id string, links []core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
+	return Ul(
+		If(id != "", ID(id)),
+		Class("link-list"),
+		Map(links, func(link core.Bookmark) Node {
+			return LinkRow(link, collections, currentCollectionID)
+		}),
+	)
+}
+
+// Links renders an untargeted bookmark list (no pager wiring).
 func Links(links []core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
-	return Ul(Class("link-list"), Map(links, func(link core.Bookmark) Node {
-		return LinkRow(link, collections, currentCollectionID)
-	}))
+	return LinkList("", links, collections, currentCollectionID)
 }
 
 func LinkRow(link core.Bookmark, collections []core.Collection, currentCollectionID string) Node {
@@ -541,34 +546,70 @@ func shouldShowNoteToggle(notes string) bool {
 	return len(notes) > 45
 }
 
-func Pagination(p PaginationProps) Node {
-	if p.TotalPages <= 1 {
-		return Div()
+// ListPagerProps configures a ListPager: which list it pages, where the
+// list lives, and the current query whose filters the pager links preserve.
+type ListPagerProps struct {
+	NavID  string     // pager nav element id, OOB-swapped on htmx requests
+	ListID string     // id of the list UL the buttons swap into
+	Base   string     // page path the pager links point at, e.g. "/"
+	Query  url.Values // current query: filters are kept, cursors replaced
+	Page   core.BookmarkPage
+	OOB    bool // flag the nav for htmx out-of-band swap (pager fragments)
+}
+
+// ListPager renders the conditional pager for a paginated list (BK-15): a
+// plain "Back to latest" link on no-JS mid-feed loads, plus a Load more button
+// when older items exist. No page numbers, no offset. htmx requests append to
+// the list in place and do NOT touch the URL — the position is ephemeral, so a
+// refresh returns to the list head; only filters live in the URL. No-JS paging
+// intentionally differs: each full load re-renders only the window (the batch
+// older than the cursor), never the rows already scrolled past.
+func ListPager(p ListPagerProps) Node {
+	if len(p.Page.Items) == 0 || (!p.Page.HasOlder && !p.Page.HasNewer) {
+		return nil
 	}
 
-	pages := make([]Node, 0, p.TotalPages)
-
-	for i := 1; i <= p.TotalPages; i++ {
-		pageNum := i
-		pageURL := fmt.Sprintf("%s?page=%d", p.BaseURL, pageNum)
-
-		pageLink := A(
-			Href(pageURL),
-			Class("button outline small"),
-			If(pageNum == p.CurrentPage,
-				Attr("aria-current", "page"),
-			),
-			Text(fmt.Sprintf("%d", pageNum)),
-		)
-
-		pages = append(pages, Li(pageLink))
-	}
+	// The cursor pins the last visible row, the edge the batch extends past.
+	older := p.Base + pagerURL(p.Query, "older", core.CursorOf(p.Page.Items[len(p.Page.Items)-1]))
 
 	return Nav(
-		Class("mt-4"),
-		Attr("aria-label", "Pagination"),
-		Menu(Group(pages)),
+		ID(p.NavID),
+		Class("pager mt-4"),
+		Attr("aria-label", "List pagination"),
+		If(p.OOB, Attr("hx-swap-oob", "true")),
+		If(p.Page.HasNewer, backToLatest(p.Base+pagerURLWithoutCursors(p.Query))),
+		If(p.Page.HasOlder, pagerButton("Load more", older, p.ListID, "beforeend")),
 	)
+}
+
+// backToLatest is a plain link to the list head: a full load, no htmx.
+// Styled like the Load more button — the pager reads as one control group.
+func backToLatest(href string) Node {
+	return A(Href(href), Class("button outline small"), Text("Back to latest"))
+}
+
+func pagerButton(label, href, listID, swap string) Node {
+	return A(
+		Href(href),
+		Class("button outline small"),
+		Attr("hx-get", href),
+		Attr("hx-target", "#"+listID),
+		Attr("hx-swap", swap),
+		Text(label),
+	)
+}
+
+// ListFragment renders the htmx response body for a pager click: bare list
+// rows (the main swap target is the list UL itself) plus the pager nav
+// flagged for out-of-band replacement with fresh cursors.
+func ListFragment(page core.BookmarkPage, collections []core.Collection, currentCollectionID string, pager ListPagerProps) Node {
+	nodes := make([]Node, 0, len(page.Items)+1)
+	for _, link := range page.Items {
+		nodes = append(nodes, LinkRow(link, collections, currentCollectionID))
+	}
+	pager.OOB = true
+	nodes = append(nodes, ListPager(pager))
+	return Group(nodes)
 }
 
 func relativeTime(t time.Time) string {

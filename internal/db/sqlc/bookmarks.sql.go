@@ -265,13 +265,19 @@ JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
 AND bookmarks.archived_at IS NULL
 AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 20
+AND (
+    ($3::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < ($3::timestamp, $4::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT $5::int
 `
 
 type GetAllBookmarksByUserIdParams struct {
-	AuthorID uuid.UUID
-	Search   string
+	AuthorID  uuid.UUID
+	Search    string
+	OlderAt   pgtype.Timestamp
+	OlderID   uuid.UUID
+	PageLimit int32
 }
 
 type GetAllBookmarksByUserIdRow struct {
@@ -280,7 +286,13 @@ type GetAllBookmarksByUserIdRow struct {
 }
 
 func (q *Queries) GetAllBookmarksByUserId(ctx context.Context, arg GetAllBookmarksByUserIdParams) ([]GetAllBookmarksByUserIdRow, error) {
-	rows, err := q.db.Query(ctx, getAllBookmarksByUserId, arg.AuthorID, arg.Search)
+	rows, err := q.db.Query(ctx, getAllBookmarksByUserId,
+		arg.AuthorID,
+		arg.Search,
+		arg.OlderAt,
+		arg.OlderID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -461,16 +473,22 @@ SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookm
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
-WHERE collection_bookmarks.collection_id = $1
+WHERE collection_bookmarks.collection_id = $1::uuid
 AND bookmarks.archived_at IS NULL
 AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 20
+AND (
+    ($3::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < ($3::timestamp, $4::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT $5::int
 `
 
 type GetBookmarksByCollectionParams struct {
 	CollectionID uuid.UUID
 	Search       string
+	OlderAt      pgtype.Timestamp
+	OlderID      uuid.UUID
+	PageLimit    int32
 }
 
 type GetBookmarksByCollectionRow struct {
@@ -479,7 +497,13 @@ type GetBookmarksByCollectionRow struct {
 }
 
 func (q *Queries) GetBookmarksByCollection(ctx context.Context, arg GetBookmarksByCollectionParams) ([]GetBookmarksByCollectionRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByCollection, arg.CollectionID, arg.Search)
+	rows, err := q.db.Query(ctx, getBookmarksByCollection,
+		arg.CollectionID,
+		arg.Search,
+		arg.OlderAt,
+		arg.OlderID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -520,18 +544,24 @@ FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
-WHERE collection_bookmarks.collection_id = $1
+WHERE collection_bookmarks.collection_id = $1::uuid
 AND bookmark_tags.tag = ANY($2::text[])
 AND bookmarks.archived_at IS NULL
 AND ($3::text = '' OR bookmarks.title ILIKE '%' || $3::text || '%' OR bookmarks.url ILIKE '%' || $3::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 20
+AND (
+    ($4::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < ($4::timestamp, $5::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT $6::int
 `
 
 type GetBookmarksByCollectionAndTagsParams struct {
 	CollectionID uuid.UUID
 	Tags         []string
 	Search       string
+	OlderAt      pgtype.Timestamp
+	OlderID      uuid.UUID
+	PageLimit    int32
 }
 
 type GetBookmarksByCollectionAndTagsRow struct {
@@ -540,7 +570,14 @@ type GetBookmarksByCollectionAndTagsRow struct {
 }
 
 func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBookmarksByCollectionAndTagsParams) ([]GetBookmarksByCollectionAndTagsRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByCollectionAndTags, arg.CollectionID, arg.Tags, arg.Search)
+	rows, err := q.db.Query(ctx, getBookmarksByCollectionAndTags,
+		arg.CollectionID,
+		arg.Tags,
+		arg.Search,
+		arg.OlderAt,
+		arg.OlderID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -576,19 +613,37 @@ func (q *Queries) GetBookmarksByCollectionAndTags(ctx context.Context, arg GetBo
 }
 
 const getBookmarksByCollectionId = `-- name: GetBookmarksByCollectionId :many
+WITH page AS (
+    SELECT bookmarks.id
+    FROM bookmarks
+    JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
+    WHERE collection_bookmarks.collection_id = $1::uuid
+    AND bookmarks.archived_at IS NULL
+    AND (
+        ($2::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < ($2::timestamp, $3::uuid))
+    )
+    ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+    LIMIT $4::int
+)
 SELECT
     bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at,
     users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash,
     bookmark_tags.tag as tag,
     collection_bookmarks.added_at as added_at
-FROM bookmarks
+FROM page
+JOIN bookmarks ON bookmarks.id = page.id
 JOIN collection_bookmarks ON bookmarks.id = collection_bookmarks.bookmark_id
 LEFT JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
 JOIN users ON bookmarks.author_id = users.id
-WHERE collection_bookmarks.collection_id = $1
-AND bookmarks.archived_at IS NULL
-ORDER BY bookmarks.created_at DESC
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
 `
+
+type GetBookmarksByCollectionIdParams struct {
+	CollectionID uuid.UUID
+	OlderAt      pgtype.Timestamp
+	OlderID      uuid.UUID
+	PageLimit    int32
+}
 
 type GetBookmarksByCollectionIdRow struct {
 	Bookmark Bookmark
@@ -597,8 +652,15 @@ type GetBookmarksByCollectionIdRow struct {
 	AddedAt  pgtype.Timestamp
 }
 
-func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID uuid.UUID) ([]GetBookmarksByCollectionIdRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByCollectionId, collectionID)
+// The CTE applies the keyset predicate + LIMIT to bookmark ids before the
+// tag join, so the page counts bookmarks, not joined tag rows.
+func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, arg GetBookmarksByCollectionIdParams) ([]GetBookmarksByCollectionIdRow, error) {
+	rows, err := q.db.Query(ctx, getBookmarksByCollectionId,
+		arg.CollectionID,
+		arg.OlderAt,
+		arg.OlderID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -636,23 +698,30 @@ func (q *Queries) GetBookmarksByCollectionId(ctx context.Context, collectionID u
 }
 
 const getBookmarksByTags = `-- name: GetBookmarksByTags :many
-SELECT DISTINCT ON (bookmarks.id)
-    bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
+SELECT bookmarks.id, bookmarks.url, bookmarks.title, bookmarks.created_at, bookmarks.updated_at, bookmarks.archived_at, bookmarks.author_id, bookmarks.notes, bookmarks.queued_at, users.id, users.email, users.created_at, users.updated_at, users.last_login_at, users.password_hash
 FROM bookmarks
 JOIN users ON bookmarks.author_id = users.id
-JOIN bookmark_tags ON bookmarks.id = bookmark_tags.bookmark_id
-WHERE bookmark_tags.tag = ANY($1::text[])
-AND bookmarks.author_id = $2::uuid
+WHERE bookmarks.author_id = $1::uuid
 AND bookmarks.archived_at IS NULL
+AND EXISTS (
+    SELECT 1 FROM bookmark_tags bt
+    WHERE bt.bookmark_id = bookmarks.id AND bt.tag = ANY($2::text[])
+)
 AND ($3::text = '' OR bookmarks.title ILIKE '%' || $3::text || '%' OR bookmarks.url ILIKE '%' || $3::text || '%')
-ORDER BY bookmarks.id, bookmarks.created_at DESC
-LIMIT 20
+AND (
+    ($4::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < ($4::timestamp, $5::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT $6::int
 `
 
 type GetBookmarksByTagsParams struct {
-	Tags     []string
-	AuthorID uuid.UUID
-	Search   string
+	AuthorID  uuid.UUID
+	Tags      []string
+	Search    string
+	OlderAt   pgtype.Timestamp
+	OlderID   uuid.UUID
+	PageLimit int32
 }
 
 type GetBookmarksByTagsRow struct {
@@ -660,8 +729,18 @@ type GetBookmarksByTagsRow struct {
 	User     User
 }
 
+// EXISTS keeps the original join's match-any-tag semantics while dropping the
+// DISTINCT ON workaround: each bookmark row appears exactly once, so the
+// keyset ordering is well-defined.
 func (q *Queries) GetBookmarksByTags(ctx context.Context, arg GetBookmarksByTagsParams) ([]GetBookmarksByTagsRow, error) {
-	rows, err := q.db.Query(ctx, getBookmarksByTags, arg.Tags, arg.AuthorID, arg.Search)
+	rows, err := q.db.Query(ctx, getBookmarksByTags,
+		arg.AuthorID,
+		arg.Tags,
+		arg.Search,
+		arg.OlderAt,
+		arg.OlderID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -785,13 +864,19 @@ JOIN users ON bookmarks.author_id = users.id
 WHERE bookmarks.author_id = $1::uuid
 AND bookmarks.archived_at IS NULL
 AND ($2::text = '' OR bookmarks.title ILIKE '%' || $2::text || '%' OR bookmarks.url ILIKE '%' || $2::text || '%')
-ORDER BY bookmarks.created_at DESC
-LIMIT 10
+AND (
+    ($3::timestamp IS NULL OR (bookmarks.created_at, bookmarks.id) < ($3::timestamp, $4::uuid))
+)
+ORDER BY bookmarks.created_at DESC, bookmarks.id DESC
+LIMIT $5::int
 `
 
 type GetRecentBookmarksByUserIdParams struct {
-	AuthorID uuid.UUID
-	Search   string
+	AuthorID  uuid.UUID
+	Search    string
+	OlderAt   pgtype.Timestamp
+	OlderID   uuid.UUID
+	PageLimit int32
 }
 
 type GetRecentBookmarksByUserIdRow struct {
@@ -800,7 +885,13 @@ type GetRecentBookmarksByUserIdRow struct {
 }
 
 func (q *Queries) GetRecentBookmarksByUserId(ctx context.Context, arg GetRecentBookmarksByUserIdParams) ([]GetRecentBookmarksByUserIdRow, error) {
-	rows, err := q.db.Query(ctx, getRecentBookmarksByUserId, arg.AuthorID, arg.Search)
+	rows, err := q.db.Query(ctx, getRecentBookmarksByUserId,
+		arg.AuthorID,
+		arg.Search,
+		arg.OlderAt,
+		arg.OlderID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}

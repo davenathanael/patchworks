@@ -3,6 +3,7 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -142,7 +143,9 @@ func TestCollectionRepository(t *testing.T) {
 	full, err := testDB.GetCollection(ctx, colID)
 	be.NilErr(t, err)
 	be.Equal(t, "Work2", full.Name)
-	be.Equal(t, 0, len(full.Bookmarks))
+	bookmarks, err := testDB.GetCollectionBookmarks(ctx, colID, core.CursorPage{Limit: 20})
+	be.NilErr(t, err)
+	be.Equal(t, 0, len(bookmarks.Items))
 
 	be.NilErr(t, testDB.DeleteCollection(ctx, colID))
 	left, err := testDB.GetCollectionsByUser(ctx, user.ID)
@@ -173,19 +176,19 @@ func TestCollectionBookmarksIncludeUntagged(t *testing.T) {
 	_, err = testDB.CreateBookmark(ctx, u2, "Plain Post", user.ID, "", []uuid.UUID{colID}, nil, false)
 	be.NilErr(t, err)
 
-	full, err := testDB.GetCollection(ctx, colID)
+	full, err := testDB.GetCollectionBookmarks(ctx, colID, core.CursorPage{Limit: 20})
 	be.NilErr(t, err)
-	be.Equal(t, 2, len(full.Bookmarks))
+	be.Equal(t, 2, len(full.Items))
 
 	var taggedTags, plainTags []string
 	found := make(map[string]bool)
-	for i := range full.Bookmarks {
-		found[full.Bookmarks[i].Title] = true
-		if full.Bookmarks[i].Title == "Tagged Post" {
-			taggedTags = full.Bookmarks[i].Tags
+	for i := range full.Items {
+		found[full.Items[i].Title] = true
+		if full.Items[i].Title == "Tagged Post" {
+			taggedTags = full.Items[i].Tags
 		}
-		if full.Bookmarks[i].Title == "Plain Post" {
-			plainTags = full.Bookmarks[i].Tags
+		if full.Items[i].Title == "Plain Post" {
+			plainTags = full.Items[i].Tags
 		}
 	}
 	be.True(t, found["Tagged Post"])
@@ -259,10 +262,10 @@ func TestUpdateBookmarkCollectionIDs(t *testing.T) {
 	be.True(t, slices.Contains(updated.CollectionIDs, shared[0].ID))
 
 	// the shared collection's link is untouched (owner is not a member there)
-	got, err := testDB.GetCollection(ctx, shared[0].ID)
+	got, err := testDB.GetCollectionBookmarks(ctx, shared[0].ID, core.CursorPage{Limit: 20})
 	be.NilErr(t, err)
-	be.Equal(t, 1, len(got.Bookmarks))
-	be.Equal(t, bk.ID, got.Bookmarks[0].ID)
+	be.Equal(t, 1, len(got.Items))
+	be.Equal(t, bk.ID, got.Items[0].ID)
 
 	// unchecking own[0] drops only that link; the shared one stays
 	updated, err = testDB.UpdateBookmarkCollectionIDs(ctx, bk.ID, owner.ID, []uuid.UUID{own[1].ID})
@@ -383,22 +386,22 @@ func TestArchiveBookmark(t *testing.T) {
 	bk, err := testDB.CreateBookmark(ctx, u, "Archived Post", user.ID, "", []uuid.UUID{colID}, []string{"go"}, false)
 	be.NilErr(t, err)
 
-	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
 	be.NilErr(t, err)
-	be.Equal(t, 1, len(recent))
+	be.Equal(t, 1, len(recent.Items))
 
 	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID))
 	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID)) // idempotent
 
 	// hidden from all browse lists and the edit fetch
-	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
 	be.NilErr(t, err)
-	be.Equal(t, 0, len(recent))
+	be.Equal(t, 0, len(recent.Items))
 	_, err = testDB.GetBookmarkByID(ctx, bk.ID, user.ID)
 	be.True(t, errors.Is(err, core.ErrNotFound))
-	full, err := testDB.GetCollection(ctx, colID)
+	full, err := testDB.GetCollectionBookmarks(ctx, colID, core.CursorPage{Limit: 20})
 	be.NilErr(t, err)
-	be.Equal(t, 0, len(full.Bookmarks)) // collection browse filters archived too
+	be.Equal(t, 0, len(full.Items)) // collection browse filters archived too
 
 	// author-only
 	err = testDB.ArchiveBookmark(ctx, bk.ID, other.ID)
@@ -431,16 +434,16 @@ func TestArchivedLifecycle(t *testing.T) {
 	list, err = testDB.GetArchivedBookmarksByUser(ctx, user.ID)
 	be.NilErr(t, err)
 	be.Equal(t, 0, len(list))
-	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
 	be.NilErr(t, err)
-	be.Equal(t, 1, len(recent))
+	be.Equal(t, 1, len(recent.Items))
 
 	// archive again, then permanently delete
 	be.NilErr(t, testDB.ArchiveBookmark(ctx, bk.ID, user.ID))
 	be.NilErr(t, testDB.DeleteBookmark(ctx, bk.ID, user.ID))
-	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
 	be.NilErr(t, err)
-	be.Equal(t, 0, len(recent))
+	be.Equal(t, 0, len(recent.Items))
 	_, err = testDB.GetBookmarkByID(ctx, bk.ID, user.ID)
 	be.True(t, errors.Is(err, core.ErrNotFound))
 
@@ -467,30 +470,29 @@ func TestBookmarkRepository(t *testing.T) {
 	be.NilErr(t, err)
 	be.Equal(t, "Example Post", bk.Title)
 
-	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	recent, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
 	be.NilErr(t, err)
-	be.Equal(t, 1, len(recent))
-	be.Equal(t, "Example Post", recent[0].Title)
-	be.Equal(t, "https://example.com/post", recent[0].URL.String())
-	be.Equal(t, "", recent[0].Notes) // default: no note
+	be.Equal(t, "Example Post", recent.Items[0].Title)
+	be.Equal(t, "https://example.com/post", recent.Items[0].URL.String())
+	be.Equal(t, "", recent.Items[0].Notes) // default: no note
 
 	// notes round-trip — raw write for now (the repo update path lands with
 	// the edit panel step); assert the mapper reads the column.
 	_, err = testDB.Pool.Exec(ctx, `update bookmarks set notes = $1 where id = $2`, "Check the grid section", bk.ID)
 	be.NilErr(t, err)
-	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "")
+	recent, err = testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
 	be.NilErr(t, err)
-	be.Equal(t, "Check the grid section", recent[0].Notes)
+	be.Equal(t, "Check the grid section", recent.Items[0].Notes)
 
 	tags, err := testDB.GetTagsByUser(ctx, user.ID)
 	be.NilErr(t, err)
 	be.Equal(t, 2, len(tags))
 	be.True(t, slices.Contains([]string{tags[0].Name, tags[1].Name}, "go"))
 
-	byTags, err := testDB.GetBookmarksByTags(ctx, user.ID, []string{"go"}, "")
+	byTags, err := testDB.GetBookmarksByTags(ctx, user.ID, []string{"go"}, "", core.CursorPage{Limit: 20})
 	be.NilErr(t, err)
-	be.Equal(t, 1, len(byTags))
-	be.Equal(t, "Example Post", byTags[0].Title)
+	be.Equal(t, 1, len(byTags.Items))
+	be.Equal(t, "Example Post", byTags.Items[0].Title)
 }
 
 func TestCollectionMembers(t *testing.T) {
@@ -563,6 +565,147 @@ func TestGetCollectionAccess(t *testing.T) {
 	// nonexistent collection → not found
 	role, err = testDB.GetCollectionAccess(ctx, uuid.New(), owner.ID)
 	be.True(t, errors.Is(err, core.ErrNotFound))
+}
+
+// cursorLess reports whether a sorts strictly before b in the keyset order
+// (created_at DESC, id DESC — Postgres compares uuids byte-wise).
+func cursorLess(a, b core.BookmarkCursor) bool {
+	if !a.CreatedAt.Equal(b.CreatedAt) {
+		return a.CreatedAt.After(b.CreatedAt)
+	}
+	return bytes.Compare(a.ID[:], b.ID[:]) > 0
+}
+
+func keysetOrdered(t *testing.T, items []core.Bookmark) {
+	t.Helper()
+	for i := 1; i < len(items); i++ {
+		be.True(t, cursorLess(core.CursorOf(items[i-1]), core.CursorOf(items[i])))
+	}
+}
+
+func cursorPtr(c core.BookmarkCursor) *core.BookmarkCursor { return &c }
+
+func TestBookmarkCursorPagination(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "pager@test.local", "hash")
+	be.NilErr(t, err)
+
+	u, err := url.Parse("https://example.com/paged")
+	be.NilErr(t, err)
+	for i := 0; i < 25; i++ {
+		_, err = testDB.CreateBookmark(ctx, u, fmt.Sprintf("Post %02d", i), user.ID, "", nil, nil, false)
+		be.NilErr(t, err)
+	}
+	// five bookmarks share one created_at so the id tiebreak decides their order
+	_, err = testDB.Pool.Exec(ctx, `update bookmarks set created_at = '2026-01-01 12:00:00' where title like 'Post 0%'`)
+	be.NilErr(t, err)
+
+	first, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
+	be.NilErr(t, err)
+	be.Equal(t, 10, len(first.Items))
+	be.True(t, first.HasOlder)
+	be.False(t, first.HasNewer)
+	keysetOrdered(t, first.Items)
+
+	lastOfFirst := core.CursorOf(first.Items[len(first.Items)-1])
+	second, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Older: cursorPtr(lastOfFirst), Limit: 10})
+	be.NilErr(t, err)
+	be.Equal(t, 10, len(second.Items))
+	be.True(t, second.HasOlder)
+	be.True(t, second.HasNewer) // an older cursor marks a mid-feed window
+	keysetOrdered(t, second.Items)
+	for _, bm := range second.Items { // every item sits below the cursor
+		be.True(t, cursorLess(lastOfFirst, core.CursorOf(bm)))
+	}
+
+	older := core.CursorOf(second.Items[len(second.Items)-1])
+	third, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Older: cursorPtr(older), Limit: 10})
+	be.NilErr(t, err)
+	be.Equal(t, 5, len(third.Items))
+	be.False(t, third.HasOlder)
+	be.True(t, third.HasNewer)
+	// the five created_at ties land together on the last page
+	for _, bm := range third.Items {
+		be.True(t, core.CursorOf(third.Items[0]).CreatedAt.Equal(core.CursorOf(bm).CreatedAt))
+	}
+
+	// the keyset order is stable across identical requests
+	again, err := testDB.GetRecentBookmarksByUser(ctx, user.ID, "", core.CursorPage{Limit: 10})
+	be.NilErr(t, err)
+	for i, bm := range again.Items {
+		be.Equal(t, first.Items[i].ID, bm.ID)
+	}
+}
+
+func TestBookmarkTagsCursorPagination(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "tagpager@test.local", "hash")
+	be.NilErr(t, err)
+
+	u, err := url.Parse("https://example.com/tag-paged")
+	be.NilErr(t, err)
+	for i := 0; i < 12; i++ {
+		_, err = testDB.CreateBookmark(ctx, u, fmt.Sprintf("Tagged %02d", i), user.ID, "", nil, []string{"go", "web"}, false)
+		be.NilErr(t, err)
+	}
+
+	first, err := testDB.GetBookmarksByTags(ctx, user.ID, []string{"go", "web"}, "", core.CursorPage{Limit: 5})
+	be.NilErr(t, err)
+	be.Equal(t, 5, len(first.Items)) // match-any tags, each bookmark exactly once
+	be.True(t, first.HasOlder)
+	be.False(t, first.HasNewer)
+	keysetOrdered(t, first.Items)
+
+	seen := make(map[uuid.UUID]bool, len(first.Items))
+	for _, bm := range first.Items {
+		seen[bm.ID] = true
+	}
+	be.Equal(t, 5, len(seen))
+
+	second, err := testDB.GetBookmarksByTags(ctx, user.ID, []string{"go", "web"}, "", core.CursorPage{Older: cursorPtr(core.CursorOf(first.Items[len(first.Items)-1])), Limit: 5})
+	be.NilErr(t, err)
+	be.Equal(t, 5, len(second.Items))
+	be.True(t, second.HasOlder)
+	be.True(t, second.HasNewer)
+	for _, bm := range second.Items { // pages are disjoint
+		be.False(t, seen[bm.ID])
+	}
+}
+
+func TestCollectionBookmarksCursorPagination(t *testing.T) {
+	ctx := context.Background()
+	user, err := testDB.CreateUser(ctx, "colpager@test.local", "hash")
+	be.NilErr(t, err)
+	be.NilErr(t, testDB.CreateCollection(ctx, user.ID, "Paged", ""))
+	lists, err := testDB.GetCollectionsByUser(ctx, user.ID)
+	be.NilErr(t, err)
+	colID := lists[0].ID
+
+	u, err := url.Parse("https://example.com/col-paged")
+	be.NilErr(t, err)
+	for i := 0; i < 12; i++ {
+		_, err = testDB.CreateBookmark(ctx, u, fmt.Sprintf("Col %02d", i), user.ID, "", []uuid.UUID{colID}, []string{"go", "web"}, false)
+		be.NilErr(t, err)
+	}
+
+	first, err := testDB.GetCollectionBookmarks(ctx, colID, core.CursorPage{Limit: 5})
+	be.NilErr(t, err)
+	be.Equal(t, 5, len(first.Items)) // LIMIT counts bookmarks, not joined tag rows
+	be.True(t, first.HasOlder)
+	be.False(t, first.HasNewer)
+	keysetOrdered(t, first.Items)
+	for _, bm := range first.Items { // tag aggregation still intact
+		be.Equal(t, 2, len(bm.Tags))
+		be.True(t, slices.Contains(bm.Tags, "go"))
+		be.True(t, slices.Contains(bm.Tags, "web"))
+	}
+
+	second, err := testDB.GetCollectionBookmarks(ctx, colID, core.CursorPage{Older: cursorPtr(core.CursorOf(first.Items[len(first.Items)-1])), Limit: 5})
+	be.NilErr(t, err)
+	be.Equal(t, 5, len(second.Items))
+	be.True(t, second.HasOlder)
+	be.True(t, second.HasNewer) // mid-feed window
+	keysetOrdered(t, second.Items)
 }
 
 // --- test database setup ---
