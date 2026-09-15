@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/carlmjohnson/be"
-	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchworks/internal/core"
 )
 
 func TestClassify(t *testing.T) {

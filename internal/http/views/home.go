@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchworks/internal/core"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )

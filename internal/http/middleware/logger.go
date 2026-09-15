@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/davenathanael/patchwork/internal/logging"
+	"github.com/davenathanael/patchworks/internal/logging"
 	"github.com/go-chi/httplog/v3"
 )
 

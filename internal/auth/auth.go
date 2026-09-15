@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchworks/internal/core"
 	"github.com/google/uuid"
 )
 

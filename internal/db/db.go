@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	pgxuuid "github.com/vgarvardt/pgx-google-uuid/v5"
 
-	"github.com/davenathanael/patchwork/internal/db/sqlc"
+	"github.com/davenathanael/patchworks/internal/db/sqlc"
 )
 
 // DB holds the database connection pool and provides query execution.

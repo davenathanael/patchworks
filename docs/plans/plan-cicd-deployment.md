@@ -11,7 +11,7 @@ CI on every push/PR (lint, unit, integration tests), tag-triggered GHCR image pu
 - GHCR image only — no GitHub Release entry created on tags.
 - Prod migrations run via a **dbmate one-shot compose service** (not a background job, not CI).
 - Pin `go = 1.26.2`, `golangci-lint = 2.11.4` in `mise.toml` for deterministic CI.
-- Compose project name is `patchwork-prod` (see gotcha below).
+- Compose project name is `patchworks-prod` (see gotcha below).
 
 ## Delivered
 
@@ -20,7 +20,7 @@ CI on every push/PR (lint, unit, integration tests), tag-triggered GHCR image pu
 | `Dockerfile` | Multi-stage: `golang:1.26.2-alpine` builder → `distroless/static-debian12:nonroot`; binary + `resources/static/`, CA certs copied. ~15 MB, non-root. |
 | `.dockerignore` | Excludes `.git`, `.github`, `docs`, `.env*`, `coverage.out`. |
 | `.github/workflows/ci.yml` | Push (all branches) + PR. `check` = `mise run lint` + `mise run test`; `integration` = postgres:18 service + `TEST_DATABASE_URL` + `mise run test-integration`. Tooling via `jdx/mise-action`. |
-| `.github/workflows/release.yml` | Tag `v*` → QEMU + buildx, amd64+arm64, push `ghcr.io/davenathanael/patchwork:{semver,latest}`. `packages: write`. |
+| `.github/workflows/release.yml` | Tag `v*` → QEMU + buildx, amd64+arm64, push `ghcr.io/davenathanael/patchworks:{semver,latest}`. `packages: write`. |
 | `docker-compose.prod.yml` | `db` (healthcheck, named volume) → `migrate` (dbmate, bind-mounts `./resources/db:ro`, `--wait up`) → `app` (GHCR image, `depends_on: migrate: service_completed_successfully`). |
 | `mise.toml` | Pinned go + golangci-lint. |
 | `docs/deploy.md` | Ops reference: CI jobs, image tags, prod stack, vars table, redeploy flow. |
@@ -43,7 +43,7 @@ CI on every push/PR (lint, unit, integration tests), tag-triggered GHCR image pu
 
 ## Gotchas learned
 
-- **Compose project collision.** `name:` must be `patchwork-prod`. The dev stack (`docker-compose.yml`, dir-name project `patchwork`) already owns project `patchwork` — db + dex/caddy/zitadel containers and `patchwork_db_data`. Without the rename, prod `up` adopts the dev db (wrong password, migrations never run, app crash-loops).
+- **Compose project collision.** `name:` must be `patchworks-prod`. The dev stack (`docker-compose.yml`, dir-name project `patchworks`) already owns project `patchworks` — db + dex/caddy/zitadel containers and `patchwork_db_data`. Without the rename, prod `up` adopts the dev db (wrong password, migrations never run, app crash-loops).
 - **`SESSION_ENCRYPTION_KEY` must decode to exactly 32 bytes** (AES-256). A 33-byte key panic surfaces only *after* DB connect succeeds — DB errors mask it.
 - **Bind mount is read-only**; dbmate logs `Writing: /db/schema.sql` after migrating but this is best-effort — exit stays 0, repo `schema.sql` unchanged.
 - **Distroless = no shell** — no `docker exec` debugging; certs are copied in because distroless ships none, and the app fetches page titles over HTTPS (BK-2).
@@ -61,8 +61,8 @@ The bind mount ties deploys to a repo checkout on the host (`git pull` before `u
    FROM amacneil/dbmate:2.32.0
    COPY resources/db /db
    ```
-2. `release.yml`: build + push a second image `ghcr.io/davenathanael/patchwork-migrate` on the same tags (reuse metadata-action output; add a second build-push step).
-3. `docker-compose.prod.yml`: drop the `./resources/db:/db:ro` bind mount; set `migrate.image: ghcr.io/davenathanael/patchwork-migrate:${PATCHWORK_IMAGE_TAG:-latest}`; keep the dbmate env vars (`DBMATE_MIGRATIONS_DIR=/db/migrations`, `DBMATE_SCHEMA_FILE=/db/schema.sql`) and the `--wait up` command.
+2. `release.yml`: build + push a second image `ghcr.io/davenathanael/patchworks-migrate` on the same tags (reuse metadata-action output; add a second build-push step).
+3. `docker-compose.prod.yml`: drop the `./resources/db:/db:ro` bind mount; set `migrate.image: ghcr.io/davenathanael/patchworks-migrate:${PATCHWORK_IMAGE_TAG:-latest}`; keep the dbmate env vars (`DBMATE_MIGRATIONS_DIR=/db/migrations`, `DBMATE_SCHEMA_FILE=/db/schema.sql`) and the `--wait up` command.
 
 Result: host needs no checkout (only the compose file) — `docker compose pull && up -d`. Migrations are pinned to the same tag as the app. Tradeoff: a second published image; compose file still lives on the host.
 

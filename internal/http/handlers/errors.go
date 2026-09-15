@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/davenathanael/patchwork/internal/http/middleware"
-	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/davenathanael/patchworks/internal/http/middleware"
+	"github.com/davenathanael/patchworks/internal/http/views"
 )
 
 // Handler is an error-returning HTTP handler. Expected errors are classified

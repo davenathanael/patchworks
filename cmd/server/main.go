@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/davenathanael/patchwork/internal/http/server"
+	"github.com/davenathanael/patchworks/internal/http/server"
 )
 
 func main() {

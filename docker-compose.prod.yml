@@ -1,8 +1,8 @@
-name: patchwork-prod
+name: patchworks-prod
 
 # Production stack: Postgres + dbmate migration + app image from GHCR.
-# Distinct compose project (patchwork-prod) so it never collides with the dev
-# stack (project "patchwork" — docker-compose.yml).
+# Distinct compose project (patchworks-prod) so it never collides with the dev
+# stack (project "patchworks" — docker-compose.yml).
 # Usage:
 #   cp .env.example .env   # then set POSTGRES_PASSWORD and SESSION_ENCRYPTION_KEY
 #   docker compose -f docker-compose.prod.yml up -d
@@ -13,13 +13,13 @@ services:
   db:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-patchwork}
+      POSTGRES_USER: ${POSTGRES_USER:-patchworks}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-patchwork}
+      POSTGRES_DB: ${POSTGRES_DB:-patchworks}
     volumes:
       - db_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-patchwork} -d ${POSTGRES_DB:-patchwork}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-patchworks} -d ${POSTGRES_DB:-patchworks}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -28,7 +28,7 @@ services:
   migrate:
     image: amacneil/dbmate:2.32.0
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-patchwork}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-patchwork}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-patchworks}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-patchworks}?sslmode=disable
       DBMATE_MIGRATIONS_DIR: /db/migrations
       DBMATE_SCHEMA_FILE: /db/schema.sql
     volumes:
@@ -40,11 +40,11 @@ services:
     restart: "no"
 
   app:
-    image: ghcr.io/davenathanael/patchwork:${PATCHWORK_IMAGE_TAG:-latest}
+    image: ghcr.io/davenathanael/patchworks:${PATCHWORK_IMAGE_TAG:-latest}
     ports:
       - "${HTTP_PORT:-8080}:8080"
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-patchwork}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-patchwork}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-patchworks}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-patchworks}?sslmode=disable
       HOST: 0.0.0.0
       PORT: "8080"
       ENVIRONMENT: production

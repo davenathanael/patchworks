@@ -1,4 +1,4 @@
-# Patchwork
+# Patchworks
 
 Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, email/password auth.
 

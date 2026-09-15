@@ -15,15 +15,15 @@ Tooling comes from `mise.toml` (pinned: go 1.26.2, golangci-lint 2.11.4).
 
 Pushing a tag `v*` builds amd64+arm64 and pushes to GHCR:
 
-- `ghcr.io/davenathanael/patchwork:<tag>` and `:latest`
+- `ghcr.io/davenathanael/patchworks:<tag>` and `:latest`
 - Image-only — no GitHub Release entry is created
 - GHCR package is **private by default**: toggle to public once in package settings
-  (Settings → Packages → patchwork → Make public) or machines must `docker login ghcr.io`
+  (Settings → Packages → patchworks → Make public) or machines must `docker login ghcr.io`
 
 ## Local image build
 
 ```sh
-docker build -t patchwork:local .
+docker build -t patchworks:local .
 ```
 
 Multi-stage Dockerfile: golang builder → distroless static binary + `resources/static/` (served from disk).
@@ -46,8 +46,8 @@ Optional vars:
 
 | Var | Default | Notes |
 |---|---|---|
-| `POSTGRES_USER` | `patchwork` | |
-| `POSTGRES_DB` | `patchwork` | |
+| `POSTGRES_USER` | `patchworks` | |
+| `POSTGRES_DB` | `patchworks` | |
 | `HTTP_PORT` | `8080` | host port for the app |
 | `PATCHWORK_IMAGE_TAG` | `latest` | pin a specific image version |
 

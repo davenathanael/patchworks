@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/carlmjohnson/be"
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/http/views"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )

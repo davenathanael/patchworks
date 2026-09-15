@@ -3,7 +3,7 @@ package views
 import (
 	"net/http"
 
-	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchworks/internal/core"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/components"
 	. "maragu.dev/gomponents/html"

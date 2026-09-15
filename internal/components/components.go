@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/davenathanael/patchwork/internal/auth"
-	"github.com/davenathanael/patchwork/internal/config"
-	"github.com/davenathanael/patchwork/internal/db"
-	"github.com/davenathanael/patchwork/internal/http/client"
+	"github.com/davenathanael/patchworks/internal/auth"
+	"github.com/davenathanael/patchworks/internal/config"
+	"github.com/davenathanael/patchworks/internal/db"
+	"github.com/davenathanael/patchworks/internal/http/client"
 )
 
 // Components holds the application dependencies (DB connections, HTTP clients, Configs, etc).

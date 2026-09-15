@@ -1,6 +1,6 @@
 # Documentation & Planning Process
 
-How Patchwork records decisions, plans work, and keeps the spec alive. Applies to human and agent work alike.
+How Patchworks records decisions, plans work, and keeps the spec alive. Applies to human and agent work alike.
 
 ## Source of truth: `docs/spec.md`
 

@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"github.com/ajg/form"
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/http/views"
 )
 
 // AuthRegistrar registers new users.

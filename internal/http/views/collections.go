@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchworks/internal/core"
 	"github.com/google/uuid"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"

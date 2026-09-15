@@ -3,8 +3,8 @@ package db
 import (
 	"net/url"
 
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/db/sqlc"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/db/sqlc"
 	"github.com/google/uuid"
 )
 

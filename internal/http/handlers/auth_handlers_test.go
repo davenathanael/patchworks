@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/carlmjohnson/be"
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/http/views"
 )
 
 func TestGetLoginPage(t *testing.T) {

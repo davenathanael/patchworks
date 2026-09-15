@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/carlmjohnson/be"
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/http/middleware"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/http/middleware"
 	"github.com/google/uuid"
 )
 

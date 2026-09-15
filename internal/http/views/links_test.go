@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/carlmjohnson/be"
-	"github.com/davenathanael/patchwork/internal/core"
+	"github.com/davenathanael/patchworks/internal/core"
 	"github.com/google/uuid"
 	. "maragu.dev/gomponents"
 )

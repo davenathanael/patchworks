@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/davenathanael/patchwork/internal/components"
-	"github.com/davenathanael/patchwork/internal/http/middleware"
+	"github.com/davenathanael/patchworks/internal/components"
+	"github.com/davenathanael/patchworks/internal/http/middleware"
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 )

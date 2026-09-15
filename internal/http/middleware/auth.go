@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/http/views"
 )
 
 type contextKey struct{}

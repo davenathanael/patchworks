@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/davenathanael/patchwork/internal/components"
-	"github.com/davenathanael/patchwork/internal/config"
-	"github.com/davenathanael/patchwork/internal/http/handlers"
-	"github.com/davenathanael/patchwork/internal/logging"
+	"github.com/davenathanael/patchworks/internal/components"
+	"github.com/davenathanael/patchworks/internal/config"
+	"github.com/davenathanael/patchworks/internal/http/handlers"
+	"github.com/davenathanael/patchworks/internal/logging"
 )
 
 // Run starts the HTTP server.
@@ -34,7 +34,7 @@ func Run() {
 	handler := handlers.New(comp)
 	server := newServer(comp.Config.HTTPServer, handler)
 
-	slog.Info("Starting Patchwork server...")
+	slog.Info("Starting Patchworks server...")
 
 	if err := server.ListenAndServe(); err != nil {
 		panic(err)

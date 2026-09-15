@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"github.com/ajg/form"
-	"github.com/davenathanael/patchwork/internal/components"
-	"github.com/davenathanael/patchwork/internal/core"
-	"github.com/davenathanael/patchwork/internal/http/middleware"
-	"github.com/davenathanael/patchwork/internal/http/views"
+	"github.com/davenathanael/patchworks/internal/components"
+	"github.com/davenathanael/patchworks/internal/core"
+	"github.com/davenathanael/patchworks/internal/http/middleware"
+	"github.com/davenathanael/patchworks/internal/http/views"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )

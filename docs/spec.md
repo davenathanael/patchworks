@@ -1,4 +1,4 @@
-# Patchwork — Product Specification
+# Patchworks — Product Specification
 
 **Status:** Draft v1.10 · **Last updated:** 2026-09-09 · **Owner:** Dave Nathanael
 
@@ -25,13 +25,13 @@
 | 1.9 | 2026-09-09 | **BK-15** amended — htmx Load more no longer pushes the cursor into the URL (position is ephemeral; refresh returns to the list head); `?older` windows remain for the no-JS fallback with the Back-to-latest link |
 | 1.10 | 2026-09-09 | **BK-15** clarified — documented the intentional htmx/no-JS discrepancy: cumulative append vs window-stepping (each full load renders only the batch older than the cursor) |
 
-> Scope: this document describes **what** Patchwork is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
+> Scope: this document describes **what** Patchworks is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
 
 ---
 
 ## 1. Overview
 
-Patchwork is a **personal bookmark manager** — a self-hostable web app for saving, organizing, and rediscovering links. It is designed for one person to own their bookmarks, with opt-in sharing through *collections* rather than a social platform.
+Patchworks is a **personal bookmark manager** — a self-hostable web app for saving, organizing, and rediscovering links. It is designed for one person to own their bookmarks, with opt-in sharing through *collections* rather than a social platform.
 
 Core ideas:
 

@@ -1,4 +1,4 @@
-module github.com/davenathanael/patchwork
+module github.com/davenathanael/patchworks
 
 go 1.26.2
 
