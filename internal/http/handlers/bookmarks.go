@@ -25,6 +25,10 @@ const (
 	filteredPageSize = 20
 )
 
+// maxFormBody bounds request bodies before r.ParseForm (gosec G120).
+// Bookmark forms are tiny; 1 MiB is generous headroom.
+const maxFormBody int64 = 1 << 20
+
 // BookmarkStore is the interface for bookmark and tag persistence.
 type BookmarkStore interface {
 	GetTagsByUser(ctx context.Context, userID uuid.UUID) ([]core.Tag, error)
@@ -270,6 +274,7 @@ func postBookmarks(w http.ResponseWriter, r *http.Request, collections bookmarkC
 	}
 
 	var formData views.BookmarkForm
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBody)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("parse bookmark form: %w", err)
 	}
@@ -605,10 +610,11 @@ func postBookmarkReading(w http.ResponseWriter, r *http.Request, bookmarks Bookm
 	if views.IsHtmx(r) {
 		return nil
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBody)
 	if err := r.ParseForm(); err != nil {
 		return fmt.Errorf("parse reading form: %w", err)
 	}
-	//nolint:gosec // next is restricted to same-site relative paths (or "/") by safeNext
+	// next is restricted to same-site relative paths (or "/") by safeNext
 	http.Redirect(w, r, safeNext(r.PostForm.Get("next")), http.StatusSeeOther)
 	return nil
 }
@@ -755,6 +761,7 @@ func postBookmarkCollections(w http.ResponseWriter, r *http.Request, bookmarks B
 		return err
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBody)
 	if err = r.ParseForm(); err != nil {
 		return fmt.Errorf("parse edit collections form: %w", err)
 	}
