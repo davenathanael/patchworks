@@ -14,6 +14,7 @@ Personal bookmark manager. Go 1.26.2, chi v5, gomponents, pgx/v5 + SQLC, email/p
 |`mise run compose`|Docker Compose up (Postgres)|
 |`mise run migrate`|Run migrations|
 |`mise run migration`|Create a new migration file (`dbmate new`)|
+|`docker compose -f docker-compose.prod.yml up -d`|Run production stack (GHCR image + Postgres + migrate)|
 
 ## Architecture
 
@@ -78,6 +79,7 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 - `docs/auth.md` — password auth, session/cookie details
 - `docs/config.md` — env sections
 - `docs/logging.md` — slog conventions
+- `docs/deploy.md` — CI/CD (GitHub Actions) + production deployment
 - `docs/testing.md` — approach, fakes, assertions
 - `docs/adr/0001-styling-overhaul-mocha.md` — ADR: styling overhaul decisions (palette, variables, exceptions)
 

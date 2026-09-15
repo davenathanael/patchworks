@@ -1,7 +1,7 @@
 [tools]
 dbmate = "latest"
-go = "latest"
-golangci-lint = "latest"
+go = "1.26.2"
+golangci-lint = "2.11.4"
 sqlc = "latest"
 watchexec = "latest"
 

@@ -1,0 +1,61 @@
+name: patchwork-prod
+
+# Production stack: Postgres + dbmate migration + app image from GHCR.
+# Distinct compose project (patchwork-prod) so it never collides with the dev
+# stack (project "patchwork" — docker-compose.yml).
+# Usage:
+#   cp .env.example .env   # then set POSTGRES_PASSWORD and SESSION_ENCRYPTION_KEY
+#   docker compose -f docker-compose.prod.yml up -d
+# Required vars (compose fails fast if missing): POSTGRES_PASSWORD, SESSION_ENCRYPTION_KEY.
+# See docs/deploy.md.
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-patchwork}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-patchwork}
+    volumes:
+      - db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-patchwork} -d ${POSTGRES_DB:-patchwork}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    image: amacneil/dbmate:2.32.0
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-patchwork}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-patchwork}?sslmode=disable
+      DBMATE_MIGRATIONS_DIR: /db/migrations
+      DBMATE_SCHEMA_FILE: /db/schema.sql
+    volumes:
+      - ./resources/db:/db:ro
+    command: ["--wait", "--wait-timeout", "60s", "up"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    image: ghcr.io/davenathanael/patchwork:${PATCHWORK_IMAGE_TAG:-latest}
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-patchwork}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-patchwork}?sslmode=disable
+      HOST: 0.0.0.0
+      PORT: "8080"
+      ENVIRONMENT: production
+      SESSION_ENCRYPTION_KEY: "${SESSION_ENCRYPTION_KEY:?generate with: openssl rand -base64 32}"
+      SESSION_COOKIE_SECURE: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  db_data:

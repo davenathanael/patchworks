@@ -1,0 +1,9 @@
+.git
+.github
+docs
+plan*.md
+.env
+.env.*
+!.env.example
+coverage.out
+*.log
