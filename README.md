@@ -1,21 +1,21 @@
 # Patchworks
 
-> A simple, self-hostable personal information hub. Store and manage bookmarks, keep track of your reading progress, and share everything with others.
+> A self-hostable personal bookmark manager for saving, organizing, rediscovering, and selectively sharing links.
 
-Patchworks is a web-based application to collect and organize information from the web. 
+Patchworks is a web-based application to collect and organize information from the web.
 
 ## Features
 
 1. Store and manage bookmarks and collections
 2. Organize bookmarks with collections, tags, and search by title
 3. Invite and share collections with others
-4. Add bookmarks to your current reading list and keep track of your progress
+4. Maintain a per-user reading list (queue) for saved bookmarks; marking a bookmark as read removes it and does not retain reading history.
 
 ### Future improvements
 
 1. Bulk imports/exports
 2. OAuth/social login
-3. Register and manage links from RSS feeds
+3. Explore browser capture and link-management integrations
 
 ## Installation
 
@@ -23,13 +23,13 @@ Patchworks is a web-based application to collect and organize information from t
 2. `git clone https://github.com/davenathanael/patchworks`
 3. Use `docker-compose.prod.yml` to set up the production environment. It includes the latest version of Patchworks and its dependencies.
 4. Adjust some environment variables as indicated. (To run in production with HTTPS, run Patchworks under a reverse proxy with SSL/TLS like Caddy, and set `SESSION_COOKIE_SECURE` to `true`.)
-5. `docker-compose -f docker-compose.prod.yml up -d`
+5. `docker compose -f docker-compose.prod.yml up -d`
 
 ## Contributing
 
 Issues and pull requests are welcome.
 
-The project is built using Go and a small selection of libraries. Small sprinkles of HTMX, JS, and CSS (modern, vanilla) for styling and interactivity. PostgreSQL as the external storage/database. Further details could be found within `docs/`.
+The project is built using Go and a small selection of libraries. Small sprinkles of HTMX, JS, and CSS (modern, vanilla) for styling and interactivity. PostgreSQL as the external storage/database. Further details are in [`docs/`](docs/), especially [`docs/spec.md`](docs/spec.md), [`docs/process.md`](docs/process.md), and [`docs/deploy.md`](docs/deploy.md).
 
 ## AI Usage
 

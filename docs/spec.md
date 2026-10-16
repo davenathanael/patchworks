@@ -1,6 +1,6 @@
 # Patchworks — Product Specification
 
-**Status:** Draft v1.10 · **Last updated:** 2026-09-09 · **Owner:** Dave Nathanael
+**Status:** Draft v1.11 · **Last updated:** 2026-09-24 · **Owner:** Dave Nathanael
 
 | Rev | Date | Change |
 |-----|------|--------|
@@ -24,8 +24,9 @@
 | 1.8 | 2026-09-09 | **BK-15** amended — dropped Load previous (append flow already holds newer rows); added Back-to-latest link for deep-linked windows; single-direction Load more only |
 | 1.9 | 2026-09-09 | **BK-15** amended — htmx Load more no longer pushes the cursor into the URL (position is ephemeral; refresh returns to the list head); `?older` windows remain for the no-JS fallback with the Back-to-latest link |
 | 1.10 | 2026-09-09 | **BK-15** clarified — documented the intentional htmx/no-JS discrepancy: cumulative append vs window-stepping (each full load renders only the batch older than the cursor) |
+| 1.11 | 2026-09-24 | Documentation migration: feature-ticket terminology, category links, and status/priority reconciliation against the current contracts; no product behavior changes |
 
-> Scope: this document describes **what** Patchworks is and does (features, roadmap). Technical detail lives in the `docs/` pages (see `docs/process.md`). Requirement IDs (`AU-1`, `BK-1`, …) are referenceable from tickets and tests.
+> Scope: this document describes **what** Patchworks is and does (features, roadmap). Area policy lives in the `docs/` pages; see [`docs/process.md`](process.md). The `AU-*`, `BK-*`, `CL-*`, `TG-*`, `SR-*`, `UX-*`, and `FR-*` identifiers are feature tickets, with detailed contracts in the linked category files.
 
 ---
 
@@ -36,19 +37,19 @@ Patchworks is a **personal bookmark manager** — a self-hostable web app for sa
 Core ideas:
 
 - **Personal-first.** The product is the owner's tool; multi-user behavior exists only where a user chooses to share a collection.
-- **Fast, low-ceremony saving.** Add a bookmark with URL + optional title, pick a collection, tag it. Done.
+- **Fast, low-ceremony saving.** Add a bookmark from its URL, pick collections, tag it, and let the server derive the title. Done.
 - **Rediscovery over archiving.** Recent links up top, search-as-you-type, one-click collection/tag filters. Bookmarks are for finding things again, not for hoarding.
-- **Works without JavaScript.** Server-rendered HTML; htmx progressively enhances. No client-side build step, no JS framework.
+- **Server-rendered by design.** Forms and links are intended to work without JavaScript, while htmx progressively enhances them. Current no-JS gaps are tracked by UX-1.
 
 ## 2. Goals
 
-- Save a bookmark (URL + title) in a few seconds, optionally into a collection and with tags.
+- Save a bookmark from its URL in a few seconds, optionally into collections and with tags.
 - Find a saved bookmark again: free-text search, collection filter, tag filter, any combination.
 - Organize bookmarks into named collections, optionally shared with other users.
 - Keep the UI fast, accessible, and dependency-light; run anywhere Postgres runs.
 - Stay a personal tool: predictable, boring, self-hostable.
 
-**How we know it works (signals):** adding a bookmark takes < 5 seconds end-to-end; a saved bookmark is findable again via search *or* filter; collections render correctly for invited members; the app runs server-side-only (no JS required for any core flow).
+**How we know it works (signals):** adding a bookmark takes < 5 seconds end-to-end; a saved bookmark is findable again via search *or* filter; collections render correctly for shared members; the app remains server-rendered, with remaining no-JS gaps tracked under UX-1.
 
 ## 3. Non-goals
 
@@ -66,94 +67,108 @@ Core ideas:
 | Persona | Description | Priority |
 |---|---|---|
 | **Owner** | The single primary user. Registers, saves bookmarks, organizes collections, curates tags. | Primary — everything below serves this persona |
-| **Invited member** | A user invited into one or more of the owner's collections. Can view/manage shared collections per their role. | Secondary — collections area only |
+| **Shared member** | An existing user added to one or more of the owner's collections. Can view/manage shared collections per their role. | Secondary — collections area only |
 | **Anonymous visitor** | Not yet registered. Sees only the auth pages. | Tertiary |
 
+<a id="5-feature-set-current"></a>
 ## 5. Feature set (current)
 
-Status legend: **impl** = implemented, **partial** = partially implemented (gaps noted), **planned** = not yet built (see §7).
+Each item below is a **feature ticket** with a compact status summary; the linked category file is the current contract and owns acceptance criteria and open work. See [`docs/process.md`](process.md) for status and priority definitions. Priorities apply only to open work: **P0** = critical, **P1** = important, **P2** = follow-up.
 
-### 5.1 Accounts & authentication — *impl*
+<a id="51-accounts--authentication--impl"></a>
+### 5.1 Accounts & authentication — *partial*
 
-- **AU-1** Register with email + password; the password is hashed with argon2id (64 MiB, t=1, p=4) and stored as a PHC string. Duplicate email is rejected with an inline error.
-- **AU-2** Login verifies credentials and issues a session stored server-side.
-- **AU-3** The session cookie is AES-GCM encrypted, `HttpOnly`, `Secure`, `SameSite=Lax`, 30-day expiry. Invalid credentials produce a generic "invalid email or password" message (no account enumeration).
-- **AU-4** Logout deletes the session and clears the cookie.
-- **AU-5** Protected pages require a valid session: full-page requests redirect to `/auth/login`; htmx requests get `401` + `HX-Redirect`.
-- **AU-6** Empty email/password are rejected with inline field errors; submitted values are preserved on re-render.
-- **AU-7** A successful login stamps `users.last_login_at` (server time). Failed logins don't touch it; a failed stamp aborts the login before a session is created.
-- **Gaps:** no email verification, no password reset (→ FR-12).
+[AU-* feature tickets](features/authentication.md) · **Family status:** partial
 
-### 5.2 Bookmarks — *impl*
+- **AU-1** *(partial · P1)* — Register with email/password and an Argon2id PHC hash; duplicate email is rejected. Email canonicalization and a password policy remain open.
+- **AU-2** *(partial · P0)* — Verify credentials, record the successful login, and create a server-backed session. Unknown-user work equivalence and authentication throttling remain open.
+- **AU-3** *(partial · P1)* — Use an AES-GCM encrypted, HTTP-only session cookie backed by database validity. Session rotation, revocation, and bounded expiry cleanup remain open.
+- **AU-4** *(partial · P0)* — Delete the current session and clear its cookie. The current GET-based flow is not yet a CSRF-protected POST.
+- **AU-5** *(implemented)* — Require authentication on application routes, redirecting full requests and challenging htmx requests.
+- **AU-6** *(implemented)* — Reject empty credentials with accessible inline errors and preserve submitted values.
+- **AU-7** *(implemented)* — Stamp `last_login_at` with database time only after successful credential verification and before session creation.
 
-- **BK-1** Add a bookmark from the dashboard: URL + optional title, optional collection, optional tags.
-- **BK-2** When no title is given, the server fetches the page's `<title>` at save time. The fetch is bounded (1 MiB body read) and never blocks saving — on any failure the URL string is used as the title. (No scheduler: linking in the fetch, not a background job.)
-- **BK-3** Malformed URLs are rejected with an inline field error and the form re-renders with submitted values preserved.
-- **BK-4** The dashboard shows *recent bookmarks* (latest 10), newest first, with Load more to extend (BK-15). Everything else is reached through search and filters (SR-1–SR-5).
-- **BK-5** After adding, htmx requests re-render just the bookmark list; non-htmx requests redirect to the dashboard.
-- **BK-6** Each saved bookmark has a title, URL, author, timestamps, and `archived_at` (nullable; used by archive — BK-9/BK-10).
-- **BK-7** Bookmark notes: an optional free-text note per bookmark, shown under the domain & tags in the bookmark row, clamped to one line with a native More/Less expand (CSS `:has()`, no JS, no text duplication; the toggle appears only when the note likely overflows). Editing/clearing via BK-8. Design: `docs/mockups/design-bookmark-actions.html`. *(formerly FR-22 — see Rev 0.5)*
-- **BK-8** *(formerly FR-3, edit half)* Edit a bookmark's notes and tags (author-only) from an inline row panel — one menu item ("Edit notes & tags") opens a textarea + comma-separated tags; htmx swaps the row to the panel and back, plain requests fall back to an edit page. Title and domain are immutable (the bookmark's identity). Design: `docs/mockups/design-bookmark-actions.html`.
-- **BK-9** *(formerly FR-1, archive half)* Archive a bookmark from the row menu (dashboard and collection detail): native confirm (`hx-confirm`), one htmx post sets `archived_at`, the row leaves the current list. Archived bookmarks are hidden from recent/search/filtered/collection browse (`archived_at IS NULL` on all browse queries); the management side lives in BK-10.
-- **BK-10** *(formerly FR-1, remainder; also closes FR-3's hard-delete half)* Archived page: `/archived` lists the user's archived bookmarks (newest archive first, tags attached) with inline **Restore** (clears `archived_at`, back into browse) and permanent **Delete** (author-only, own confirm, tags + collection links cascade).
-- **BK-11** *(formerly FR-11)* Duplicate URL detection on save: an exact-URL bookmark by the same author (any archived state) triggers a soft inline reminder — existing title + when it was saved — with a **Save anyway** override (`save_anyway=true` marker on the warned re-render); submitted values are preserved. Exact string match, no URL normalization (a normalized column is a schema-ready follow-up if needed). Non-duplicate saves are unchanged.
-- **BK-12** *(formerly FR-23)* Notes on the add-bookmark form: optional free-text notes field at save time, stored and rendered exactly like post-save notes (BK-7/BK-8). No schema change.
-- **BK-13** *(formerly FR-24)* Multi-collection selection at save: the create form offers the CL-8 picker (search + checkbox list) of collections the user can manage (§6.3: owner/editor per collection), nothing pre-checked; one save links the bookmark to every selected collection. Submitting a collection the user can't manage fails the whole save (403) — nothing is created.
-- **BK-14** *(formerly FR-10)* Reading list — a per-user FIFO queue at **`/reading`** (side-nav entry), listed **oldest-enqueued first**. Enqueue paths: an **"Add to reading list"** checkbox on the add-bookmark form (unchecked by default) and an **Add to / remove from reading list** row-menu toggle on existing bookmarks; **Mark as read** on `/reading` dequeues the row — removal only, no read history. Archiving a queued bookmark auto-dequeues it; restoring does **not** re-enqueue. Own bookmarks only, detached from collections; queue state is a `queued_at` timestamp on the bookmark (no join table). Without JavaScript the toggles fall back to plain form POSTs that redirect.
-- **BK-15** *(formerly FR-4)* Cursor pagination on three lists — the dashboard recent list (BK-4), the dashboard filtered list (search / tags / collection filters), and the `/collections/{id}` bookmark section (CL-3) — via a single conditional **Load more** button per list, shown only when more items exist; every paginated list is newest-first and appends in one direction only (the former **Load previous** button was dropped — in an append flow the newer items are already on the page, so it only duplicated content). Keyset pagination: an opaque composite cursor over `(created_at, id)` (ordering gains an `id` tiebreak), page size 10 for the recent list and 20 for the others, no page numbers, no `OFFSET`/`COUNT` — archiving or deleting while browsing never creates gaps. Cursors travel as a `?older` param (replacing the dead `?page` param); htmx appends do **not** touch the URL (position is ephemeral — a refresh returns to the list head; only filter state lives in the URL), while the no-JS fallback is plain links that re-render the window, flagged with a plain **Back to latest** link so shared/refreshed `?older` URLs can return to the top of the list. The two modes intentionally differ: **htmx browsing is cumulative** (rows accumulate in the page as you Load more), while **no-JS paging steps through windows** — each full load shows only the batch strictly older than the cursor, with the previously seen rows no longer rendered; with JS disabled, expect window-stepping plus the Back-to-latest reset, not the accumulating feed. Out of scope for now: the Archived page (BK-10) and `/reading` (BK-14) stay single unbounded lists.
+<a id="52-bookmarks--impl"></a>
+### 5.2 Bookmarks — *partial*
 
-### 5.3 Collections & sharing — *impl / partial*
+[BK-* feature tickets](features/bookmarks.md) · **Family status:** partial
 
-- **CL-1** Create a collection with a name and description; validation errors re-render inline.
-- **CL-2** List the user's collections with bookmark counts (dashboard side nav + `/collections` page).
-- **CL-3** Open a collection to browse its bookmarks (with the same search/filter behavior as the dashboard).
-- **CL-4** Edit a collection's name/description; delete a collection (cascades its bookmark links).
-- **CL-5** Invite members by email with a role (default **viewer**); a new bookmark form offers only the user's own collections.
-- **CL-6** Remove members from a collection.
-- **CL-7** Members of a collection can view it and its bookmarks; shared bookmarks retain their original author.
-- **CL-8** *(formerly FR-13)* "Edit collections" — add an existing bookmark to / remove it from the user's collections via an inline row panel: a search field plus a checkbox list of the user's collections with current membership pre-checked; one save replaces membership. Works from the dashboard and collection detail — from a collection page, unchecking that collection removes the row from the list. Only the user's own membership links are replaced; links into shared collections are never touched (no-JS fallback: a full edit page). Design: `docs/mockups/design-bookmark-actions.html`.
-- **CL-9** *(formerly FR-6)* Enforce collection roles — every collection route checks the caller's role. Matrix: **owner** can view, add/remove bookmarks, edit details/title, remove the collection, and edit members (add/remove); **editor** can view, add/remove bookmarks, and edit details/title; **viewer** can view only. Non-members get **404** (indistinguishable from a missing collection); an insufficient role gets **403**. The member list (names + roles) stays visible read-only to all members. Full matrix: §6.
-- **Gaps:** No public/guest sharing (→ FR-15).
+- **BK-1** *(implemented)* — Save a URL with optional tags, notes, reading-list state, and zero or more manageable collections.
+- **BK-2** *(partial · P0)* — Derive a title with a bounded synchronous fetch and use the URL as fallback. SSRF-safe fetch/redirect policy and an optional title override remain open.
+- **BK-3** *(partial · P0)* — Re-render URL parse failures inline without persistence; strict absolute HTTP(S) and host validation remain open.
+- **BK-4** *(implemented)* — Show the newest non-archived bookmarks on the dashboard, initially ten, with pagination through BK-15.
+- **BK-5** *(implemented)* — Return the updated list fragment for htmx saves and redirect plain saves to the dashboard.
+- **BK-6** *(partial · P1)* — Persist bookmark identity, URL/title, author, timestamps, optional notes/queue state, and archive state. Safe handling of invalid persisted URLs remains open.
+- **BK-7** *(implemented)* — Show optional notes under the row metadata with a native one-line expansion control.
+- **BK-8** *(implemented)* — Let the author replace notes and tags from the row or a no-JS edit page; URL and title remain identity fields.
+- **BK-9** *(partial · P0)* — Soft-archive an author-owned bookmark, hide it from browse results, and dequeue it. A no-JS form and confirmation remain open.
+- **BK-10** *(partial · P0)* — List archived bookmarks and restore or permanently delete them. The archived-only delete guard and no-JS forms/confirmation remain open.
+- **BK-11** *(implemented)* — Warn on an exact same-author URL duplicate and preserve all input through an explicit Save anyway override.
+- **BK-12** *(implemented)* — Accept optional notes when saving and render them through the existing bookmark-note contract.
+- **BK-13** *(implemented)* — Link one saved bookmark to every selected collection for which the author has owner/editor rights.
+- **BK-14** *(partial · P1)* — Maintain an author-scoped oldest-first reading queue with enqueue, dequeue, and archive behavior. Atomic concurrent toggling remains open.
+- **BK-15** *(partial · P1)* — Use newest-first cursor pagination on dashboard recent/filtered and collection lists. Distinct-ID paging across combined collection/tag filters remains open.
 
-### 5.4 Tags — *impl*
+<a id="53-collections--sharing--impl--partial"></a>
+### 5.3 Collections & sharing — *partial*
 
-- **TG-1** Tags are free-form strings attached at bookmark creation; a bookmark can carry multiple tags.
-- **TG-2** Tags are scoped per author (a user's tag namespace is their own).
-- **TG-3** The filter bar shows a tag cloud with per-tag bookmark counts (top 15).
-- **TG-4** Filter by one or more tags; a bookmark matches if it has any of the selected tags (results de-duplicated).
-- **Gaps:** no tag-level management — tag changes happen per-bookmark (→ BK-8).
+[CL-* feature tickets](features/collections.md) · **Family status:** partial
 
-### 5.5 Search & filtering — *impl*
+- **CL-1** *(implemented)* — Let a signed-in user create a named collection with an optional description; the creator becomes its owner.
+- **CL-2** *(implemented)* — List the caller's collection memberships with bookmark and member counts.
+- **CL-3** *(partial · P1)* — Let members browse a collection's newest non-archived bookmarks with pagination. Collection-page search/filtering remains open.
+- **CL-4** *(implemented)* — Let owners/editors edit details and owners remove a collection and its links without deleting underlying bookmarks.
+- **CL-5** *(partial · P1)* — Let owners directly add an existing registered user by email and role. Invitation semantics remain open.
+- **CL-6** *(partial · P1)* — Let an owner remove a member while protecting the last owner; atomic concurrent removal remains open.
+- **CL-7** *(implemented)* — Let every member view shared collection links while shared bookmarks retain their original author.
+- **CL-8** *(partial · P1)* — Let an author or collection manager edit manageable membership links while preserving other links. Visibility and atomic authorization/replacement gaps remain open.
+- **CL-9** *(partial · P1)* — Enforce owner/editor/viewer collection roles server-side, using 404 for non-members and 403 for insufficient roles. Full route-matrix coverage remains open.
+- **Future:** Public or guest collection sharing remains [FR-15](features/roadmap.md#fr-15--collection-sharing-links).
 
-- **SR-1** Free-text search matches bookmark title **and** URL, case-insensitive substring (`ILIKE`).
-- **SR-2** Filters: collection (single), tags (multi), and collection + tags combined; search composes with all of them.
-- **SR-3** Active filters are expressed in the URL query string, so filtered views are shareable/bookmarkable.
-- **SR-4** A "Clear filters" action returns to the unfiltered dashboard.
-- **SR-5** Search-as-you-type: input changes trigger a debounced (500 ms) htmx re-render of the bookmark list.
+<a id="54-tags--impl"></a>
+### 5.4 Tags — *partial*
 
-### 5.6 UI & interaction model — *impl*
+[TG-* feature tickets](features/tags.md) · **Family status:** partial
 
-- **UX-1** All pages are server-rendered HTML (gomponents) and work without JavaScript; htmx adds partial swaps, out-of-band filter-pill refreshes, and error toasts.
-- **UX-2** No client-side build step; styling is Open Props design tokens + plain CSS in `resources/static/css/app.css`.
-- **UX-3** Unexpected errors render a styled error page with a non-guessable error ID (full page) or a dismissible toast (htmx); the same ID is logged server-side for correlation.
-- **UX-4** Expected validation errors render inline under the offending field with `aria-invalid`/`aria-describedby`; submitted values are preserved across re-renders.
-- **UX-5** Authenticated app shell: top nav + side nav listing collections; relative timestamps ("3h ago") in bookmark lists; avatar from email initials.
+- **TG-1** *(partial · P1)* — Attach multiple comma-separated, non-empty tags; normalization and de-duplication remain open.
+- **TG-2** *(implemented)* — Keep each author's tag namespace separate from other users' private tags.
+- **TG-3** *(partial · P1)* — Show tag counts with the first 15 available and the rest disclosed. Deterministic ordering and archived-row exclusion remain open.
+- **TG-4** *(partial · P1)* — Filter with multi-tag OR semantics alongside search and collection filters. Combined collection/tag results can still duplicate bookmark IDs.
+- Tag changes happen per bookmark through [BK-8](features/bookmarks.md#bk-8--edit-notes-and-tags); tag-level management is not current scope.
 
-## 6. Access control & permissions — *impl*
+<a id="55-search--filtering--impl"></a>
+### 5.5 Search & filtering — *partial*
 
-Cross-cutting rules for who can do what. Requirement wording lives in the
-`AU-*` / `BK-*` / `CL-*` items; this section is the consolidated, testable
-matrix.
+[SR-* feature tickets](features/search-filtering.md) · **Family status:** partial
+
+- **SR-1** *(partial · P2)* — Search title and URL by case-insensitive substring. Literal wildcard escaping and query-length bounds remain open.
+- **SR-2** *(partial · P0)* — Compose dashboard search, one collection, and multiple tags; forged collection IDs still need server-side authorization.
+- **SR-3** *(partial · P2)* — Keep active filters in ordinary URLs; single-collection replacement and htmx search URL updates remain open.
+- **SR-4** *(implemented)* — Clear all dashboard filters and return to recent-list mode.
+- **SR-5** *(implemented)* — Debounce htmx search-as-you-type while retaining a full-GET fallback.
+
+<a id="56-ui--interaction-model--impl"></a>
+### 5.6 UI & interaction model — *partial*
+
+[UX-* feature tickets](features/interaction.md) · **Family status:** partial
+
+- **UX-1** *(partial · P0)* — Render gomponents HTML with htmx as progressive enhancement. No-JS destructive controls/confirmations, shared CSRF, and request-body bounds remain open.
+- **UX-2** *(partial · P1)* — Keep the frontend buildless with plain CSS and no client framework. Version-pinned or self-hosted third-party assets and an explicit trust policy remain open.
+- **UX-3** *(implemented)* — Render unexpected full-page and htmx errors with a shared, non-guessable correlation ID.
+- **UX-4** *(partial · P1)* — Render expected validation errors inline with accessible associations and preserved safe values. Broader input limits and uniform field wiring remain open.
+- **UX-5** *(implemented)* — Provide the authenticated navigation shell, relative timestamps, and email-derived identity cues.
+
+<a id="6-access-control--permissions--impl"></a>
+## 6. Access control & permissions — *normative matrix*
+
+These cross-cutting rules are normative. Ticket status and open verification remain in the linked AU/BK/CL feature contracts.
 
 ### 6.1 Roles
 
-- Every collection has members with exactly one role; the collection's creator
-  becomes **owner** (CL-4). Invites default to **viewer** (CL-5).
-- Three fixed roles (Q4): **owner**, **editor**, **viewer**. A user's role is
-  scoped per collection — the same user can be owner in one collection and
-  viewer in another.
+- Every collection has members with exactly one role; its creator becomes **owner** (CL-1). Direct member additions default to **viewer** (CL-5); no pending-invitation flow is defined.
+- Three fixed roles (Q4): **owner**, **editor**, **viewer**. A user's role is scoped per collection.
 - The last owner of a collection cannot be removed.
-- Roles are constrained at the database level (`role ∈ {owner, editor, viewer}`).
+- Roles are constrained at the database level to `owner`, `editor`, or `viewer`.
 
 ### 6.2 Collection actions (CL-9)
 
@@ -169,51 +184,51 @@ matrix.
 
 | Action | Who is allowed |
 |---|---|
-| Create a personal bookmark (no collection) | any signed-in user (becomes its author) |
-| Create a bookmark into collections | member with **owner/editor** in each selected collection (multi-select via BK-13) |
-| Change a bookmark's collection memberships (CL-8) | the bookmark's **author**, or any **owner/editor** member of a collection containing it; every collection **added or removed** requires owner/editor rights for the actor (else 403) — unchanged memberships pass, so a demoted member keeps existing links |
-| View any bookmark inside a collection | any member of that collection (shared bookmarks keep their original author, CL-7) |
-| Edit notes & tags (BK-8) | author only |
-| Archive / restore (BK-9, BK-10) | author only |
-| Hard-delete (BK-10) | author only |
-| Add to / remove from the reading list, mark as read (BK-14) | author only |
-| Load more (BK-15) | author only (dashboard lists); per collection access on collection page (CL-7) |
+| Create a personal bookmark (no collection) | Any signed-in user, who becomes its author |
+| Create a bookmark into collections | Owner/editor member of every selected collection (BK-13) |
+| Change collection memberships (CL-8) | The author or an owner/editor member of a containing collection; each added or removed collection requires owner/editor rights, while unchanged memberships are preserved |
+| View a bookmark inside a collection | Any member of that collection (CL-7) |
+| Edit notes & tags (BK-8) | Author only |
+| Archive / restore (BK-9, BK-10) | Author only |
+| Permanently delete (BK-10) | Author only, and only while the bookmark is archived |
+| Add to / remove from the reading list, mark as read (BK-14) | Author only |
+| Load more (BK-15) | Author on dashboard lists; collection access on a collection page (CL-3) |
 
 ### 6.4 Error semantics
 
-- A **non-member** (or nonexistent target) gets **404** — the request is
-  indistinguishable from a missing collection; no existence leak.
-- An authenticated **member with an insufficient role** gets **403**.
-- All checks run server-side on every request; hidden UI affordances (menu
-  items, buttons, forms) match the rules but are never the boundary.
+- A **non-member** or nonexistent target gets **404**, indistinguishable from a missing collection.
+- An authenticated member with an insufficient role gets **403**.
+- All checks run server-side on every request; hidden controls are never the authorization boundary.
 
 ## 7. Future developments
 
-Phases are approximate; items marked **(schema-ready)** have database or design work already in the repo and are the cheapest wins.
+[FR-* roadmap feature tickets](features/roadmap.md) · **Family status:** planned
 
-### 7.1 Near-term — schema/design-ready
+Phases are approximate. Detailed scope, dependencies, and open work live in [`docs/features/roadmap.md`](features/roadmap.md).
 
-- **FR-2** OAuth / OIDC login (Google/GitHub). Design documented in `docs/auth.md`: `users.password_hash` is already nullable; add a `user_identities` table + provider dance. *(schema-ready)*
+<a id="71-near-term--schemadesign-ready"></a>
+### 7.1 Near-term
 
-- **FR-25** Per-user **"add new bookmarks to the reading list by default"** setting on a settings page (follows BK-14's add-form checkbox).
+- **FR-2** *(planned · P1)* — OAuth/OIDC login with explicit external-identity linking and account-conflict policy.
+- **FR-25** *(planned · P1)* — A per-user default for queueing newly saved bookmarks to the reading list.
 
 ### 7.2 Medium-term
 
-- **FR-7** Full-text search (Postgres `tsvector` or `pg_trgm`), tag autocomplete in filters.
-- **FR-8** Import from browser HTML export / OPML; export collections to JSON/HTML.
-- **FR-9** Link health: periodic HEAD/GET checks, broken-link badges. *(needs a background job — new infra)*
-- **FR-12** Email verification and password reset flows (prerequisite for serious OAuth/password UX).
+- **FR-7** *(planned · P2)* — Full-text search and tag autocomplete.
+- **FR-8** *(planned · P2)* — Browser import and collection export; the first import format remains Q6.
+- **FR-9** *(planned · P2)* — Scheduled link-health checks and broken-link status.
+- **FR-12** *(planned · P1)* — Email verification and password reset.
 
 ### 7.3 Longer-term / exploratory
 
-- **FR-14** Browser extension / bookmarklet for one-click save.
-- **FR-15** Collection sharing links, three kinds: **secret** (tokenized path), **time-based** (secret link with expiry), **public** (pretty slug instead of a token path).
-- **FR-16** Keyboard shortcuts or a command palette.
-- **FR-17** External API for automation/integrations.
-- **FR-18** Self-host polish: containerized app, backup/restore story, healthchecks.
-- **FR-19** Readability/offline snapshot of saved pages ("save the article, not just the link").
-- **FR-20** Activity/audit log for shared collections (who added/removed what).
-- **FR-21** Mobile responsive pass beyond the current support tiers.
+- **FR-14** *(planned · P2)* — Browser extension or bookmarklet for capture.
+- **FR-15** *(planned · P2)* — Secret, expiring, and public collection-sharing links.
+- **FR-16** *(planned · P2)* — Keyboard shortcuts or a command palette.
+- **FR-17** *(planned · P2)* — A versioned external API with explicit authentication and authorization.
+- **FR-18** *(planned · P0)* — Complete release, runtime, migration-integrity, observability, and backup/restore operations beyond the current container/Compose baseline.
+- **FR-19** *(planned · P2)* — Optional readable/offline page snapshots.
+- **FR-20** *(planned · P2)* — A role-scoped activity history for shared collections.
+- **FR-21** *(planned · P2)* — A responsive and touch-focused pass beyond current support tiers.
 
 ## 8. Open questions
 
@@ -221,10 +236,10 @@ Phases are approximate; items marked **(schema-ready)** have database or design 
 |---|----------|-------|
 | Q6 | Import priority: which format first (Chrome/Firefox HTML, Safari, OPML)? | Parked — not exploring soon |
 
-Resolved (2026-09-03, answers folded into the relevant requirement):
+Resolved (2026-09-03, answers folded into the relevant feature ticket):
 
-- Q1/Q3 → BK-8 — per-bookmark editing of tags + collection membership, from the bookmark row; no tag-level management.
-- Q2 → FR-1 — archive hides from default lists, stays in collections; soft-delete; hard-delete only for archived bookmarks.
+- Q1/Q3 → BK-8 / CL-8 — per-bookmark tag and collection-membership editing; no tag-level management.
+- Q2 → BK-9 / BK-10 — archive is soft-delete: the bookmark leaves browse results but retains collection links; permanent deletion is archived-only.
 - Q4 → CL-9 — three fixed roles.
 - Q5 → FR-15 — secret, time-based, and public (pretty slug) share links.
 - Q7 → §3 non-goals + BK-8 — the list is the interface; no detail page.

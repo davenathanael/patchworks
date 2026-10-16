@@ -70,8 +70,9 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 
 ## Reference Docs
 
+- `docs/features/` — detailed feature-ticket contracts and open work by ticket family
 - `docs/spec.md` — product spec: feature set (req IDs), roadmap, non-goals
-- `docs/process.md` — how work is planned & documented (spec lifecycle, plan files → `docs/plans/`, ADRs)
+- `docs/process.md` — documentation workflow, feature-ticket lifecycle, document boundaries, and ephemeral plans
 - `docs/architecture.md` — layers, handler pattern, key decisions
 - `docs/frontend.md` — gomponents, Open Props + plain CSS styling
 - `docs/css-guidelines.md` — modern CSS/HTML guidelines (cascade layers, tokens, layout, support tiers)
