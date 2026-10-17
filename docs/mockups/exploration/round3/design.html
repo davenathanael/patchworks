@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Round 3 design (4 skins)</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600&family=source-serif-4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=geist:400,500,600&family=jetbrains-mono:400,500&family=geist-mono:400,500&family=ibm-plex-mono:400,500&display=swap">
+<style>
+  /* =====================================================================
+     DOC CHROME — scoped to direct children so it can never leak into the app
+     ===================================================================== */
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 90rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.025em; margin:0 0 .3rem; }
+  .doc > h2 { margin:3.5rem 0 .3rem; font-size:1.45rem; letter-spacing:-.018em; }
+  .doc > h2 + p { color:#5c534b; max-width:78ch; margin:0 0 .6rem; }
+  .doc > h3 { font-size:.7rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:2.2rem 0 .7rem; }
+  .doc > p { color:#5c534b; max-width:78ch; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:.8rem; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#5c534b; font-size:.9rem; max-width:78ch; }
+  .frame { container-type:inline-size; border:1px solid #e4ddd2; border-radius:10px; overflow:hidden; margin-block:1rem; box-shadow:0 1px 3px rgb(50 35 20/.05); position:relative; background:#fbf9f6; }
+  .frame.phone { width:390px; max-width:100%; margin-inline:auto; }
+  .frame-label { font:500 .68rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; padding:.55rem .9rem; background:#f2ede5; border-bottom:1px solid #e4ddd2; display:flex; justify-content:space-between; }
+  .frame-label b { color:#231e1a; }
+  .pair { display:flex; gap:1.25rem; flex-wrap:wrap; align-items:flex-start; }
+  .ctrl { display:flex; flex-wrap:wrap; gap:1.4rem; align-items:center; padding:.9rem 1.1rem; border:1px solid #e4ddd2; border-radius:10px; background:#fffdfa; margin:1rem 0 1.5rem; position:sticky; top:0; z-index:50; }
+  .ctrl fieldset { border:1px solid #e4ddd2; border-radius:6px; padding:.3rem .5rem .45rem; margin:0; display:flex; gap:.25rem; }
+  .ctrl legend { font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:#a1968b; padding:0 .3rem; }
+  .ctrl label { display:inline-flex; align-items:center; gap:.3rem; font-size:.83rem; color:#5c534b; cursor:pointer; padding:.22rem .5rem; border-radius:4px; }
+  .ctrl label:hover { background:#f5f0e8; }
+  .ctrl input { accent-color:#8f5220; }
+  .ctrl label:has(input:checked) { background:#f3e6d3; color:#7a4415; font-weight:600; }
+  .ctrl input[type=checkbox] { position:absolute; opacity:0; }
+  .swatch { display:inline-block; width:.85rem; height:.85rem; border-radius:2px; border:1px solid rgb(0 0 0/.15); }
+
+  /* =====================================================================
+     THE APP — converged design. Tokens only; all four skins override here.
+     ===================================================================== */
+  .app {
+    font-family:var(--ui); font-size:.8125rem; line-height:1.5;
+    color:var(--t1); background:var(--bg); accent-color:var(--accent);
+    color-scheme:light;
+    --display:"Fraunces", Georgia, serif;
+    --text:"Source Serif 4", Georgia, serif;
+    --ui:"Geist", system-ui, sans-serif;
+    --mono:"Geist Mono", ui-monospace, monospace;
+    --bg:#f7f3ec; --panel:#fdfbf7; --sunk:#efe9df;
+    --t1:#2a251f; --t2:#5f584e; --t3:#8d8577;
+    --line:#e4dccf; --line-strong:#d2c9b8;
+    --accent:#7d5322; --accent-bg:#f4ecdd; --accent-line:#dfcfaf;
+    --danger:#a8352a; --ok:#4e6b40;
+    --r:2px; --elev:0 1px 0 var(--line-strong);
+    --elev-float:0 8px 28px rgb(50 35 20/.16);
+  }
+
+  /* --- SKIN 1 · SEPIA (default) — muted warm grey, dual serif --- */
+  body:has(#sk-sepia:checked) .app {
+    color-scheme:light;
+    --display:"Fraunces", Georgia, serif;
+    --text:"Source Serif 4", Georgia, serif;
+    --ui:"Geist", system-ui, sans-serif;
+    --mono:"Geist Mono", ui-monospace, monospace;
+    --bg:light-dark(oklch(0.966 0.008 82), oklch(0.278 0.012 54));
+    --panel:light-dark(oklch(0.991 0.005 84), oklch(0.322 0.013 56));
+    --sunk:light-dark(oklch(0.934 0.010 80), oklch(0.262 0.011 52));
+    --t1:light-dark(oklch(0.275 0.014 54), oklch(0.958 0.008 84));
+    --t2:light-dark(oklch(0.485 0.016 58), oklch(0.815 0.012 76));
+    --t3:light-dark(oklch(0.600 0.014 62), oklch(0.700 0.011 72));
+    --line:light-dark(oklch(0.882 0.010 80), oklch(0.400 0.012 56));
+    --line-strong:light-dark(oklch(0.825 0.014 78), oklch(0.480 0.014 58));
+    --accent:light-dark(oklch(0.455 0.055 52), oklch(0.780 0.070 68));
+    --accent-bg:light-dark(oklch(0.950 0.016 80), oklch(0.360 0.022 58));
+    --accent-line:light-dark(oklch(0.855 0.032 72), oklch(0.470 0.034 60));
+    --r:2px;
+  }
+  /* --- SKIN 2 · MOCHA — warmer, closer to the original app, now muted --- */
+  body:has(#sk-moka:checked) .app {
+    color-scheme:light;
+    --display:"Fraunces", Georgia, serif;
+    --text:"Source Serif 4", Georgia, serif;
+    --ui:"Geist", system-ui, sans-serif;
+    --mono:"JetBrains Mono", ui-monospace, monospace;
+    --bg:light-dark(oklch(0.962 0.010 84), oklch(0.272 0.016 46));
+    --panel:light-dark(oklch(0.989 0.005 87), oklch(0.316 0.018 50));
+    --sunk:light-dark(oklch(0.930 0.013 81), oklch(0.256 0.015 44));
+    --t1:light-dark(oklch(0.272 0.024 47), oklch(0.955 0.011 84));
+    --t2:light-dark(oklch(0.482 0.028 55), oklch(0.812 0.014 74));
+    --t3:light-dark(oklch(0.598 0.024 60), oklch(0.698 0.012 70));
+    --line:light-dark(oklch(0.878 0.012 79), oklch(0.395 0.014 56));
+    --line-strong:light-dark(oklch(0.820 0.017 77), oklch(0.475 0.016 58));
+    --accent:light-dark(oklch(0.472 0.082 56), oklch(0.790 0.085 78));
+    --accent-bg:light-dark(oklch(0.948 0.022 79), oklch(0.358 0.028 56));
+    --accent-line:light-dark(oklch(0.852 0.044 71), oklch(0.468 0.040 60));
+    --r:2px;
+  }
+  /* --- theme toggle (shared) --- */
+  body:has(#th-dark:checked) .app { color-scheme:dark; }
+
+  /* ============================ app components ============================ */
+  .app button, .app input, .app textarea, .app select { font:inherit; color:inherit; }
+  .app code { font-family:var(--mono); font-size:.85em; }
+  .app .disp { font-family:var(--display); }
+  .app .mono { font-family:var(--mono); }
+
+  /* top bar */
+  .topbar { display:flex; align-items:center; gap:.5rem; padding:.4rem .7rem; border-bottom:1px solid var(--line-strong); background:var(--panel); }
+  .brand { font-family:var(--display); font-size:1rem; font-weight:600; letter-spacing:-.02em; white-space:nowrap; }
+  .brand b { color:var(--accent); font-weight:inherit; }
+  .q { flex:1; display:flex; align-items:center; gap:.4rem; border:1px solid var(--line-strong); border-radius:var(--r); padding:.18rem .45rem; background:var(--bg); min-width:0; }
+  .q:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .q .op { font-family:var(--mono); font-size:.78rem; color:var(--accent); }
+  .q input { border:0; outline:0; background:none; flex:1; min-width:0; font-family:var(--mono); font-size:.78rem; }
+  .q input::placeholder { color:var(--t3); }
+  .avatar { width:1.5rem; height:1.5rem; border-radius:50%; background:var(--sunk); border:1px solid var(--line); display:grid; place-items:center; font-size:.62rem; font-weight:600; color:var(--t2); cursor:pointer; flex:none; }
+
+  /* page head */
+  .head { padding:.9rem .8rem .5rem; }
+  .head.wide { padding:1.3rem 1.4rem .6rem; }
+  .eyebrow { font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:var(--t3); }
+  .head h1 { font-family:var(--display); font-size:1.35rem; font-weight:600; letter-spacing:-.02em; margin:.12rem 0 0; line-height:1.15; }
+  .head.wide h1 { font-size:1.6rem; }
+  .head .stat { font-size:.71rem; color:var(--t3); margin-top:.25rem; }
+  .head .stat b { font-family:var(--mono); font-weight:500; color:var(--t2); }
+  .cdesc { font-family:var(--text); font-size:.9rem; line-height:1.6; color:var(--t2); max-width:38rem; margin:.45rem 0 .1rem; }
+
+  /* buttons */
+  .btn { border:1px solid var(--line-strong); background:var(--panel); color:var(--t1); border-radius:var(--r); padding:.25rem .55rem; font-size:.76rem; cursor:pointer; box-shadow:var(--elev); white-space:nowrap; }
+  .btn:hover { background:var(--sunk); }
+  .btn:active { box-shadow:none; transform:translateY(1px); }
+  .btn.p { background:var(--accent); border-color:var(--accent); color:light-dark(white, oklch(0.16 0.02 50)); box-shadow:0 1px 0 color-mix(in oklch, var(--accent) 68%, black); }
+  .btn.g { border-color:transparent; background:none; box-shadow:none; color:var(--t2); }
+  .btn.g:hover { background:var(--sunk); color:var(--t1); }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { font-size:.71rem; padding:.15rem .4rem; }
+  .kbd { font:500 .63rem/1 var(--mono); color:var(--t2); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:.14rem .3rem; background:var(--panel); }
+
+  /* ---- THE ITEM: card on mobile, row on desktop. long note = excerpt ---- */
+  .list { list-style:none; margin:0; padding:0; }
+  .item { padding:.6rem .8rem; border-bottom:1px solid var(--line); display:grid; grid-template-columns:auto 1fr; gap:.1rem .5rem; }
+  .item:hover { background:var(--sunk); }
+  .item[data-unread="true"] { background:light-dark(color-mix(in oklch, var(--accent-bg) 55%, var(--bg)), color-mix(in oklch, var(--accent-bg) 30%, var(--bg))); }
+  .item[data-unread="true"] .bul { background:var(--accent); }
+  .item[data-sel="true"] { background:var(--accent-bg); box-shadow:inset 2px 0 0 var(--accent); }
+  .bul { width:.45rem; height:.45rem; border-radius:50%; background:transparent; margin-top:.42rem; }
+  .ttl { font-size:.86rem; font-weight:500; line-height:1.35; color:var(--t1); text-decoration:none; display:block; }
+  .ttl:hover { color:var(--accent); }
+  .item[data-unread="true"] .ttl { font-weight:600; }
+  .item[data-unread="false"] .ttl { color:var(--t2); font-weight:400; }
+  .meta { font:400 .66rem/1.5 var(--mono); color:var(--t3); display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; margin-top:.1rem; }
+  .tags { font-family:var(--mono); font-size:.69rem; color:var(--accent); display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.12rem; }
+  .tags a { color:inherit; text-decoration:none; opacity:.85; }
+  .tags a:hover { opacity:1; text-decoration:underline; }
+
+  /* the note — long by default; excerpt + expand in place */
+  .note-e { font-family:var(--text); font-size:.82rem; line-height:1.6; color:var(--t2); margin-top:.35rem; display:-webkit-box; -webkit-line-clamp:4; line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+  .note-e.open { -webkit-line-clamp:unset; line-clamp:unset; }
+  .more { font-family:var(--mono); font-size:.67rem; color:var(--accent); background:none; border:0; cursor:pointer; padding:.1rem 0 0; display:inline-flex; gap:.25rem; align-items:center; }
+  .more:hover { text-decoration:underline; }
+  .acts { grid-column:2; display:flex; gap:.25rem; margin-top:.4rem; flex-wrap:wrap; }
+  .st { flex:0 0 auto; font-size:.59rem; text-transform:uppercase; letter-spacing:.07em; padding:.1rem .28rem; border-radius:var(--r); border:1px solid transparent; }
+  .st.q { background:var(--ok); color:light-dark(white,oklch(0.16 0.02 60)); }
+  .st.f { background:var(--accent-bg); color:var(--accent); border-color:var(--accent-line); }
+  .st.b { background:var(--sunk); color:var(--t3); }
+
+  /* desktop ramp */
+  @container (width >= 54rem) {
+    .item { grid-template-columns:auto minmax(0,1fr) 9rem auto; gap:.2rem 1rem; padding:.55rem 1.4rem; align-items:baseline; }
+    .item .side { justify-self:end; display:flex; gap:.25rem; white-space:nowrap; }
+    .item .acts { grid-column:auto; margin-top:0; }
+    .item .note-e { -webkit-line-clamp:4; line-clamp:4; }
+  }
+  @container (width < 54rem) { .item .side { display:none; } }
+
+  /* tabs (mobile) */
+  .tabs { display:flex; border-top:1px solid var(--line-strong); background:var(--panel); position:sticky; bottom:0; }
+  .tabs a { flex:1; text-align:center; font-size:.63rem; color:var(--t3); text-decoration:none; padding:.4rem .1rem .45rem; display:grid; justify-items:center; gap:.1rem; }
+  .tabs a .ic { font-size:.98rem; line-height:1; }
+  .tabs a[aria-current="page"] { color:var(--accent); box-shadow:inset 0 2px 0 var(--accent); }
+  @container (width >= 54rem) { .tabs { display:none; } }
+
+  /* ---- INSPECTION: bottom sheet on mobile (top shadow), pane on desktop ---- */
+  .sheet { background:var(--panel); border-top:1px solid var(--line-strong); }
+  @container (width < 54rem) {
+    .sheet { position:absolute; inset:auto 0 0 0; z-index:9; max-height:86%; overflow:auto; border-radius:10px 10px 0 0; box-shadow:var(--elev-float); }
+    .sheet .grab { display:block; width:30px; height:3px; border-radius:2px; background:var(--line-strong); margin:.45rem auto .1rem; }
+  }
+  .grab { display:none; }
+  @container (width >= 54rem) { .sheet { border-top:0; border-inline-start:1px solid var(--line); height:100%; overflow:auto; } }
+  .sh-head { display:flex; align-items:center; gap:.4rem; padding:.45rem .75rem; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); }
+  .sh-head .k { font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--t3); }
+  .sh-body { padding:.7rem .75rem 1rem; display:grid; gap:.75rem; }
+  .sh-title { font-family:var(--display); font-size:1rem; font-weight:600; line-height:1.3; margin:0; }
+  .sh-url { font:400 .65rem/1.45 var(--mono); color:var(--t3); word-break:break-all; }
+  .lbl { font-size:.62rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t3); margin-bottom:.28rem; display:block; }
+  .ta { width:100%; border:1px solid var(--line-strong); border-radius:var(--r); padding:.4rem .5rem; font-family:var(--text); font-size:.82rem; line-height:1.65; background:var(--bg); resize:vertical; min-height:7rem; }
+  .inp { width:100%; border:1px solid var(--line-strong); border-radius:var(--r); padding:.3rem .45rem; font-family:var(--mono); font-size:.76rem; background:var(--bg); }
+  .ta:focus, .inp:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:.14rem .55rem; font-size:.72rem; }
+  .kv dt { font-family:var(--mono); font-size:.65rem; color:var(--t3); }
+  .kv dd { margin:0; color:var(--t2); }
+
+  /* ---- PICKERS: glyph + text, no pills ---- */
+  .pick { display:flex; flex-direction:column; gap:.35rem; }
+  .pickrow { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+  /* tag / collection option — a glyph plus text. nothing filled. */
+  .opt { display:inline-flex; align-items:center; gap:.3rem; font-family:var(--mono); font-size:.72rem;
+    padding:.16rem .4rem; border-radius:var(--r); border:1px solid var(--line-strong);
+    background:var(--panel); color:var(--t2); cursor:pointer; }
+  .opt .g { font-size:.68rem; color:var(--t3); flex:none; line-height:1; }
+  .opt:hover { border-color:var(--accent); color:var(--accent); }
+  .opt[aria-pressed="true"] { background:var(--sunk); border-color:var(--line-strong); color:var(--t1); }
+  .opt[aria-pressed="true"] .g { color:var(--accent); }
+  /* the "create new" option is visually distinct from a selectable existing item */
+  .opt.add { border-style:dashed; background:none; color:var(--t3); }
+  .opt.add:hover { border-style:dashed; }
+  .on-accent { color:light-dark(white, oklch(0.16 0.02 50)); }
+  /* feed suggestions: dashed underline marks them provisional */
+  .sug { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-top:.3rem; }
+  .sug .lb { font-family:var(--mono); font-size:.65rem; color:var(--t3); }
+  .sugopt { cursor:pointer; font-family:var(--mono); font-size:.72rem; padding:.16rem .4rem; border-radius:var(--r);
+    border:1px dashed var(--line-strong); background:none; color:var(--t3); display:inline-flex; gap:.3rem; align-items:center; }
+  .sugopt .g { font-size:.68rem; line-height:1; flex:none; }
+  .sugopt:hover { color:var(--accent); border-color:var(--accent); }
+  .sugopt[aria-pressed="true"] { border-style:solid; border-color:var(--line-strong); background:var(--sunk); color:var(--t1); }
+  .sugopt[aria-pressed="true"] .g { color:var(--accent); }
+  .sugopt.add { color:var(--t3); }
+
+  /* ---- DIALOG: quick add. full-screen on mobile, centred popover on desktop ---- */
+  .dlg { background:var(--panel); color:var(--t1); border:1px solid var(--line-strong); border-radius:10px; box-shadow:var(--elev-float); overflow:hidden; }
+  @container (width < 54rem) {
+    .dlg { position:absolute; inset:0; z-index:20; border-radius:0; border:0; max-height:100%; overflow:auto; }
+  }
+  .dlg-head { display:flex; align-items:center; gap:.5rem; padding:.6rem .8rem; border-bottom:1px solid var(--line); background:var(--panel); }
+  .dlg-head h2 { font-family:var(--display); font-size:.95rem; font-weight:600; margin:0; }
+  .dlg-body { padding:.8rem; display:grid; gap:.7rem; }
+  @container (width >= 54rem) { .dlg { width:min(92%,30rem); margin:2.5rem auto; } }
+  .fld { display:grid; gap:.2rem; }
+  .fld > label { font-size:.7rem; color:var(--t3); }
+  .fld input, .fld textarea { border:1px solid var(--line-strong); border-radius:var(--r); padding:.42rem .55rem; background:var(--bg); width:100%; font-size:.8rem; }
+  .fld input:focus, .fld textarea:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .fld textarea { min-height:3rem; resize:vertical; font-family:var(--text); line-height:1.6; }
+  .fetched { font-family:var(--mono); font-size:.65rem; color:var(--ok); }
+  .hintl { font-family:var(--mono); font-size:.65rem; color:var(--t3); }
+  /* reading-list toggle — a real control with its own explanation */
+  .rlt { display:flex; align-items:center; gap:.55rem; padding:.5rem .65rem; border:1px solid var(--line-strong); border-radius:var(--r); background:var(--sunk); cursor:pointer; text-align:start; width:100%; }
+  .rlt .g { width:1rem; height:1rem; border:1.5px solid var(--line-strong); border-radius:1px; background:var(--panel); flex:none; display:grid; place-items:center; font-size:.68rem; color:transparent; }
+  .rlt[aria-pressed="true"] .g { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  .rlt .lb { font-size:.8rem; }
+  .rlt .hint { font-size:.69rem; color:var(--t3); display:block; }
+
+  /* search pills */
+  .searchband { padding:.55rem .8rem; background:var(--panel); border-bottom:1px solid var(--line); }
+  .searchband.wide { padding:.7rem 1.4rem; }
+  .pills { display:flex; gap:.25rem; flex-wrap:wrap; margin-top:.4rem; align-items:center; }
+  .pill { font-family:var(--mono); font-size:.69rem; background:var(--accent-bg); color:var(--accent); border-radius:var(--r); padding:.14rem .38rem; display:flex; gap:.28rem; align-items:center; }
+  .pill button { border:0; background:none; color:inherit; cursor:pointer; padding:0; opacity:.55; }
+  .pill.add { background:none; border:1px dashed var(--line-strong); color:var(--t3); cursor:pointer; }
+  .ops { font-family:var(--mono); font-size:.65rem; color:var(--t3); margin-top:.42rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+  .ops b { color:var(--t2); font-weight:500; }
+
+  /* collections */
+  .cgrid { display:grid; gap:.45rem; padding:.6rem .8rem; }
+  @container (width >= 46rem) { .cgrid.wide { grid-template-columns:repeat(auto-fill,minmax(17rem,1fr)); padding:.8rem 1.4rem; } }
+  .ccard { border:1px solid var(--line); border-radius:var(--r); background:var(--panel); padding:.65rem .75rem; text-decoration:none; color:inherit; display:block; }
+  .ccard:hover { border-color:var(--line-strong); background:var(--sunk); }
+  .ccard h3 { font-family:var(--display); font-size:.98rem; font-weight:600; margin:0 0 .05rem; }
+  .ccard .handle { font-family:var(--mono); font-size:.7rem; color:var(--accent); }
+  .ccard .d { font-size:.8rem; color:var(--t2); margin:.25rem 0 .45rem; font-family:var(--text); line-height:1.5; }
+  .ccard .row { display:flex; align-items:baseline; gap:.45rem; font-family:var(--mono); font-size:.69rem; color:var(--t2); }
+  .ccard .row b { font-size:1.05rem; font-weight:600; color:var(--t1); }
+
+  /* public share page */
+  .share { padding:1.6rem 1rem 3rem; max-width:38rem; margin-inline:auto; }
+  .share .who { font-family:var(--text); font-size:.98rem; color:var(--t2); }
+  .share h1 { font-family:var(--display); font-size:1.9rem; font-weight:600; letter-spacing:-.025em; line-height:1.15; margin:.3rem 0 .3rem; }
+  .share .sub { font-size:.86rem; color:var(--t3); padding-bottom:1.1rem; border-bottom:1px solid var(--line-strong); margin-bottom:1.3rem; }
+  .sh-item { padding-bottom:1.4rem; margin-bottom:1.4rem; border-bottom:1px solid var(--line); }
+  .sh-item:last-child { border-bottom:0; }
+  .sh-item h2 { font-family:var(--display); font-size:1.2rem; font-weight:600; line-height:1.3; margin:0 0 .2rem; }
+  .sh-item h2 a { color:var(--t1); text-decoration:none; }
+  .sh-item h2 a:hover { color:var(--accent); }
+  .sh-item .m { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-bottom:.6rem; }
+  /* the note as written for a reader: full, generous measure, no clamp */
+  .sh-item .why { font-family:var(--text); font-size:1rem; line-height:1.72; color:var(--t2); }
+  .sh-item .why strong { color:var(--t1); font-weight:600; }
+  .sh-item .tg { font-family:var(--mono); font-size:.7rem; color:var(--accent); margin-top:.6rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+
+  /* misc */
+  .bar { display:flex; align-items:center; gap:.5rem; padding:.32rem .8rem; border-bottom:1px solid var(--line); font-size:.71rem; color:var(--t2); flex-wrap:wrap; }
+  .t2 { font-size:.71rem; padding:.12rem .4rem; border-radius:var(--r); color:var(--t2); text-decoration:none; }
+  .t2[aria-current="page"] { background:var(--accent-bg); color:var(--accent); font-weight:500; }
+  .spacer { flex:1; }
+  .fr { display:flex; align-items:center; gap:.5rem; padding:.55rem .8rem; border-bottom:1px solid var(--line); font-size:.78rem; }
+  .fr .n { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-inline-start:auto; }
+  .empty { padding:2.4rem 1.2rem; text-align:center; }
+  .empty .ic { font-size:1.4rem; color:var(--t3); }
+  .empty h3 { font-family:var(--display); font-size:1rem; font-weight:600; margin:.5rem 0 .15rem; }
+  .empty p { font-size:.79rem; color:var(--t3); margin:0 auto .9rem; max-width:24rem; }
+  .sk { background:linear-gradient(90deg, var(--sunk) 25%, var(--panel) 50%, var(--sunk) 75%); background-size:200% 100%; animation:sk 1.4s infinite; }
+  @keyframes sk { to { background-position:-200% 0; } }
+  .skrow { padding:.55rem .8rem; border-bottom:1px solid var(--line); display:grid; gap:.24rem; }
+  .skrow .a { height:.62rem; width:58%; } .skrow .b { height:.5rem; width:36%; }
+  table.tbl { width:100%; border-collapse:collapse; font-size:.77rem; }
+  .tbl th { font-size:.6rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t3); text-align:left; padding:.35rem .7rem; border-bottom:1px solid var(--line-strong); }
+  .tbl td { padding:.4rem .7rem; border-bottom:1px solid var(--line); }
+  .tbl tr:hover td { background:var(--sunk); }
+  .tbl .num { text-align:right; font-family:var(--mono); font-size:.7rem; color:var(--t3); }
+  .role { font-size:.59rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); border:1px solid var(--line); border-radius:var(--r); padding:.1rem .26rem; }
+  .panelgrid { display:grid; grid-template-columns:1fr; }
+  @container (width >= 54rem) { .panelgrid { grid-template-columns:1fr 20rem; } }
+
+  /* ---- FEEL-CHECK: corrected pills, shown beside the glyph pickers ---- */
+  .fc { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  @media (max-width: 60rem) { .fc { grid-template-columns:1fr; } }
+  .fc .box { border:1px solid var(--line); border-radius:8px; padding:1rem; background:#fffdfa; display:grid; gap:.8rem; }
+  .fc .box .t { font:500 .68rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; }
+  /* corrected pill: smaller, tighter padding, and NOT the accent colour */
+  .cpill { display:inline-flex; align-items:center; gap:.28rem; font-family:var(--mono); font-size:.68rem; padding:.06rem .3rem; border-radius:var(--r); border:1px solid var(--line-strong); background:var(--panel); color:var(--t2); cursor:pointer; }
+  .cpill:hover { border-color:var(--accent); color:var(--accent); }
+  .cpill[aria-pressed="true"] { border-color:var(--line-strong); background:var(--sunk); color:var(--t1); }
+  .cpill[aria-pressed="true"] .pg { color:var(--accent); }
+  .cpill .pg { color:var(--t3); font-size:.62rem; }
+</style>
+</head>
+<body>
+
+<!-- ===================== SKIN + THEME SWITCHER ===================== -->
+<div class="doc">
+<a class="back" href="index.html">← round 3 index</a>
+
+<div class="ctrl">
+  <fieldset>
+    <legend>Skin</legend>
+    <input type="radio" name="sk" id="sk-sepia" checked><label for="sk-sepia"><span class="swatch" style="background:#7d5322"></span>Sepia</label>
+    <input type="radio" name="sk" id="sk-moka"><label for="sk-moka"><span class="swatch" style="background:#8a5320"></span>Mocha</label>
+  </fieldset>
+  <fieldset>
+    <legend>Theme</legend>
+    <input type="radio" name="th" id="th-light" checked><label for="th-light">Light</label>
+    <input type="radio" name="th" id="th-dark"><label for="th-dark">Dark</label>
+  </fieldset>
+  <span style="font-size:.78rem;color:#8a7d70">Skins change tokens and typefaces only — layout is identical in both. Dark mode is a separate toggle.</span>
+</div>
+
+<h1>Patchworks — converged design</h1>
+<p class="lede">Cards' information model with Split Sheet's interaction and visual language. Card on mobile, row past 54rem. The note is a paragraph, so the list shows an excerpt and expands in place. Selecting anything opens a sheet. Everything is 2px-cornered, bordered, and only genuinely floating surfaces are elevated.</p>
+
+<!-- ============ 1. BOOKMARK LIST ============ -->
+<h2>1 · Bookmark list</h2>
+<p>The note is the point of this design, so it's the part that got the most attention: a four-line excerpt in the list, expanding in place rather than truncating. Unread keeps the warm tint plus a dot. Row actions are permanently visible — no kebab. On desktop the card collapses to a row with tags and actions pulled into right-hand columns.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b> · card</span><span>142 · 38 unread</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="tag: rust"></label><span class="avatar">DE</span></div>
+      <div class="head"><h1>Inbox</h1><div class="stat">142 bookmarks · <b>38</b> unread · <b>14</b> queued</div></div>
+      <div class="bar"><a class="t2" href="#" aria-current="page">All</a><a class="t2" href="#">Unread</a><a class="t2" href="#">Queue</a><a class="t2" href="#">Feeds</a><span class="spacer"></span><span class="mono" style="font-size:.66rem;color:var(--t3)">42 shown</span></div>
+      <ul class="list">
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+            <div class="meta"><span>simonwillison.net</span><span>2d</span><span class="st q">queued</span></div>
+            <div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
+            <p class="note-e">Simon walks through the rebalance heuristic and then does the thing everyone skips: he measures it. The tradeoff discussion near the end maps almost exactly onto our cursor pagination work — he picks stability over peak throughput and explains what that costs. Worth sending to whoever reviews the PR.</p>
+            <button class="more">Show note <span aria-hidden="true">↓</span></button>
+            <div class="acts"><button class="btn sm">Mark read</button><button class="btn sm">Queue</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
+          </div>
+        </li>
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <a class="ttl" href="#">A Tour of Go's Memory Management</a>
+            <div class="meta"><span>go.dev</span><span>3d</span></div>
+            <div class="tags"><a href="#">#go</a></div>
+            <p class="note-e">Shorter than it looks. The escape-analysis section is the reason to keep it; the rest is a refresher I could have got from any blog post.</p>
+            <button class="more">Show note <span aria-hidden="true">↓</span></button>
+            <div class="acts"><button class="btn sm">Mark read</button><button class="btn sm">Queue</button><button class="btn g sm danger">Archive</button></div>
+          </div>
+        </li>
+        <li class="item" data-unread="false">
+          <span class="bul"></span>
+          <div>
+            <a class="ttl" href="#">Postgres VACUUM, finally explained properly</a>
+            <div class="meta"><span>brandur.org</span><span>1w</span></div>
+            <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+            <p class="note-e">Everything before the multixact section is a rehash of the official docs. The multixact part is the one I actually need for the pagination work and I have read it three times without retaining it, which probably means I should write something down.</p>
+            <div class="acts"><button class="btn g sm">Mark unread</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
+          </div>
+        </li>
+      </ul>
+      <nav class="tabs">
+        <a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">◉</span>You</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="frame" style="flex:1;min-width:32rem">
+    <div class="frame-label"><span><b>Desktop</b> · row, + docked pane</span><span>142</span></div>
+    <div class="app">
+      <div class="topbar">
+        <span class="brand">Patch<b>works</b></span>
+        <label class="q" style="max-width:26rem"><span class="op">/</span><input placeholder="tag: rust is:unread"></label>
+        <span class="spacer"></span>
+        <button class="btn sm">+ Add</button>
+        <span class="avatar">DE</span>
+      </div>
+      <div class="panelgrid">
+        <div>
+          <div class="head wide"><h1>Inbox</h1><div class="stat">142 bookmarks · <b>38</b> unread · <b>14</b> queued</div></div>
+          <div class="bar"><a class="t2" href="#" aria-current="page">All</a><a class="t2" href="#">Unread</a><a class="t2" href="#">Queue</a><a class="t2" href="#">Feeds</a><a class="t2" href="#">Archived</a><span class="spacer"></span><span class="kbd">⌘K</span></div>
+          <ul class="list">
+            <li class="item" data-unread="true" data-sel="true">
+              <span class="bul"></span>
+              <div>
+                <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+                <div class="meta"><span>simonwillison.net</span><span>2d</span><span class="st q">queued</span></div>
+                <div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
+                <p class="note-e">Simon walks through the rebalance heuristic and then does the thing everyone skips: he measures it. The tradeoff discussion maps almost exactly onto our cursor pagination work.</p>
+              </div>
+              <div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
+            </li>
+            <li class="item" data-unread="true">
+              <span class="bul"></span>
+              <div>
+                <a class="ttl" href="#">A Tour of Go's Memory Management</a>
+                <div class="meta"><span>go.dev</span><span>3d</span></div>
+                <div class="tags"><a href="#">#go</a></div>
+                <p class="note-e">The escape-analysis section is the reason to keep it; the rest is a refresher.</p>
+              </div>
+              <div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
+            </li>
+            <li class="item" data-unread="false">
+              <span class="bul"></span>
+              <div>
+                <a class="ttl" href="#">Postgres VACUUM, finally explained properly</a>
+                <div class="meta"><span>brandur.org</span><span>1w</span></div>
+                <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+                <p class="note-e">Everything before the multixact section is a rehash. The multixact part is what I need.</p>
+              </div>
+              <div class="side"><button class="btn g sm">Unread</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
+            </li>
+            <li class="item" data-unread="true">
+              <span class="bul"></span>
+              <div>
+                <a class="ttl" href="#">The Design Philosophy Behind Alpine Linux</a>
+                <div class="meta"><span>wiki.alpinelinux.org</span><span>6d</span></div>
+                <div class="tags"><a href="#">#linux</a></div>
+              </div>
+              <div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
+            </li>
+          </ul>
+        </div>
+        <aside class="sheet">
+          <div class="sh-head"><span class="k">Details</span><span class="spacer"></span><span class="kbd">esc</span></div>
+          <div class="sh-body">
+            <div><h3 class="sh-title">Rewriting SQLite's query planner for fun</h3><div class="sh-url">https://simonwillison.net/2026/09/sqlite-planner/</div></div>
+            <div><span class="lbl">Note</span><textarea class="ta">Simon walks through the rebalance heuristic and then does the thing everyone skips: he measures it. The tradeoff discussion near the end maps almost exactly onto our cursor pagination work — he picks stability over peak throughput and explains what that costs. Worth sending to whoever reviews the PR.</textarea></div>
+            <div class="pick"><span class="lbl">Tags</span><div class="pickrow">
+              <button class="opt" aria-pressed="true"><span class="g">✓</span>#sqlite</button>
+              <button class="opt" aria-pressed="true"><span class="g">✓</span>#databases</button>
+              <button class="opt" aria-pressed="false"><span class="g">✓</span>#perf</button>
+              <button class="opt add"><span class="g">+</span>new tag</button>
+            </div></div>
+            <div class="pick"><span class="lbl">Collections</span><div class="pickrow">
+              <button class="opt" aria-pressed="true"><span class="g">✓</span>@databases</button>
+              <button class="opt" aria-pressed="false"><span class="g">✓</span>@to-read</button>
+              <button class="opt add"><span class="g">+</span>new collection</button>
+            </div></div>
+            <dl class="kv"><dt>saved</dt><dd>2 days ago</dd><dt>state</dt><dd>unread · queued</dd><dt>source</dt><dd>saved by you</dd></dl>
+            <div style="display:flex;gap:.25rem;flex-wrap:wrap"><button class="btn p sm">Mark read</button><button class="btn sm">Open</button><button class="btn sm">Share</button><button class="btn g sm">Archive</button></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2. QUICK ADD ============ -->
+<h2>2 · Quick add</h2>
+<p>One <code>&lt;dialog&gt;</code>. Full-screen on mobile with the header <em>inside</em> the panel, centred popover on desktop. Tag and collection pickers are glyph + text, not pills — note the <code>@</code> prefix on collections so the typed syntax and the picker agree. "Add to reading list" is a full-width control with its own explanation, because it is the action people miss most.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b> · full-screen dialog</span><span>expanded</span></div>
+    <div class="app" style="min-height:44rem;position:relative">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="tag:"></label></div>
+      <div style="padding:1rem"><div class="empty" style="padding:1.5rem 0"><div class="ic">◈</div><h3>Add bookmark</h3></div></div>
+      <div class="dlg">
+        <div class="dlg-head"><h2>Add bookmark</h2><span class="spacer"></span><button class="btn g sm">Close</button></div>
+        <div class="dlg-body">
+          <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="fetched">✓ title fetched from go.dev</span></div>
+          <div class="fld"><label>Title</label><input value="A Tour of Go's Memory Management"></div>
+          <div class="fld"><label>Note</label><textarea placeholder="Why are you saving this? Write it for future-you, or for whoever you send it to."></textarea></div>
+          <div class="pick"><span class="lbl">Tags</span><div class="pickrow">
+            <button class="opt" aria-pressed="true"><span class="g">✓</span>#go</button>
+            <button class="opt" aria-pressed="false"><span class="g">✓</span>#memory</button>
+            <button class="opt add"><span class="g">+</span>new tag</button>
+          </div><span class="hintl"># creates a tag · ⏎ adds</span></div>
+          <div class="pick"><span class="lbl">Collections</span><div class="pickrow">
+            <button class="opt" aria-pressed="false"><span class="g">✓</span>@databases</button>
+            <button class="opt" aria-pressed="true"><span class="g">✓</span>@to-read</button>
+            <button class="opt add"><span class="g">+</span>new collection</button>
+          </div><span class="hintl">@ creates a collection</span></div>
+          <button class="rlt" aria-pressed="true"><span class="g">✓</span><span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue, to read later</span></span></button>
+          <div style="font-size:.79rem;color:var(--t2);background:var(--accent-bg);border-radius:var(--r);padding:.45rem .6rem">Similar to <a href="#" style="color:var(--accent)">“Go GC tuning in practice”</a>, saved 3 days ago. <a href="#" style="color:var(--accent)">Save anyway</a></div>
+          <div style="display:flex;gap:.4rem;align-items:center"><button class="btn p">Save</button><button class="btn g">Save and add another</button><span class="spacer"></span><span class="hintl">⏎ save · esc close</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame" style="flex:1;min-width:26rem">
+    <div class="frame-label"><span><b>Desktop</b> · centred popover</span><span>same dialog element</span></div>
+    <div class="app" style="min-height:38rem;position:relative;background:var(--sunk)">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="tag: rust"></label><span class="spacer"></span><button class="btn sm p">+ Add</button></div>
+      <div style="padding:.8rem 1.4rem;opacity:.4"><ul class="list"><li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Rewriting SQLite's query planner for fun</a><div class="meta"><span>simonwillison.net</span><span>2d</span></div></div></li><li class="item"><span class="bul"></span><div><a class="ttl" href="#">A Tour of Go's Memory Management</a><div class="meta"><span>go.dev</span><span>3d</span></div></div></li></ul></div>
+      <div class="dlg">
+        <div class="dlg-head"><h2>Add bookmark</h2><span class="spacer"></span><span class="hintl">esc</span></div>
+        <div class="dlg-body">
+          <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="fetched">✓ title fetched from go.dev</span></div>
+          <div class="fld"><label>Title</label><input value="A Tour of Go's Memory Management"></div>
+          <div class="fld"><label>Note</label><textarea style="min-height:2.4rem"></textarea></div>
+          <div class="pick"><span class="lbl">Tags</span><div class="pickrow"><button class="opt" aria-pressed="true"><span class="g">✓</span>#go</button><button class="opt" aria-pressed="false"><span class="g">✓</span>#memory</button><button class="opt add"><span class="g">+</span>new tag</button></div></div>
+          <div class="pick"><span class="lbl">Collections</span><div class="pickrow"><button class="opt" aria-pressed="false"><span class="g">✓</span>@databases</button><button class="opt" aria-pressed="true"><span class="g">✓</span>@to-read</button><button class="opt add"><span class="g">+</span>new collection</button></div></div>
+          <button class="rlt" aria-pressed="true"><span class="g">✓</span><span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue</span></span></button>
+          <div style="display:flex;gap:.4rem;align-items:center"><button class="btn p">Save</button><span class="spacer"></span><span class="hintl">⏎ save · esc close</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3. READING QUEUE ============ -->
+<h2>3 · Reading queue</h2>
+<p>Current item pinned to the top and marked, with the rest of the queue below it in insertion order — so "what's next" is never a scroll. Verbs change to <b>Done / Later / Archive</b>. No in-app reader; titles open the original in a new tab.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>3 of 14</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="search"></label><span class="avatar">DE</span></div>
+      <div class="head"><h1>Reading</h1><div class="stat">oldest first · <b>3</b> of <b>14</b> · ~34 min</div></div>
+      <ul class="list">
+        <li class="item" data-unread="true" style="background:var(--accent-bg);box-shadow:inset 2px 0 0 var(--accent)">
+          <span class="bul"></span>
+          <div>
+            <div class="meta" style="margin:0 0 .1rem"><span class="st q">now reading</span><span>queued 1w ago</span><span>~14 min</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">Postgres VACUUM, finally explained properly ↗</a>
+            <div class="meta"><span>brandur.org</span></div>
+            <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+            <p class="note-e">Everything before the multixact section is a rehash. The multixact part is what I need for the pagination work.</p>
+            <div class="acts"><button class="btn sm p">Done — next</button><button class="btn sm">Keep for later</button><button class="btn g sm danger">Archive</button></div>
+          </div>
+        </li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#" target="_blank" rel="noopener">Rewriting SQLite's query planner for fun ↗</a><div class="meta"><span>simonwillison.net</span><span>queued 2d ago</span><span>~12 min</span></div><div class="tags"><a href="#">#sqlite</a></div></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#" target="_blank" rel="noopener">A Tour of Go's Memory Management ↗</a><div class="meta"><span>go.dev</span><span>queued 3d ago</span><span>~8 min</span></div><div class="tags"><a href="#">#go</a></div></div></li>
+      </ul>
+      <nav class="tabs"><a href="#"><span class="ic">◈</span>Inbox</a><a href="#" aria-current="page"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">◉</span>You</a></nav>
+    </div>
+  </div>
+  <div class="frame" style="flex:1;min-width:26rem">
+    <div class="frame-label"><span><b>Desktop</b></span><span>current pinned</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q" style="max-width:24rem"><span class="op">/</span><input placeholder="search"></label><span class="spacer"></span><span class="avatar">DE</span></div>
+      <div class="head wide"><h1>Reading</h1><div class="stat">oldest first · <b>3</b> of <b>14</b> · about 34 min remaining</div></div>
+      <div class="bar"><span class="mono" style="font-size:.67rem;color:var(--t3)">insertion order, oldest first</span><span class="spacer"></span><span class="kbd">d</span><span class="kbd">l</span></div>
+      <ul class="list">
+        <li class="item" data-unread="true" style="background:var(--accent-bg);box-shadow:inset 2px 0 0 var(--accent)">
+          <span class="bul"></span>
+          <div>
+            <div class="meta" style="margin:0 0 .1rem"><span class="st q">now reading</span><span>brandur.org</span><span>queued 1w ago</span><span>~14 min</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">Postgres VACUUM, finally explained properly ↗</a>
+            <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+            <p class="note-e">Everything before the multixact section is a rehash of the official docs. The multixact part is the one I need for the pagination work.</p>
+          </div>
+          <div class="side"><button class="btn sm p">Done — next</button><button class="btn sm">Later</button><button class="btn g sm danger">Archive</button></div>
+        </li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#" target="_blank" rel="noopener">Rewriting SQLite's query planner for fun ↗</a><div class="meta"><span>simonwillison.net</span><span>queued 2d ago</span><span>~12 min</span></div><div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div><p class="note-e">He measures the heuristic instead of asserting it. The tradeoff section maps onto our pagination work.</p></div><div class="side"><button class="btn sm">Done</button><button class="btn sm">Later</button><button class="btn g sm danger">Archive</button></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#" target="_blank" rel="noopener">A Tour of Go's Memory Management ↗</a><div class="meta"><span>go.dev</span><span>queued 3d ago</span><span>~8 min</span></div><div class="tags"><a href="#">#go</a></div></div><div class="side"><button class="btn sm">Done</button><button class="btn sm">Later</button><button class="btn g sm danger">Archive</button></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#" target="_blank" rel="noopener">Row-level security in practice ↗</a><div class="meta"><span>brandur.org</span><span>queued 1mo ago</span><span>~10 min</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#security</a></div></div><div class="side"><button class="btn sm">Done</button><button class="btn sm">Later</button><button class="btn g sm danger">Archive</button></div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 4. FEEDS (path A) ============ -->
+<h2>4 · Feeds</h2>
+<p>Path A, committed. Nothing is saved until you act — the feed is a surface you triage, not a second bookmark list. Suggestions use a dashed underline so they read as provisional; tapping solidifies them and checks the glyph. The three actions are <b>Add to queue</b>, <b>Save as bookmark</b>, and <b>Dismiss</b>.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>8 unread</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="feed: golang.blog"></label><span class="avatar">DE</span></div>
+      <div class="head"><h1>Feeds</h1><div class="stat">4 subscribed · <b>8</b> unread of 27</div></div>
+      <div class="bar"><a class="t2" href="#" aria-current="page">Unread</a><a class="t2" href="#">All</a><a class="t2" href="#">Saved</a><a class="t2" href="#">Subscriptions</a></div>
+      <ul class="list">
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <div class="meta"><span class="st f">feed</span><span>golang.blog</span><span>2h</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">What's new in Go 1.26: iterators everywhere ↗</a>
+            <p class="note-e">Range-over-func finally landed in the standard library. The part worth my attention is the allocation change for library authors, not the language surface.</p>
+            <div class="sug"><span class="lb">suggested</span>
+              <button class="sugopt" aria-pressed="true"><span class="g">✓</span>#go</button>
+              <button class="sugopt" aria-pressed="true"><span class="g">✓</span>#release</button>
+              <button class="sugopt" aria-pressed="false"><span class="g">○</span>#api</button>
+            </div>
+            <div class="acts"><button class="btn sm p">Add to queue</button><button class="btn sm">Save as bookmark</button><button class="btn g sm">Dismiss</button></div>
+          </div>
+        </li>
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <div class="meta"><span class="st f">feed</span><span>brandur.org</span><span>6h</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">Efficient pagination with Postgres ↗</a>
+            <div class="sug"><span class="lb">suggested</span>
+              <button class="sugopt" aria-pressed="true"><span class="g">✓</span>#postgres</button>
+              <button class="sugopt" aria-pressed="false"><span class="g">○</span>#perf</button>
+            </div>
+            <div class="acts"><button class="btn sm p">Add to queue</button><button class="btn sm">Save as bookmark</button><button class="btn g sm">Dismiss</button></div>
+          </div>
+        </li>
+      </ul>
+      <nav class="tabs"><a href="#"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#" aria-current="page"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">◉</span>You</a></nav>
+    </div>
+  </div>
+  <div class="frame" style="flex:1;min-width:28rem">
+    <div class="frame-label"><span><b>Desktop</b></span><span>subscriptions</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q" style="max-width:22rem"><span class="op">/</span><input placeholder="feed:"></label><span class="spacer"></span><button class="btn sm p">+ Subscribe</button><span class="avatar">DE</span></div>
+      <div class="head wide"><h1>Feeds</h1><div class="stat">nothing here is saved until you act · auto-tagging <b>on</b></div></div>
+      <div class="bar"><a class="t2" href="#" aria-current="page">Unread</a><a class="t2" href="#">All</a><a class="t2" href="#">Saved</a><a class="t2" href="#">Subscriptions</a></div>
+      <ul class="list">
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <div class="meta"><span class="st f">feed</span><span>golang.blog</span><span>2h</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">What's new in Go 1.26: iterators everywhere ↗</a>
+            <p class="note-e">Range-over-func finally landed. The allocation change for library authors is the part I care about.</p>
+            <div class="sug"><span class="lb">suggested</span><button class="sugopt" aria-pressed="true"><span class="g">✓</span>#go</button><button class="sugopt" aria-pressed="true"><span class="g">✓</span>#release</button><button class="sugopt" aria-pressed="false"><span class="g">○</span>#api</button></div>
+          </div>
+          <div class="side"><button class="btn sm p">Add to queue</button><button class="btn sm">Save</button><button class="btn g sm">Dismiss</button></div>
+        </li>
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <div class="meta"><span class="st f">feed</span><span>brandur.org</span><span>6h</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">Efficient pagination with Postgres ↗</a>
+            <div class="sug"><span class="lb">suggested</span><button class="sugopt" aria-pressed="true"><span class="g">✓</span>#postgres</button><button class="sugopt" aria-pressed="false"><span class="g">○</span>#perf</button></div>
+          </div>
+          <div class="side"><button class="btn sm p">Add to queue</button><button class="btn sm">Save</button><button class="btn g sm">Dismiss</button></div>
+        </li>
+        <li class="item" data-unread="true">
+          <span class="bul"></span>
+          <div>
+            <div class="meta"><span class="st f">feed</span><span>news.ycombinator</span><span>1d</span></div>
+            <a class="ttl" href="#" target="_blank" rel="noopener">Ask HN: what are you working on? ↗</a>
+            <div class="sug"><span class="lb">suggested</span><button class="sugopt" aria-pressed="false"><span class="g">○</span>#hn</button><button class="sugopt add" style="color:var(--t3)">+ suggest another</button></div>
+          </div>
+          <div class="side"><button class="btn sm p">Add to queue</button><button class="btn sm">Save</button><button class="btn g sm">Dismiss</button></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 5. SEARCH ============ -->
+<h2>5 · Search</h2>
+<p>Realtime parsing, pills for the parsed query, and the operator legend now on <em>both</em> sizes — a syntax you only see on desktop is a syntax mobile users never learn. The legend wraps onto two lines on a phone rather than hiding.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b> · legend included</span><span>18 results</span></div>
+    <div class="app">
+      <div class="searchband">
+        <div class="q"><span class="op">/</span><input value="tag:postgres is:unread"></div>
+        <div class="pills"><span class="pill">tag:postgres <button>×</button></span><span class="pill">is:unread <button>×</button></span><button class="pill add">+ filter</button></div>
+        <div class="ops"><span><b>tag:</b></span><span><b>coll:</b></span><span><b>host:</b></span><span><b>site:</b></span><span><b>is:unread</b></span><span><b>is:queued</b></span><span><b>is:archived</b></span><span><b>after:</b></span><span><b>before:</b></span><span><b>-</b> exclude</span><span><b>"exact"</b></span><span><b>OR</b></span></div>
+      </div>
+      <div class="head"><h1>18 results</h1><div class="stat">matched title, note, host, url · <b>0.04s</b></div></div>
+      <ul class="list">
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div><p class="note-e">Everything before the multixact section is a rehash of the docs.</p></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Efficient pagination with Postgres</a><div class="meta"><span>brandur.org</span><span>1d</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#security</a></div></div></li>
+      </ul>
+      <nav class="tabs"><a href="#"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#" aria-current="page"><span class="ic">⌕</span>Search</a></nav>
+    </div>
+  </div>
+  <div class="frame" style="flex:1;min-width:28rem">
+    <div class="frame-label"><span><b>Desktop</b></span><span>18 results</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q" style="max-width:32rem"><span class="op">/</span><input value='tag:postgres is:unread -tag:"write soon" after:2026-08'></label><span class="spacer"></span><span class="kbd">esc</span></div>
+      <div class="searchband wide">
+        <div class="pills"><span class="pill">tag:postgres <button>×</button></span><span class="pill">is:unread <button>×</button></span><span class="pill">−tag:"write soon" <button>×</button></span><span class="pill">after:2026-08 <button>×</button></span><button class="pill add">+ filter</button></div>
+        <div class="ops"><span><b>tag:</b></span><span><b>coll:</b></span><span><b>host:</b></span><span><b>site:</b></span><span><b>is:unread</b></span><span><b>is:queued</b></span><span><b>is:archived</b></span><span><b>after:</b></span><span><b>before:</b></span><span><b>-</b> exclude</span><span><b>"exact"</b></span><span><b>OR</b></span></div>
+      </div>
+      <div class="bar"><span class="mono" style="font-size:.67rem;color:var(--t3)">18 results · 4 operators · 3 excluded</span><span class="spacer"></span><button class="btn sm">Save all 18</button></div>
+      <ul class="list">
+        <li class="item" data-unread="true" data-sel="true"><span class="bul"></span><div><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div><p class="note-e">Everything before the multixact section is a rehash of the docs.</p></div><div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Efficient pagination with Postgres</a><div class="meta"><span>brandur.org</span><span>1d</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div><div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#security</a></div></div><div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div></li>
+        <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Postgres connection pooling: the short version</a><div class="meta"><span>brandur.org</span><span>3w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div><div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 6. PICKER FEEL-CHECK ============ -->
+<h2>6 · Picker feel-check — glyph vs corrected pills</h2>
+<p>Your request: show the glyph version <em>and</em> a fixed pill version, so the choice is made by eye rather than by argument. The pills here are corrected in the three ways you suggested — smaller, tighter padding, and no longer the button accent colour (they sit in neutral greys, with the accent reserved for the selected state and the check glyph).</p>
+<div class="fc">
+  <div class="box">
+    <span class="t">A · Glyph + text — the alternative, not used</span>
+    <div class="app" style="border:1px solid var(--line);border-radius:var(--r);padding:.8rem;background:var(--panel)">
+      <div class="pick" style="margin-bottom:.8rem">
+        <span class="lbl">Tags</span>
+        <div class="pickrow">
+          <button class="opt" aria-pressed="true"><span class="g">✓</span>#sqlite</button>
+          <button class="opt" aria-pressed="true"><span class="g">✓</span>#databases</button>
+          <button class="opt" aria-pressed="false"><span class="g">✓</span>#perf</button>
+          <button class="opt" aria-pressed="false"><span class="g">✓</span>#linux</button>
+          <button class="opt add"><span class="g">+</span>new</button>
+        </div>
+      </div>
+      <div class="pick" style="margin-bottom:.8rem">
+        <span class="lbl">Collections</span>
+        <div class="pickrow">
+          <button class="opt" aria-pressed="false"><span class="g">✓</span>@databases</button>
+          <button class="opt" aria-pressed="true"><span class="g">✓</span>@to-read</button>
+          <button class="opt" aria-pressed="false"><span class="g">✓</span>@project-a</button>
+          <button class="opt add"><span class="g">+</span>new</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:.4rem"><button class="btn sm p">Save</button><button class="btn sm">Cancel</button></div>
+    </div>
+    <p style="font-size:.83rem;color:#5c534b;margin:0">Kept for reference only. Nothing confuses it with a button, and the checkbox is a familiar affordance — but it takes noticeably more horizontal room when many tags are selected, and scanning a row of glyphs is slower than scanning a row of pills.</p>
+  </div>
+  <div class="box">
+    <span class="t">B · Corrected pills — chosen, used throughout</span>
+    <div class="app" style="border:1px solid var(--line);border-radius:var(--r);padding:.8rem;background:var(--panel)">
+      <div style="margin-bottom:.55rem"><span class="lbl">Tags</span></div>
+      <div style="display:flex;gap:.25rem;flex-wrap:wrap;margin-bottom:.8rem">
+        <button class="cpill" aria-pressed="true"><span class="pg">✓</span>#sqlite</button>
+        <button class="cpill" aria-pressed="true"><span class="pg">✓</span>#databases</button>
+        <button class="cpill" aria-pressed="false"><span class="pg">○</span>#perf</button>
+        <button class="cpill" aria-pressed="false"><span class="pg">○</span>#linux</button>
+        <button class="cpill"><span class="pg">+</span>new</button>
+      </div>
+      <div style="margin-bottom:.55rem"><span class="lbl">Collections</span></div>
+      <div style="display:flex;gap:.25rem;flex-wrap:wrap;margin-bottom:.9rem">
+        <button class="cpill" aria-pressed="false"><span class="pg">○</span>@databases</button>
+        <button class="cpill" aria-pressed="true"><span class="pg">✓</span>@to-read</button>
+        <button class="cpill" aria-pressed="false"><span class="pg">○</span>@project-a</button>
+        <button class="cpill"><span class="pg">+</span>new</button>
+      </div>
+      <div style="display:flex;gap:.4rem"><button class="btn sm p">Save</button><button class="btn sm">Cancel</button></div>
+    </div>
+    <p style="font-size:.83rem;color:#5c534b;margin:0">Smaller, tighter, and neutral rather than accent-coloured, so it reads as a tag and not as an action. This is what the app now uses everywhere, including feed suggestions and the quick-add pickers. The dashed border is reserved for "create a new one", which is what fixes the ambiguity you spotted on the left.</p>
+  </div>
+</div>
+
+<!-- ============ 7. COLLECTIONS ============ -->
+<h2>7 · Collections</h2>
+<p>Title and handle are both shown, because they're both editable and they mean different things — "Databases" for display, <code>@databases</code> for typing. A collection named "Project A" can have the handle <code>@project-a</code>; the two never need to match.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>9 collections</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="coll:"></label><span class="avatar">DE</span></div>
+      <div class="head"><h1>Collections</h1><div class="stat">9 total · <b>3</b> shared</div></div>
+      <div class="bar"><span class="mono" style="font-size:.67rem;color:var(--t3)">sort: recently modified</span><span class="spacer"></span><button class="btn sm p">New</button></div>
+      <div class="cgrid">
+        <a class="ccard" href="#"><h3>Databases</h3><span class="handle">@databases</span><p class="d">Everything relational. Indexes, query planners, vacuum.</p><div class="row"><b>48</b> items<span class="spacer"></span><span class="st f">shared</span></div></a>
+        <a class="ccard" href="#"><h3>Project A</h3><span class="handle">@project-a</span><p class="d">Research and references for the current project.</p><div class="row"><b>17</b> items<span class="spacer"></span><span class="st f">shared</span></div></a>
+        <a class="ccard" href="#"><h3>Go deep dives</h3><span class="handle">@go-deep-dives</span><p class="d">Long-form Go reading, runtime and tooling.</p><div class="row"><b>22</b> items<span class="spacer"></span><span class="st b">private</span></div></a>
+        <a class="ccard" href="#"><h3>Perf reading</h3><span class="handle">@perf-reading</span><p class="d">Profiling and measurement, shared with the team.</p><div class="row"><b>31</b> items<span class="spacer"></span><span class="st f">shared</span></div></a>
+      </div>
+      <nav class="tabs"><a href="#"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#" aria-current="page"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">◉</span>You</a></nav>
+    </div>
+  </div>
+  <div class="frame" style="flex:1;min-width:28rem">
+    <div class="frame-label"><span><b>Desktop</b> · collection detail</span><span>Databases · 3 members</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q" style="max-width:22rem"><span class="op">/</span><input placeholder="coll:databases"></label><span class="spacer"></span><span class="avatar">DE</span></div>
+      <div class="panelgrid">
+        <div>
+          <div class="head wide"><div class="eyebrow">Collection · you own this</div><h1>Databases</h1><div class="mono" style="color:var(--accent);font-size:.74rem;margin-top:.15rem">@databases</div><p class="cdesc">Everything relational. Indexes, query planners, vacuum, and connection pooling — the notes explain why each one is worth reading rather than just listing it.</p><div class="stat"><b>48</b> items · <b>12</b> unread · <b>3</b> members · share link <b>on</b></div></div>
+          <div class="bar"><a class="t2" href="#" aria-current="page">Items</a><a class="t2" href="#">Members (3)</a><a class="t2" href="#">Share</a><a class="t2" href="#">Settings</a><span class="spacer"></span><button class="btn sm">+ Add</button></div>
+          <ul class="list">
+            <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div><p class="note-e">Everything before the multixact section is a rehash. The multixact part is the one I need.</p></div><div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Remove</button></div></li>
+            <li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#security</a></div></div><div class="side"><button class="btn sm">Mark read</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Remove</button></div></li>
+            <li class="item"><span class="bul"></span><div><a class="ttl" href="#">Rewriting SQLite's query planner for fun</a><div class="meta"><span>simonwillison.net</span><span>2d</span></div><div class="tags"><a href="#">#sqlite</a></div></div><div class="side"><button class="btn g sm">Unread</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Remove</button></div></li>
+          </ul>
+        </div>
+        <aside class="sheet">
+          <div class="sh-head"><span class="k">Share</span><span class="spacer"></span><span class="kbd">esc</span></div>
+          <div class="sh-body">
+            <div><span class="lbl">Public link</span><div class="inp" style="display:block;padding:.35rem .45rem;color:var(--t2)">patchworks.example/s/databases-x7k2</div><div style="display:flex;gap:.25rem;margin-top:.35rem"><button class="btn sm">Copy link</button><button class="btn g sm">Turn off</button></div></div>
+            <div><span class="lbl">Members</span>
+              <div style="display:grid;gap:.3rem;font-size:.78rem">
+                <div style="display:flex;gap:.5rem;align-items:center"><b class="mono" style="font-size:.65rem;color:var(--t3);width:4rem">OWNER</b> you@example.com<span class="spacer"></span></div>
+                <div style="display:flex;gap:.5rem;align-items:center"><b class="mono" style="font-size:.65rem;color:var(--t3);width:4rem">EDITOR</b> a@example.com<span class="spacer"></span><button class="btn g sm">Remove</button></div>
+                <div style="display:flex;gap:.5rem;align-items:center"><b class="mono" style="font-size:.65rem;color:var(--t3);width:4rem">VIEWER</b> b@example.com<span class="spacer"></span><button class="btn g sm">Remove</button></div>
+              </div>
+              <button class="btn sm" style="margin-top:.5rem">+ Invite member</button>
+            </div>
+            <div><span class="lbl">Notes on this collection</span><div style="font-size:.76rem;color:var(--t2)">Notes are included in the shared view by default. Turn them off if a collection is only a reading list.</div><button class="rlt" style="margin-top:.4rem" aria-pressed="true"><span class="g">✓</span><span><span class="lb">Include notes</span><span class="hint">Visitors see your notes as written</span></span></button></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 8. PUBLIC SHARE PAGE ============ -->
+<h2>8 · Public share page</h2>
+<p>This is the surface your notes were actually written for. Someone opens a link and reads <em>why</em> each link matters, in full — no excerpt, no clamp, no chrome competing with the prose. It is the one place in the design where the note is unambiguously the primary content and the title is secondary. No nav, no tabs, no sign-in; the only outbound link is to the source.</p>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b> · shared by you@example.com</span><span>Databases</span></div>
+    <div class="app" style="min-height:46rem">
+      <div class="share">
+        <div class="who">Shared by you@example.com</div>
+        <h1>Databases</h1>
+        <div class="sub">Everything relational. 48 links, with my notes on each · <a href="#" style="color:var(--accent)">subscribe by RSS</a></div>
+        <article class="sh-item">
+          <h2><a href="#" target="_blank" rel="noopener">Postgres VACUUM, finally explained properly ↗</a></h2>
+          <div class="m">brandur.org · saved 1 week ago</div>
+          <p class="why">Everything before the multixact section is a rehash of the official docs. <strong>The multixact part is the one worth your time</strong> — it's the bit that finally made autovacuum's behaviour make sense to me, and it's the section I keep coming back to when the autovacuum daemon surprises me.</p>
+          <div class="tg"><span>#postgres</span><span>#perf</span></div>
+        </article>
+        <article class="sh-item">
+          <h2><a href="#" target="_blank" rel="noopener">Row-level security in practice ↗</a></h2>
+          <div class="m">brandur.org · saved 2 weeks ago</div>
+          <p class="why">Most RLS explainers stop at <code>CREATE POLICY</code> and leave you to discover the performance cliff. This one measures it, which is why I kept it. The caveat section at the end is the most useful paragraph in the whole post.</p>
+          <div class="tg"><span>#postgres</span><span>#security</span></div>
+        </article>
+        <article class="sh-item">
+          <h2><a href="#" target="_blank" rel="noopener">Rewriting SQLite's query planner for fun ↗</a></h2>
+          <div class="m">simonwillison.net · saved 2 days ago</div>
+          <p class="why">Simon walks through the rebalance heuristic and then does the thing everyone skips: <strong>he measures it</strong>. The tradeoff discussion near the end maps almost exactly onto our cursor pagination work — he picks stability over peak throughput and explains what that costs. I'd send this to whoever reviews that PR.</p>
+          <div class="tg"><span>#sqlite</span><span>#databases</span></div>
+        </article>
+        <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.74rem;color:var(--t3);text-align:center">
+          Shared from <span style="font-family:var(--display)">Patchworks</span> · <a href="#" style="color:var(--accent)">Build your own</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="frame" style="flex:1;min-width:30rem">
+    <div class="frame-label"><span><b>Desktop</b> · wider measure, same hierarchy</span><span>notes are primary</span></div>
+    <div class="app" style="min-height:40rem">
+      <div class="share" style="max-width:42rem">
+        <div class="who">Shared by you@example.com</div>
+        <h1>Databases</h1>
+        <div class="sub">Everything relational. 48 links, with my notes on each · <a href="#" style="color:var(--accent)">subscribe by RSS</a></div>
+        <article class="sh-item">
+          <h2><a href="#" target="_blank" rel="noopener">Postgres VACUUM, finally explained properly ↗</a></h2>
+          <div class="m">brandur.org · saved 1 week ago</div>
+          <p class="why">Everything before the multixact section is a rehash of the official docs. <strong>The multixact part is the one worth your time</strong> — it's the bit that finally made autovacuum's behaviour make sense to me, and it's the section I keep coming back to when the autovacuum daemon surprises me. If you only read one thing here, read that.</p>
+          <div class="tg"><span>#postgres</span><span>#perf</span></div>
+        </article>
+        <article class="sh-item">
+          <h2><a href="#" target="_blank" rel="noopener">Row-level security in practice ↗</a></h2>
+          <div class="m">brandur.org · saved 2 weeks ago</div>
+          <p class="why">Most RLS explainers stop at <code>CREATE POLICY</code> and leave you to discover the performance cliff. This one measures it, which is why I kept it.</p>
+          <div class="tg"><span>#postgres</span><span>#security</span></div>
+        </article>
+        <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.74rem;color:var(--t3);text-align:center">
+          Shared from <span style="font-family:var(--display)">Patchworks</span> · <a href="#" style="color:var(--accent)">Build your own</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 9. YOU / SETTINGS ============ -->
+<h2>9 · You — account & settings</h2>
+<p>The fifth tab, so nothing is hidden behind an avatar menu on mobile. On desktop it's the same surface reached from the avatar. It also absorbs the things that would otherwise be orphaned: feed subscriptions, import/export, and sign-out.</p>
+<div class="frame phone">
+  <div class="frame-label"><span><b>390px</b> · fifth tab</span><span>You</span></div>
+  <div class="app">
+    <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="search"></label><span class="avatar">DE</span></div>
+    <div class="head"><h1>You</h1><div class="stat">you@example.com · self-hosted</div></div>
+    <div class="fr"><span>Reading stats</span><span class="n">142 saved · 38 unread · 14 queued</span><span style="color:var(--t3)">›</span></div>
+    <div class="fr"><span>Feed subscriptions</span><span class="n">4</span><span style="color:var(--t3)">›</span></div>
+    <div class="fr"><span>Import bookmarks</span><span class="n">not set up</span><span style="color:var(--t3)">›</span></div>
+    <div class="fr"><span>Export everything</span><span class="n">JSON · Markdown</span><span style="color:var(--t3)">›</span></div>
+    <div class="fr"><span>Appearance</span><span class="n">follows system</span><span style="color:var(--t3)">›</span></div>
+    <div class="fr"><span>Search operators</span><span class="n">reference</span><span style="color:var(--t3)">›</span></div>
+    <div style="padding:.8rem"><button class="btn" style="width:100%;color:var(--danger)">Sign out</button></div>
+    <nav class="tabs"><a href="#"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#" aria-current="page"><span class="ic">◉</span>You</a></nav>
+  </div>
+</div>
+
+<!-- ============ 10. EMPTY / LOADING / AUTH ============ -->
+<h2>10 · Empty, loading, auth</h2>
+<div class="pair">
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>empty inbox</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input></label><span class="avatar">DE</span></div>
+      <div class="head"><h1>Inbox</h1><div class="stat">0 bookmarks</div></div>
+      <div class="empty"><div class="ic">◈</div><h3>Nothing saved yet</h3><p>Tap <b>+</b> above and paste a link. Tags, notes and collections are all optional — you can add them whenever you know why you kept it.</p><button class="btn p">Add your first bookmark</button></div>
+      <nav class="tabs"><a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">◉</span>You</a></nav>
+    </div>
+  </div>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>zero results</span></div>
+    <div class="app">
+      <div class="searchband"><div class="q"><span class="op">/</span><input value="tag:nonexistent"></div><div class="pills"><span class="pill">tag:nonexistent <button>×</button></span></div></div>
+      <div class="empty"><div class="ic">⌕</div><h3>No matches</h3><p>Nothing matches <code>tag:nonexistent</code>. Try dropping a clause, or search the note text instead — it's indexed too.</p><button class="btn">Clear search</button></div>
+    </div>
+  </div>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>loading</span></div>
+    <div class="app">
+      <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input></label></div>
+      <div class="skrow"><div class="sk a"></div><div class="sk b"></div></div>
+      <div class="skrow"><div class="sk a" style="width:46%"></div><div class="sk b" style="width:44%"></div></div>
+      <div class="skrow"><div class="sk a" style="width:68%"></div><div class="sk b" style="width:30%"></div></div>
+      <div class="skrow"><div class="sk a" style="width:54%"></div><div class="sk b" style="width:38%"></div></div>
+    </div>
+  </div>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>login</span></div>
+    <div class="app" style="min-height:24rem">
+      <div style="padding:2rem 1.2rem;max-width:20rem;margin-inline:auto">
+        <div class="disp" style="font-size:1.5rem;font-weight:600;letter-spacing:-.025em;text-align:center">Patch<b style="color:var(--accent)">works</b></div>
+        <div style="font-size:.82rem;color:var(--t3);text-align:center;margin:.2rem 0 1.4rem">Your bookmarks, self-hosted.</div>
+        <div class="fld" style="margin-bottom:.6rem"><label>Email</label><input value="you@example.com"></div>
+        <div class="fld" style="margin-bottom:.9rem"><label>Password</label><input type="password" value="password"><span style="font-size:.72rem;color:var(--danger);margin-top:.15rem">That password is incorrect.</span></div>
+        <button class="btn p" style="width:100%;padding:.42rem">Sign in</button>
+        <div style="font-size:.78rem;color:var(--t3);text-align:center;margin-top:1rem">No account? <a href="#" style="color:var(--accent)">Create one</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>What to judge</h2>
+<p><b>The note strategy.</b> Excerpt-and-expand is the load-bearing decision here. It keeps the list scannable while letting a paragraph be a paragraph. Check it against real note lengths — if your typical note is five lines rather than three, the two-line excerpt may be too stingy.</p>
+<p><b>The share page.</b> This is new and untested by any earlier round. It inverts the normal hierarchy: the note leads, the title supports. Worth deciding whether that inversion is right before anything is built on top of it.</p>
+<p><b>The picker feel-check in section 6.</b> Both variants are live in the same file; you can switch skins while comparing them, since the glyph approach and the corrected pills interact differently with each palette.</p>
+<p class="note">Unresolved and deliberately left open: whether the shared page should expose unread state. Right now a visitor sees everything, including the twelve items you haven't read. That's arguably the point of sharing a research collection, but it's a real decision, not an oversight.</p>
+
+</div>
+</body>
+</html>

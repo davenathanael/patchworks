@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Candidate B: Inbox</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600,700&family=geist:400,500,600&display=swap">
+<style>
+  /* ===== doc chrome ===== */
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#1c1917; background:#faf8f5; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 86rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .3rem; }
+  .doc .lede { color:#57534e; max-width:74ch; margin:0 0 .5rem; }
+  .doc > h2 { margin:4rem 0 .3rem; font-size:1.5rem; letter-spacing:-.015em; }
+  .doc > h2 + p { color:#57534e; max-width:74ch; margin:0 0 .5rem; }
+  .doc > h3 { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:#a8a29e; margin:2.5rem 0 .8rem; }
+  .back { font-size:.85rem; color:#a8a29e; text-decoration:none; }
+  .note { border-left:3px solid #d6d3d1; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#57534e; font-size:.9rem; max-width:74ch; }
+
+  .frame { container-type:inline-size; border:1px solid #e7e5e4; border-radius:12px; overflow:hidden; margin-block:1.25rem; box-shadow:0 1px 4px rgb(0 0 0/.05); }
+  .frame.phone { width:390px; max-width:100%; margin-inline:auto; }
+  .frame-label { font:500 .7rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a8a29e; padding:.6rem 1rem; background:#f5f5f4; border-bottom:1px solid #e7e5e4; display:flex; justify-content:space-between; }
+  .frame-label b { color:#1c1917; }
+
+  /* ===== THE APP: B — Inbox =====
+     The calm extreme. One centered column. No persistent nav.
+     Cards with real presence. Floating composer. Big type, soft corners. */
+  .app {
+    font-family:"Geist", system-ui, sans-serif;
+    font-size:1rem; line-height:1.6; color:var(--t1); background:var(--bg);
+    color-scheme: light;
+    --display:"Fraunces", Georgia, serif;
+    --bg:#f7f4f0; --surface:#fffdfb; --t1:#2a2320; --t2:#6b6058; --t3:#a3978e;
+    --line:#e6ded4; --accent:#a05a1e; --accent-soft:#f6ead9; --danger:#b3261e;
+    --r:14px; --r-sm:9px;
+  }
+  .app button { font:inherit; cursor:pointer; }
+
+  /* --- header: minimal, title-first --- */
+  .top { display:flex; align-items:center; gap:.75rem; padding:1.5rem 0 1.1rem; }
+  .top h1 { font-family:var(--display); font-size:1.7rem; font-weight:500; letter-spacing:-.02em; margin:0; }
+  .top .sub { color:var(--t3); font-size:.85rem; margin-left:auto; }
+  .searchrow { display:flex; align-items:center; gap:.6rem; padding:.5rem .95rem; background:var(--surface); border:1px solid var(--line); border-radius:999px; box-shadow:0 1px 2px rgb(0 0 0/.03); }
+  .searchrow input { border:0; outline:0; background:none; font:inherit; font-size:.95rem; color:var(--t1); flex:1; min-width:0; }
+  .searchrow input::placeholder { color:var(--t3); }
+  .searchrow .qmark { font:500 .8rem/1 ui-monospace,monospace; color:var(--t3); border:1px solid var(--line); border-radius:5px; padding:.2rem .35rem; }
+
+  /* --- tabs: quiet text, no boxes --- */
+  .tabs { display:flex; gap:1.3rem; padding:1.1rem 0 .3rem; border-bottom:1px solid var(--line); margin-bottom:1.6rem; }
+  .tab { font-size:.9rem; color:var(--t3); text-decoration:none; padding-bottom:.55rem; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab[aria-current="page"] { color:var(--t1); font-weight:500; border-bottom-color:var(--accent); }
+  .tab .n { color:var(--t3); font-weight:400; font-size:.8rem; margin-left:.25rem; }
+
+  /* --- the card --- */
+  .col { max-width:44rem; margin-inline:auto; padding:0 1.5rem 7rem; position:relative; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:1.25rem 1.4rem; margin-bottom:.9rem; transition:border-color .15s, box-shadow .15s; }
+  .card:hover { border-color:#d6cabb; box-shadow:0 2px 10px rgb(0 0 0/.04); }
+  .card.unread { border-left:3px solid var(--accent); }
+  .card h2 { font-family:var(--display); font-size:1.18rem; font-weight:500; line-height:1.3; letter-spacing:-.01em; margin:0 0 .3rem; }
+  .card h2 a { color:var(--t1); text-decoration:none; }
+  .card h2 a:hover { color:var(--accent); }
+  .card .host { font-size:.8rem; color:var(--t3); display:flex; gap:.5rem; align-items:center; }
+  .card .host .sep { opacity:.5; }
+  .note-block { font-size:.95rem; color:var(--t2); line-height:1.65; margin:.75rem 0 0; padding-inline-start:.85rem; border-inline-start:2px solid var(--accent-soft); }
+  .tags { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.9rem; }
+  .tag { font-size:.78rem; color:var(--t2); background:var(--accent-soft); border-radius:999px; padding:.2rem .6rem; text-decoration:none; }
+  .tag:hover { background:#f0dcc2; color:var(--accent); }
+  .card-foot { display:flex; align-items:center; gap:.5rem; margin-top:1rem; padding-top:.85rem; border-top:1px solid var(--line); }
+  .btn { border:1px solid var(--line); background:var(--surface); color:var(--t1); border-radius:999px; padding:.32rem .85rem; font-size:.83rem; }
+  .btn:hover { background:#f5efe8; border-color:#d6cabb; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { filter:brightness(1.07); }
+  .btn.ghost { border-color:transparent; color:var(--t3); }
+  .btn.ghost:hover { background:#f5efe8; color:var(--t1); }
+  .btn.danger { color:var(--danger); }
+  .card-foot .spacer { flex:1; }
+
+  /* --- floating composer (bottom, thumb-reachable) --- */
+  .composer { position:sticky; bottom:1rem; margin:1.5rem auto 0; max-width:40rem; background:var(--surface); border:1px solid var(--line); border-radius:999px; box-shadow:0 6px 26px rgb(60 40 20/.13); display:flex; align-items:center; gap:.5rem; padding:.4rem .45rem .4rem 1.15rem; }
+  .composer input { border:0; outline:0; background:none; font:inherit; font-size:.95rem; flex:1; min-width:0; color:var(--t1); }
+  .composer .fab { width:34px; height:34px; border-radius:50%; border:0; background:var(--accent); color:#fff; font-size:1.1rem; line-height:1; flex:none; }
+  .composer .fab:hover { filter:brightness(1.07); }
+  @container (width < 34rem) { .composer .fab { width:40px; height:40px; } }
+
+  /* --- expanded composer sheet --- */
+  .sheet { position:sticky; bottom:1rem; margin:1.5rem auto 0; max-width:40rem; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:0 10px 34px rgb(60 40 20/.16); padding:1.1rem 1.2rem; display:grid; gap:.8rem; }
+  .field { display:grid; gap:.3rem; }
+  .field label { font-size:.78rem; color:var(--t3); }
+  .field input, .field textarea { border:1px solid var(--line); border-radius:var(--r-sm); padding:.5rem .7rem; font:inherit; font-size:.93rem; background:#fff; color:var(--t1); font-family:inherit; width:100%; }
+  .field input:focus, .field textarea:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .field textarea { min-height:4.5rem; resize:vertical; }
+  .row-of { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .pick { font-size:.8rem; border:1px dashed var(--line); border-radius:999px; padding:.24rem .7rem; color:var(--t2); background:none; }
+  .pick[aria-pressed="true"] { border-style:solid; background:var(--accent-soft); border-color:#e5cfae; color:var(--accent); }
+  .sheet-actions { display:flex; gap:.5rem; align-items:center; }
+  .sheet-actions .spacer { flex:1; }
+
+  /* --- collections: soft grid --- */
+  .coll-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr)); gap:.9rem; }
+  @container (width < 40rem) { .coll-grid { grid-template-columns:1fr; } }
+  .coll { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:1.2rem 1.3rem; text-decoration:none; color:inherit; display:block; min-height:8.5rem; }
+  .coll:hover { border-color:#d6cabb; box-shadow:0 2px 10px rgb(0 0 0/.04); }
+  .coll h3 { font-family:var(--display); font-size:1.05rem; font-weight:500; margin:0 0 .2rem; }
+  .coll .desc { font-size:.85rem; color:var(--t3); margin:0 0 .9rem; }
+  .coll .stat { font-size:.8rem; color:var(--t2); display:flex; gap:.4rem; align-items:baseline; }
+  .coll .stat b { font-family:var(--display); font-size:1.5rem; font-weight:500; color:var(--t1); }
+  .coll .shared { font-size:.7rem; color:var(--accent); background:var(--accent-soft); border-radius:999px; padding:.12rem .5rem; margin-inline-start:auto; }
+
+  /* --- reader --- */
+  .reading { max-width:36rem; margin-inline:auto; padding:1.5rem; }
+  .reading h1 { font-family:var(--display); font-size:1.9rem; font-weight:500; line-height:1.2; letter-spacing:-.02em; margin:0 0 .5rem; }
+  .reading .byline { color:var(--t3); font-size:.85rem; padding-bottom:1.2rem; border-bottom:1px solid var(--line); margin-bottom:1.4rem; }
+  .reading p { font-size:1.02rem; line-height:1.75; color:var(--t2); }
+  .reading p:first-of-type::first-letter { font-family:var(--display); font-size:3.2em; float:left; line-height:.85; padding-inline-end:.06em; color:var(--accent); }
+  .reading .pull { font-family:var(--display); font-size:1.25rem; line-height:1.4; color:var(--t1); border-inline-start:3px solid var(--accent); padding-inline-start:1rem; margin:1.6rem 0; }
+  .triage-bar { display:flex; gap:.5rem; padding:.8rem 0; border-top:1px solid var(--line); margin-top:1.6rem; flex-wrap:wrap; }
+
+  /* --- feeds --- */
+  .feed-item { display:grid; grid-template-columns:6.5rem 1fr; gap:1rem; padding:1.1rem 0; border-bottom:1px solid var(--line); }
+  @container (width < 34rem) { .feed-item { grid-template-columns:1fr; gap:.4rem; } }
+  .feed-src { font-size:.8rem; color:var(--t3); }
+  .feed-src .pub { display:block; margin-top:.2rem; }
+  .feed-item h3 { font-family:var(--display); font-size:1.08rem; font-weight:500; margin:0 0 .4rem; line-height:1.3; }
+  .feed-item h3 a { color:var(--t1); text-decoration:none; }
+  .feed-item h3 a:hover { color:var(--accent); }
+  .suggest { display:flex; gap:.4rem; align-items:center; margin-top:.7rem; flex-wrap:wrap; font-size:.8rem; color:var(--t3); }
+  .suggest .tag { cursor:pointer; }
+  .suggest .tag[aria-pressed="true"] { background:var(--accent); color:#fff; }
+  .sub-bar { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; padding:.9rem 0; border-bottom:1px solid var(--line); }
+  .feed-pill { font-size:.82rem; border:1px solid var(--line); border-radius:999px; padding:.25rem .75rem; color:var(--t2); background:var(--surface); }
+  .feed-pill[aria-current="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* --- search chips --- */
+  .qbar { display:flex; align-items:center; gap:.6rem; padding:.75rem 1rem; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); }
+  .qbar code { font:500 .85rem/1 ui-monospace,monospace; color:var(--accent); }
+  .qbar input { border:0; outline:0; background:none; font:inherit; font-size:.95rem; flex:1; min-width:0; }
+  .active-q { display:flex; gap:.4rem; flex-wrap:wrap; margin:.9rem 0 1.2rem; }
+  .qchip { font:400 .85rem/1 ui-monospace,monospace; background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:.3rem .7rem; }
+  .qchip button { border:0; background:none; color:inherit; cursor:pointer; padding:0 0 0 .35rem; opacity:.6; }
+  .legend { margin-top:1.6rem; padding-top:1.1rem; border-top:1px solid var(--line); display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+  .legend .lbl { font-size:.75rem; color:var(--t3); text-transform:uppercase; letter-spacing:.08em; }
+  .legend code { font-size:.8rem; background:#efe7dd; color:var(--t2); border-radius:5px; padding:.18rem .45rem; }
+
+  /* --- nav: emerges on scroll / always on mobile --- */
+  .mobile-nav { display:none; }
+  @container (width < 40rem) {
+    .top h1 { font-size:1.35rem; }
+    .col { padding:0 1rem 6.5rem; }
+    .mobile-nav { display:flex; position:sticky; bottom:0; background:var(--surface); border-top:1px solid var(--line); padding:.4rem .3rem calc(.4rem + env(safe-area-inset-bottom)); justify-content:space-around; }
+    .mobile-nav a { font-size:.68rem; color:var(--t3); text-decoration:none; display:grid; justify-items:center; gap:.15rem; padding:.25rem .5rem; border-radius:var(--r-sm); }
+    .mobile-nav a .ic { font-size:1.05rem; line-height:1; }
+    .mobile-nav a[aria-current="page"] { color:var(--accent); }
+    .composer, .sheet { bottom:4.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+  <a class="back" href="index.html">← all candidates</a>
+  <h1>Candidate B — Inbox</h1>
+  <p class="lede">The calm extreme. One centered column, no persistent navigation, no chrome competing with the content. Bookmarks are cards with enough presence to feel like things rather than rows. Quick-add is a floating composer pinned to the bottom — the pattern your thumb already knows from every phone you own — and on mobile it's the only persistent control. Type is larger, corners are softer, and the whole thing is designed to be looked at rather than operated.</p>
+  <p class="note">The bet: your most common act is reading and retrieving, not operating. A surface can be calm <em>and</em> fast if it never asks you to look at machinery. The cost is real: fewer rows per screen, more scrolling, and less at-a-glance comparison than a table.</p>
+
+  <!-- ============ 1. BOOKMARK LIST ============ -->
+  <h2>1 · Bookmark list</h2>
+  <p>Unread items carry a colored edge so scan state is instant without any checkbox column. Notes get real typographic presence here — the single biggest thing B does that the current build can't. Navigation is not a sidebar; it's tabs under the page title, which keeps the whole viewport for content.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Desktop</b> · calm column</span><span>142 bookmarks</span></div>
+    <div class="app">
+      <div class="col">
+        <div class="top">
+          <h1>Bookmarks</h1>
+          <span class="sub">142 saved · updated just now</span>
+        </div>
+        <label class="searchrow"><input placeholder="Search or use tag:postgres is:unread"><span class="qmark">/</span></label>
+        <nav class="tabs">
+          <a class="tab" aria-current="page">All<span class="n">142</span></a>
+          <a class="tab">Unread<span class="n">38</span></a>
+          <a class="tab">Reading<span class="n">14</span></a>
+          <a class="tab">Feeds<span class="n">8</span></a>
+          <a class="tab">Collections</a>
+          <a class="tab">Archived<span class="n">61</span></a>
+        </nav>
+
+        <article class="card unread">
+          <h2><a href="#">Rewriting SQLite's query planner for fun</a></h2>
+          <div class="host"><span>simonwillison.net</span><span class="sep">·</span><span>2 days ago</span></div>
+          <p class="note-block">Good section on the B-tree rebalance heuristic. Revisit before touching the index planner — the tradeoff discussion maps directly onto our cursor pagination work.</p>
+          <div class="tags"><a class="tag" href="#">sqlite</a><a class="tag" href="#">databases</a><a class="tag" href="#">perf</a></div>
+          <div class="card-foot">
+            <button class="btn primary">Mark read</button>
+            <button class="btn">Add to reading</button>
+            <button class="btn ghost">Collections</button>
+            <span class="spacer"></span>
+            <button class="btn ghost">Archive</button>
+          </div>
+        </article>
+
+        <article class="card unread">
+          <h2><a href="#">A Tour of Go's Memory Management</a></h2>
+          <div class="host"><span>go.dev</span><span class="sep">·</span><span>3 days ago</span></div>
+          <div class="tags"><a class="tag" href="#">go</a></div>
+          <div class="card-foot">
+            <button class="btn primary">Mark read</button>
+            <button class="btn">Add to reading</button>
+            <button class="btn ghost">Collections</button>
+            <span class="spacer"></span>
+            <button class="btn ghost">Archive</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2><a href="#">Postgres VACUUM, finally explained properly</a></h2>
+          <div class="host"><span>brandur.org</span><span class="sep">·</span><span>1 week ago</span></div>
+          <p class="note-block">The multixact section is the one I need. Everything before it is a rehash of the docs.</p>
+          <div class="tags"><a class="tag" href="#">postgres</a><a class="tag" href="#">perf</a></div>
+          <div class="card-foot">
+            <button class="btn ghost">Mark unread</button>
+            <button class="btn ghost">Add to reading</button>
+            <button class="btn ghost">Collections</button>
+            <span class="spacer"></span>
+            <button class="btn ghost">Archive</button>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2><a href="#">The Design Philosophy Behind Alpine Linux</a></h2>
+          <div class="host"><span>wiki.alpinelinux.org</span><span class="sep">·</span><span>6 days ago</span></div>
+          <div class="tags"><a class="tag" href="#">linux</a></div>
+          <div class="card-foot">
+            <button class="btn ghost">Mark unread</button>
+            <button class="btn ghost">Add to reading</button>
+            <button class="btn ghost">Collections</button>
+            <span class="spacer"></span>
+            <button class="btn ghost">Archive</button>
+          </div>
+        </article>
+
+        <div class="composer">
+          <input placeholder="Paste a link or write a note…">
+          <button class="fab" aria-label="Expand quick add">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Mobile</h3>
+  <p>Same column, no changes in kind. The composer lifts above a bottom tab bar; nothing is hidden behind a hamburger because there is no sidebar to hide.</p>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>list + composer</span></div>
+    <div class="app">
+      <div class="col">
+        <div class="top">
+          <h1>Bookmarks</h1>
+          <span class="sub">142</span>
+        </div>
+        <label class="searchrow"><input placeholder="Search…"><span class="qmark">/</span></label>
+        <nav class="tabs">
+          <a class="tab" aria-current="page">All</a><a class="tab">Unread</a><a class="tab">Reading</a><a class="tab">More</a>
+        </nav>
+        <article class="card unread">
+          <h2><a href="#">Rewriting SQLite's query planner for fun</a></h2>
+          <div class="host"><span>simonwillison.net</span><span class="sep">·</span><span>2d</span></div>
+          <p class="note-block">Good section on the B-tree rebalance heuristic. Revisit before touching the index planner.</p>
+          <div class="tags"><a class="tag" href="#">sqlite</a><a class="tag" href="#">databases</a></div>
+          <div class="card-foot"><button class="btn primary">Read</button><button class="btn ghost">⋯</button></div>
+        </article>
+        <article class="card unread">
+          <h2><a href="#">A Tour of Go's Memory Management</a></h2>
+          <div class="host"><span>go.dev</span><span class="sep">·</span><span>3d</span></div>
+          <div class="tags"><a class="tag" href="#">go</a></div>
+          <div class="card-foot"><button class="btn primary">Read</button><button class="btn ghost">⋯</button></div>
+        </article>
+        <article class="card">
+          <h2><a href="#">The Design Philosophy Behind Alpine Linux</a></h2>
+          <div class="host"><span>wiki.alpinelinux.org</span><span class="sep">·</span><span>6d</span></div>
+          <div class="card-foot"><button class="btn ghost">Mark unread</button><button class="btn ghost">⋯</button></div>
+        </article>
+        <div class="composer">
+          <input placeholder="Paste a link…">
+          <button class="fab" aria-label="Expand quick add">↑</button>
+        </div>
+      </div>
+      <nav class="mobile-nav">
+        <a href="#" aria-current="page"><span class="ic">⌂</span>Bookmarks</a>
+        <a href="#"><span class="ic">⏱</span>Reading</a>
+        <a href="#"><span class="ic">◍</span>Feeds</a>
+        <a href="#"><span class="ic">▤</span>Collections</a>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ============ 2. QUICK ADD ============ -->
+  <h2>2 · Quick add</h2>
+  <p>The composer expands in place rather than opening a modal — your position in the list is never lost. Tags and collections are offered as soft toggle chips instead of a checkbox list, and the duplicate warning is inline and calm rather than a red alert.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Quick add</b> · expanded</span><span>no JS required</span></div>
+    <div class="app">
+      <div class="col" style="max-width:44rem">
+        <div class="top"><h1>Add a bookmark</h1></div>
+        <div class="sheet">
+          <div class="field">
+            <label for="u">URL</label>
+            <input id="u" value="https://go.dev/blog/memory-management/">
+          </div>
+          <div class="field">
+            <label for="t">Title</label>
+            <input id="t" value="A Tour of Go's Memory Management">
+          </div>
+          <div class="field">
+            <label for="n">Note</label>
+            <textarea id="n" placeholder="Why are you saving this?"></textarea>
+          </div>
+          <div class="field">
+            <label>Tags</label>
+            <div class="row-of">
+              <button class="pick" aria-pressed="true">go</button>
+              <button class="pick">memory</button>
+              <button class="pick" aria-pressed="false">+ tag</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Collections</label>
+            <div class="row-of">
+              <button class="pick">databases</button>
+              <button class="pick" aria-pressed="true">to-read</button>
+              <button class="pick" aria-pressed="false">+ collection</button>
+            </div>
+          </div>
+          <div class="field">
+            <label><input type="checkbox" checked style="margin-inline-end:.4rem">Add to reading list</label>
+          </div>
+          <div style="font-size:.85rem;color:var(--t2);background:var(--accent-soft);border-radius:var(--r-sm);padding:.6rem .8rem">
+            This link is similar to <a href="#" style="color:var(--accent)">“Go GC tuning in practice”</a> saved 3 days ago.
+          </div>
+          <div class="sheet-actions">
+            <button class="btn primary">Save bookmark</button>
+            <button class="btn ghost">Cancel</button>
+            <span class="spacer"></span>
+            <button class="btn ghost">Save and add another</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. COLLECTIONS ============ -->
+  <h2>3 · Collections</h2>
+  <p>A soft grid where the count is the hero number — collections are browsed, not scanned, so the layout privileges "how big is this" over "what changed when." Share state is a badge, because with share links in the roadmap, "is this public?" needs to be visible at a glance.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Collections</b></span><span>9 collections · 3 shared</span></div>
+    <div class="app">
+      <div class="col" style="max-width:56rem">
+        <div class="top">
+          <h1>Collections</h1>
+          <span class="sub"><a href="#" style="color:var(--accent)">New collection</a></span>
+        </div>
+        <div class="coll-grid">
+          <a class="coll" href="#">
+            <h3>databases</h3>
+            <p class="desc">Everything relational. Indexes, query planners, vacuum.</p>
+            <div class="stat"><b>48</b> bookmarks<span class="shared">shared</span></div>
+          </a>
+          <a class="coll" href="#">
+            <h3>go-deep-dives</h3>
+            <p class="desc">Long-form Go reading, mostly runtime and tooling.</p>
+            <div class="stat"><b>22</b> bookmarks</div>
+          </a>
+          <a class="coll" href="#">
+            <h3>perf-reading</h3>
+            <p class="desc">Profiling, measurement, and the occasional flame graph.</p>
+            <div class="stat"><b>31</b> bookmarks<span class="shared">shared</span></div>
+          </a>
+          <a class="coll" href="#">
+            <h3>rust-postmortems</h3>
+            <p class="desc">Write-ups of projects that migrated to or away from Rust.</p>
+            <div class="stat"><b>15</b> bookmarks<span class="shared">shared</span></div>
+          </a>
+          <a class="coll" href="#">
+            <h3>ui-patterns</h3>
+            <p class="desc">Reference implementations worth stealing from.</p>
+            <div class="stat"><b>27</b> bookmarks</div>
+          </a>
+          <a class="coll" href="#">
+            <h3>to-read</h3>
+            <p class="desc">Scratch pile. Reviewed weekly.</p>
+            <div class="stat"><b>64</b> bookmarks</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4. READING ============ -->
+  <h2>4 · Reading queue</h2>
+  <p>Same cards, but the reading surface is where B invests most: a drop cap, a pull quote, and generous measure for the reading view itself. Triage stays to two buttons. The queue is FIFO and the position is stated plainly — "3 of 14" — because position is the only thing that matters in a queue.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Reading</b> · item 3 of 14</span><span>FIFO</span></div>
+    <div class="app">
+      <div class="col" style="max-width:44rem">
+        <div class="top"><h1>Reading</h1><span class="sub">3 of 14 · oldest first</span></div>
+        <article class="reading" style="padding-inline:0">
+          <h1>Postgres VACUUM, finally explained properly</h1>
+          <div class="byline">brandur.org · queued 1 week ago · <a href="#" style="color:var(--accent)">open original ↗</a></div>
+          <p>Vacuum is the most misunderstood routine in PostgreSQL, and most of the confusion comes from documentation that describes the mechanism accurately but the <em>purpose</em> poorly. The purpose is simple: reclaim space and keep the visibility map honest.</p>
+          <p class="pull">Vacuum exists to answer two questions: where is the dead space, and who is allowed to see which row version.</p>
+          <p>Everything downstream — index bloat, autovacuum thresholds, the aggressive-worker heuristics — is a consequence of those two questions being expensive to answer.</p>
+          <p>The <strong>multixact</strong> section is the one I need for the pagination work. Everything before it is a rehash of the official docs.</p>
+          <div class="triage-bar">
+            <button class="btn primary">Done — next</button>
+            <button class="btn">Keep for later</button>
+            <button class="btn ghost">Archive</button>
+          </div>
+          <div class="tags"><a class="tag" href="#">postgres</a><a class="tag" href="#">perf</a></div>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5. READER / FEEDS ============ -->
+  <h2>5 · Feeds</h2>
+  <p>Feeds sit beside bookmarks in navigation because they're the same mental object — something found on the internet worth keeping. Feed items get a suggested-tag row you accept by tapping; the suggestions come from the feed and the item, and every one is dismissible. Reading happens on the original site; this view is triage only.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Feeds</b> · 8 unread</span><span>auto-tagging on</span></div>
+    <div class="app">
+      <div class="col" style="max-width:48rem">
+        <div class="top"><h1>Feeds</h1><span class="sub"><a href="#" style="color:var(--accent)">Subscribe</a></span></div>
+        <div class="sub-bar">
+          <button class="feed-pill" aria-current="true">All feeds</button>
+          <button class="feed-pill">golang.blog</button>
+          <button class="feed-pill">brandur.org</button>
+          <button class="feed-pill">simonwillison.net</button>
+          <button class="feed-pill">+ subscribe</button>
+        </div>
+        <div class="feed-item">
+          <div class="feed-src">golang.blog<span class="pub">2 hours ago</span></div>
+          <div>
+            <h3><a href="#">What's new in Go 1.26: iterators everywhere</a> ↗</h3>
+            <div class="suggest">
+              <span>Suggested:</span>
+              <button class="tag" aria-pressed="true">go</button>
+              <button class="tag" aria-pressed="true">release</button>
+              <button class="tag" aria-pressed="false">+ tag</button>
+              <span style="flex:1"></span>
+              <button class="btn primary">Save</button>
+              <button class="btn ghost">Dismiss</button>
+            </div>
+          </div>
+        </div>
+        <div class="feed-item">
+          <div class="feed-src">brandur.org<span class="pub">6 hours ago</span></div>
+          <div>
+            <h3><a href="#">Efficient pagination with Postgres</a> ↗</h3>
+            <div class="suggest">
+              <span>Suggested:</span>
+              <button class="tag" aria-pressed="true">postgres</button>
+              <button class="tag" aria-pressed="false">perf</button>
+              <button class="tag" aria-pressed="false">+ tag</button>
+              <span style="flex:1"></span>
+              <button class="btn primary">Save</button>
+              <button class="btn ghost">Dismiss</button>
+            </div>
+          </div>
+        </div>
+        <div class="feed-item">
+          <div class="feed-src">news.ycombinator<span class="pub">1 day ago</span></div>
+          <div>
+            <h3><a href="#">Ask HN: what are you working on?</a> ↗</h3>
+            <div class="suggest">
+              <span>Suggested:</span>
+              <button class="tag" aria-pressed="false">hn</button>
+              <button class="tag" aria-pressed="false">+ tag</button>
+              <span style="flex:1"></span>
+              <button class="btn primary">Save</button>
+              <button class="btn ghost">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6. SEARCH ============ -->
+  <h2>6 · Search</h2>
+  <p>Syntax is visible but softened: the query is a plain input, and the active filters appear beneath it as removable pills so you always see the query's meaning. The operator legend stays on the page rather than behind a help link, because a syntax you'll never learn is a syntax that doesn't exist.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Search</b></span><span>18 results</span></div>
+    <div class="app">
+      <div class="col" style="max-width:48rem">
+        <div class="top"><h1>Search</h1><span class="sub">18 results · 0.04s</span></div>
+        <div class="qbar">
+          <code>/</code>
+          <input value="tag:postgres is:unread -tag:&quot;write soon&quot;">
+        </div>
+        <div class="active-q">
+          <span class="qchip">tag:postgres <button aria-label="remove">×</button></span>
+          <span class="qchip">is:unread <button aria-label="remove">×</button></span>
+          <span class="qchip">−tag:"write soon" <button aria-label="remove">×</button></span>
+        </div>
+        <article class="card unread">
+          <h2><a href="#">Postgres VACUUM, finally explained properly</a></h2>
+          <div class="host"><span>brandur.org</span><span class="sep">·</span><span>1 week ago</span></div>
+          <p class="note-block">The multixact section is the one I need. Everything before it is a rehash of the docs.</p>
+          <div class="tags"><a class="tag" href="#">postgres</a><a class="tag" href="#">perf</a></div>
+          <div class="card-foot"><button class="btn primary">Mark read</button><button class="btn ghost">Add to reading</button><span class="spacer"></span><button class="btn ghost">Archive</button></div>
+        </article>
+        <article class="card unread">
+          <h2><a href="#">Efficient pagination with Postgres</a></h2>
+          <div class="host"><span>brandur.org</span><span class="sep">·</span><span>1 day ago</span></div>
+          <div class="tags"><a class="tag" href="#">postgres</a><a class="tag" href="#">perf</a></div>
+          <div class="card-foot"><button class="btn primary">Mark read</button><button class="btn ghost">Add to reading</button><span class="spacer"></span><button class="btn ghost">Archive</button></div>
+        </article>
+        <article class="card unread">
+          <h2><a href="#">Row-level security in practice</a></h2>
+          <div class="host"><span>brandur.org</span><span class="sep">·</span><span>2 weeks ago</span></div>
+          <div class="tags"><a class="tag" href="#">postgres</a><a class="tag" href="#">security</a></div>
+          <div class="card-foot"><button class="btn primary">Mark read</button><button class="btn ghost">Add to reading</button><span class="spacer"></span><button class="btn ghost">Archive</button></div>
+        </article>
+        <div class="legend">
+          <span class="lbl">Operators</span>
+          <code>tag:</code><code>coll:</code><code>host:</code><code>is:unread</code><code>is:archived</code><code>after:</code><code>before:</code><code>site:</code><code>-exclude</code><code>"exact"</code><code>OR</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>What this direction is good and bad for</h2>
+  <p><b>Good for</b> — reading and mobile. Notes are the best-supported element in the whole mockup, which matters if you're annotate-then-forget. The card treatment makes triage feel unhurried in a way that a table never will. Mobile is a first-class citizen here rather than a fallback: the bottom composer and bottom nav are patterns you already have motor memory for, so the app feels native immediately.</p>
+  <p><b>Bad for</b> — retrieval and organization at scale. Nine rows per screen means scrolling through 142 bookmarks. You can't compare a host or a date across items without reading each one, and card-height variance means the eye has no consistent rail to follow. For organize-heavy work — comparing collection counts, sorting by last-modified, checking what's unread where — a grid of cards is the wrong instrument. Sharing a link to the app on a phone also feels heavier than it should, because cards don't compress.</p>
+  <p class="note">The open question if you pick this direction: can the card get denser without collapsing into the current row-based design? A "compact card" is a real thing and might be the compromise, but it's also just a row with padding.</p>
+</div>
+</body>
+</html>

@@ -75,6 +75,7 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 - `docs/process.md` — documentation workflow, feature-ticket lifecycle, document boundaries, and ephemeral plans
 - `docs/architecture.md` — layers, handler pattern, key decisions
 - `docs/frontend.md` — gomponents, Open Props + plain CSS styling
+- `docs/implementation-brief.md` — the settled UI rebuild: decisions, data model, build order (read before touching `internal/http/views/` or `app.css`)
 - `docs/css-guidelines.md` — modern CSS/HTML guidelines (cascade layers, tokens, layout, support tiers)
 - `docs/db.md` — SQLC workflow, repository pattern, migrations
 - `docs/auth.md` — password auth, session/cookie details
@@ -82,7 +83,8 @@ Keep this file a **lean navigator**; keep detailed topic knowledge in `docs/*.md
 - `docs/logging.md` — slog conventions
 - `docs/deploy.md` — CI/CD (GitHub Actions) + production deployment
 - `docs/testing.md` — approach, fakes, assertions
-- `docs/adr/0001-styling-overhaul-mocha.md` — ADR: styling overhaul decisions (palette, variables, exceptions)
+- `docs/adr/0001-styling-overhaul-mocha.md` — ADR: styling overhaul (superseded; engineering discipline still holds)
+- `docs/adr/0002-converged-ui-design-system.md` — ADR: current styling direction (palette, type, nav, accessibility)
 
 ## Token-Saving Tips
 

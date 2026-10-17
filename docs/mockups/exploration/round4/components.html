@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — component &amp; state reference</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600&family=source-serif-4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=geist:400,500,600&family=geist-mono:400,500&family=jetbrains-mono:400,500&display=swap">
+<style>
+  /* ============ doc chrome (direct children only) ============ */
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 84rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.025em; margin:0 0 .3rem; }
+  .doc > h2 { margin:3.2rem 0 .3rem; font-size:1.35rem; letter-spacing:-.018em; }
+  .doc > h2 + p { color:#5c534b; max-width:78ch; margin:0 0 .5rem; font-size:.92rem; }
+  .doc > h3 { font-size:.68rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:1.8rem 0 .6rem; }
+  .doc > p { color:#5c534b; max-width:78ch; font-size:.92rem; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:.8rem; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#5c534b; font-size:.88rem; max-width:78ch; }
+  .spec { font-family:ui-monospace,monospace; font-size:.72rem; color:#a1968b; margin:0 0 .35rem; }
+  .ctrl { display:flex; flex-wrap:wrap; gap:1.4rem; align-items:center; padding:.9rem 1.1rem; border:1px solid #e4ddd2; border-radius:10px; background:#fffdfa; margin:1rem 0 1.5rem; position:sticky; top:0; z-index:50; }
+  .ctrl fieldset { border:1px solid #e4ddd2; border-radius:6px; padding:.3rem .5rem .45rem; margin:0; display:flex; gap:.25rem; }
+  .ctrl legend { font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:#a1968b; padding:0 .3rem; }
+  .ctrl label { display:inline-flex; align-items:center; gap:.3rem; font-size:.83rem; color:#5c534b; cursor:pointer; padding:.22rem .5rem; border-radius:4px; }
+  .ctrl label:hover { background:#f5f0e8; }
+  .ctrl label:has(input:checked) { background:#f3e6d3; color:#7a4415; font-weight:600; }
+  .swatch { display:inline-block; width:.85rem; height:.85rem; border-radius:2px; border:1px solid rgb(0 0 0/.15); }
+
+  /* ============ the app surface: same tokens as round 4 app.html ============ */
+  :is(.app,.panel) {
+    font-family:var(--ui); font-size:.8125rem; line-height:1.5;
+    color:var(--t1); background:var(--bg); accent-color:var(--accent); color-scheme:light;
+    --display:"Fraunces", Georgia, serif;
+    --text:"Source Serif 4", Georgia, serif;
+    --ui:"Geist", system-ui, sans-serif;
+    --mono:"Geist Mono", ui-monospace, monospace;
+    --bg:#f7f3ec; --panel:#fdfbf7; --sunk:#efe9df;
+    --t1:#2a251f; --t2:#5f584e; --t3:#8d8577;
+    --line:#e4dccf; --line-strong:#d2c9b8;
+    --accent:#7d5322; --accent-bg:#f4ecdd; --accent-line:#dfcfaf;
+    --danger:#a8352a; --warn:#8a6410; --ok:#4e6b40;
+    --on-accent:#fff;
+    --focus-ring:#5b83d6; --focus-halo:#dfe8fa;
+    --r:2px; --elev:0 1px 0 var(--line-strong); --elev-float:0 8px 28px rgb(50 35 20/.16);
+  }
+  body:has(#sk-sepia:checked) :is(.app,.panel) {
+    --display:"Fraunces",Georgia,serif; --text:"Source Serif 4",Georgia,serif;
+    --ui:"Geist",system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,monospace;
+    --bg:light-dark(oklch(0.966 0.008 82), oklch(0.278 0.012 54));
+    --panel:light-dark(oklch(0.991 0.005 84), oklch(0.322 0.013 56));
+    --sunk:light-dark(oklch(0.934 0.010 80), oklch(0.262 0.011 52));
+    --t1:light-dark(oklch(0.275 0.014 54), oklch(0.958 0.008 84));
+    --t2:light-dark(oklch(0.485 0.016 58), oklch(0.815 0.012 76));
+    --t3:light-dark(oklch(0.600 0.014 62), oklch(0.700 0.011 72));
+    --line:light-dark(oklch(0.882 0.010 80), oklch(0.400 0.012 56));
+    --line-strong:light-dark(oklch(0.825 0.014 78), oklch(0.480 0.014 58));
+    --accent:light-dark(oklch(0.455 0.055 52), oklch(0.780 0.070 68));
+    --accent-bg:light-dark(oklch(0.950 0.016 80), oklch(0.360 0.022 58));
+    --accent-line:light-dark(oklch(0.855 0.032 72), oklch(0.470 0.034 60));
+    --danger:light-dark(oklch(0.50 0.165 28), oklch(0.735 0.130 30));
+    --warn:light-dark(oklch(0.475 0.115 70), oklch(0.775 0.105 76));
+    --ok:light-dark(oklch(0.47 0.12 145), oklch(0.75 0.11 148));
+    --on-accent:light-dark(white, oklch(0.17 0.02 55));
+    --focus-ring:light-dark(oklch(0.46 0.16 250), oklch(0.78 0.13 250));
+    --focus-halo:light-dark(oklch(0.90 0.07 250 / .55), oklch(0.40 0.10 250 / .5));
+    --r:2px;
+  }
+  body:has(#sk-mocha:checked) :is(.app,.panel) {
+    --display:"Fraunces",Georgia,serif; --text:"Source Serif 4",Georgia,serif;
+    --ui:"Geist",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+    --bg:light-dark(oklch(0.962 0.010 84), oklch(0.272 0.016 46));
+    --panel:light-dark(oklch(0.989 0.005 87), oklch(0.316 0.018 50));
+    --sunk:light-dark(oklch(0.930 0.013 81), oklch(0.256 0.015 44));
+    --t1:light-dark(oklch(0.272 0.024 47), oklch(0.955 0.011 84));
+    --t2:light-dark(oklch(0.482 0.028 55), oklch(0.812 0.014 74));
+    --t3:light-dark(oklch(0.598 0.024 60), oklch(0.698 0.012 70));
+    --line:light-dark(oklch(0.878 0.012 79), oklch(0.395 0.014 56));
+    --line-strong:light-dark(oklch(0.820 0.017 77), oklch(0.475 0.016 58));
+    --accent:light-dark(oklch(0.472 0.082 56), oklch(0.790 0.085 78));
+    --accent-bg:light-dark(oklch(0.948 0.022 79), oklch(0.358 0.028 56));
+    --accent-line:light-dark(oklch(0.852 0.044 71), oklch(0.468 0.040 60));
+    --danger:light-dark(oklch(0.50 0.165 28), oklch(0.735 0.130 30));
+    --warn:light-dark(oklch(0.475 0.115 70), oklch(0.775 0.105 76));
+    --ok:light-dark(oklch(0.47 0.12 145), oklch(0.75 0.11 148));
+    --on-accent:light-dark(white, oklch(0.17 0.02 55));
+    --focus-ring:light-dark(oklch(0.46 0.16 250), oklch(0.78 0.13 250));
+    --focus-halo:light-dark(oklch(0.90 0.07 250 / .55), oklch(0.40 0.10 250 / .5));
+    --r:2px;
+  }
+  body:has(#dark:checked) :is(.app,.panel) { color-scheme:dark; }
+
+  /* ============ focus + frozen state helpers ============ */
+  :is(.app,.panel) :where(a,button,input,textarea,select,[tabindex]):focus-visible { outline:2px solid var(--focus-ring); outline-offset:1px; }
+  :is(.app,.panel) :where(input,textarea,select):focus-visible { outline:2px solid var(--focus-ring); outline-offset:0; border-color:var(--accent); box-shadow:0 0 0 3px var(--focus-halo); }
+  /* `.is-*` freeze a state so it can be inspected in a static document */
+  .is-hover { background:var(--sunk); }
+  .is-active { transform:translateY(1px); }
+  .btn.is-active { box-shadow:none; }
+  .is-focus { outline:2px solid var(--focus-ring) !important; outline-offset:1px; }
+  .inp.is-focus { outline:2px solid var(--focus-ring); outline-offset:0; border-color:var(--accent); box-shadow:0 0 0 3px var(--focus-halo); }
+
+  /* ============ type scale ============ */
+  .t-d1 { font-family:var(--display); font-size:1.6rem; font-weight:600; letter-spacing:-.022em; line-height:1.15; }
+  .t-d2 { font-family:var(--display); font-size:1.3rem; font-weight:600; letter-spacing:-.018em; line-height:1.2; }
+  .t-d3 { font-family:var(--display); font-size:1.05rem; font-weight:600; letter-spacing:-.012em; line-height:1.25; }
+  .t-body { font-family:var(--text); font-size:.95rem; line-height:1.65; color:var(--t2); }
+  .t-body-sm { font-family:var(--text); font-size:.84rem; line-height:1.6; color:var(--t2); }
+  .t-ui { font-family:var(--ui); font-size:.84rem; }
+  .t-ui-sm { font-family:var(--ui); font-size:.73rem; }
+  .t-mono { font-family:var(--mono); font-size:.72rem; color:var(--t3); }
+  .t-mono-sm { font-family:var(--mono); font-size:.66rem; color:var(--t3); }
+  .eyebrow { font-family:var(--ui); font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:var(--t3); }
+
+  /* ============ buttons ============ */
+  .btn { font-family:var(--ui); font-size:.78rem; border:1px solid var(--line-strong); background:var(--panel); color:var(--t1); border-radius:var(--r); padding:.28rem .6rem; cursor:pointer; box-shadow:var(--elev); white-space:nowrap; }
+  .btn:hover { background:var(--sunk); }
+  .btn:active { box-shadow:none; transform:translateY(1px); }
+  .btn.p { background:var(--accent); border-color:var(--accent); color:var(--on-accent); box-shadow:0 1px 0 color-mix(in oklch, var(--accent) 68%, black); }
+  .btn.p:hover { filter:brightness(1.07); }
+  .btn.danger { color:var(--danger); }
+  .btn.danger.fill { background:var(--danger); border-color:var(--danger); color:#fff; box-shadow:0 1px 0 color-mix(in oklch, var(--danger) 68%, black); }
+  .btn.g { border-color:transparent; background:none; box-shadow:none; color:var(--t2); }
+  .btn.g:hover { background:var(--sunk); color:var(--t1); }
+  .btn.lg { font-size:.85rem; padding:.4rem .85rem; }
+  .btn.sm { font-size:.72rem; padding:.17rem .42rem; }
+  .btn[disabled], .btn:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+  .btn[disabled]:hover { background:var(--panel); }
+  .btn .spin { display:inline-block; width:.7em; height:.7em; border:1.5px solid currentColor; border-top-color:transparent; border-radius:50%; margin-inline-end:.4em; vertical-align:-.05em; }
+  .icobtn { font-family:var(--mono); width:1.9rem; height:1.9rem; display:grid; place-items:center; border:1px solid var(--line-strong); background:var(--panel); color:var(--t2); border-radius:var(--r); cursor:pointer; box-shadow:var(--elev); }
+  .link { font-family:var(--ui); font-size:.78rem; color:var(--accent); background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+
+  /* ============ form controls ============ */
+  .fld { display:grid; gap:.22rem; max-width:22rem; }
+  .fld > label, .flabel { font-family:var(--ui); font-size:.7rem; color:var(--t3); }
+  .inp, .fld input, .fld textarea, select.inp {
+    font-family:var(--ui); font-size:.8rem; border:1px solid var(--line-strong); border-radius:var(--r);
+    padding:.36rem .5rem; background:var(--bg); color:var(--t1); width:100%; }
+  .fld textarea { font-family:var(--text); line-height:1.6; min-height:3.4rem; resize:vertical; }
+  .inp::placeholder, .fld input::placeholder, .fld textarea::placeholder { color:var(--t3); }
+  .inp:disabled, .fld input:disabled { opacity:.5; cursor:not-allowed; background:var(--sunk); }
+  .inp[readonly] { background:var(--sunk); }
+  .hint { font-family:var(--ui); font-size:.69rem; color:var(--t3); }
+  .ferr { display:flex; gap:.3rem; align-items:flex-start; font-family:var(--ui); font-size:.73rem; color:var(--danger); margin-top:.2rem; }
+  .ferr .fi { font-family:var(--mono); flex:none; }
+  .fld[data-invalid="true"] input, .fld[data-invalid="true"] textarea, .inp.invalid { border-color:var(--danger); box-shadow:0 0 0 2px light-dark(oklch(0.93 0.04 28 / .55), oklch(0.36 0.06 28 / .5)); }
+  .fld[data-invalid="true"] > label { color:var(--danger); }
+  .check { display:flex; align-items:center; gap:.45rem; font-family:var(--ui); font-size:.8rem; cursor:pointer; }
+  .box { width:1rem; height:1rem; border:1.5px solid var(--line-strong); border-radius:2px; background:var(--panel); display:grid; place-items:center; font-size:.68rem; flex:none; color:transparent; }
+  .check[aria-checked="true"] .box { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  .check[data-disabled="true"] { opacity:.45; cursor:not-allowed; }
+  .switch { width:1.9rem; height:1.05rem; border-radius:999px; background:var(--sunk); border:1px solid var(--line-strong); position:relative; flex:none; }
+  .switch::after { content:""; position:absolute; inset-block-start:1px; inset-inline-start:1px; width:.8rem; height:.8rem; border-radius:50%; background:var(--panel); box-shadow:0 1px 2px rgb(0 0 0/.2); }
+  .switch[aria-checked="true"] { background:var(--accent); border-color:var(--accent); }
+  .switch[aria-checked="true"]::after { inset-inline-start:calc(100% - .95rem); }
+
+  /* ============ tags & pills ============ */
+  .tags { font-family:var(--mono); font-size:.7rem; color:var(--accent); display:flex; gap:.5rem; flex-wrap:wrap; }
+  .pill { font-family:var(--mono); font-size:.72rem; padding:.16rem .4rem; border-radius:var(--r); border:1px solid var(--line-strong); background:var(--panel); color:var(--t2); display:inline-flex; gap:.3rem; align-items:center; cursor:pointer; }
+  .pill .pg { font-size:.68rem; color:var(--t3); flex:none; line-height:1; }
+  .pill:hover { border-color:var(--accent); color:var(--accent); }
+  .pill[aria-pressed="true"] { background:var(--sunk); border-color:var(--line-strong); color:var(--t1); }
+  .pill[aria-pressed="true"] .pg { color:var(--accent); }
+  .pill.add { border-style:dashed; background:none; color:var(--t3); }
+  .pill.add:hover { border-style:dashed; }
+  .pill[disabled] { opacity:.45; cursor:not-allowed; }
+  .badge { font-family:var(--ui); font-size:.59rem; text-transform:uppercase; letter-spacing:.07em; padding:.1rem .28rem; border-radius:var(--r); border:1px solid transparent; display:inline-block; }
+  .b-q { background:var(--ok); color:light-dark(white,oklch(0.16 0.02 60)); }
+  .b-f { background:var(--accent-bg); color:var(--accent); border-color:var(--accent-line); }
+  .b-b { background:var(--sunk); color:var(--t3); }
+  .b-d { background:light-dark(oklch(0.965 0.022 28),oklch(0.30 0.055 28)); color:var(--danger); border-color:var(--danger); }
+  .b-w { background:light-dark(oklch(0.962 0.030 82),oklch(0.30 0.05 72)); color:var(--warn); border-color:var(--warn); }
+  .role { font-family:var(--ui); font-size:.59rem; text-transform:uppercase; letter-spacing:.08em; color:var(--t3); border:1px solid var(--line); border-radius:var(--r); padding:.1rem .26rem; }
+  .kbd { font-family:var(--mono); font-size:.63rem; color:var(--t2); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:.14rem .3rem; background:var(--panel); }
+
+  /* ============ nav ============ */
+  .topbar { display:flex; align-items:center; gap:.5rem; padding:.4rem .7rem; border-bottom:1px solid var(--line-strong); background:var(--panel); }
+  .brand { font-family:var(--display); font-size:1rem; font-weight:600; letter-spacing:-.02em; white-space:nowrap; }
+  .brand b { color:var(--accent); font-weight:inherit; }
+  .q { display:flex; align-items:center; gap:.4rem; border:1px solid var(--line-strong); border-radius:var(--r); padding:.18rem .45rem; background:var(--bg); min-width:0; flex:1; max-width:24rem; }
+  .q .op { font-family:var(--mono); font-size:.78rem; color:var(--accent); }
+  .q input { border:0; outline:0; background:none; flex:1; min-width:0; font-family:var(--mono); font-size:.78rem; }
+  .avatar { width:1.5rem; height:1.5rem; border-radius:50%; background:var(--sunk); border:1px solid var(--line); display:grid; place-items:center; font-family:var(--ui); font-size:.62rem; font-weight:600; color:var(--t2); cursor:pointer; flex:none; }
+  .tabs { display:flex; border-top:1px solid var(--line-strong); background:var(--panel); }
+  .tabs a { flex:1; text-align:center; font-family:var(--ui); font-size:.63rem; color:var(--t3); text-decoration:none; padding:.4rem .1rem .45rem; display:grid; justify-items:center; gap:.1rem; }
+  .tabs a .ic { font-size:.98rem; line-height:1; }
+  .tabs a[aria-current="page"] { color:var(--accent); box-shadow:inset 0 2px 0 var(--accent); }
+  .seg { display:flex; gap:.1rem; padding:.4rem .7rem; background:var(--sunk); border-bottom:1px solid var(--line); }
+  .seg button { font-family:var(--ui); border:0; background:none; font-size:.76rem; color:var(--t2); padding:.22rem .5rem; border-radius:var(--r); cursor:pointer; }
+  .seg button[aria-pressed="true"] { background:var(--panel); color:var(--t1); font-weight:500; box-shadow:0 1px 2px rgb(0 0 0/.08); }
+  .t2row { display:flex; gap:.1rem; padding:.32rem .7rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .t2 { font-family:var(--ui); font-size:.71rem; padding:.12rem .4rem; border-radius:var(--r); color:var(--t2); }
+  .t2[aria-current="page"] { background:var(--accent-bg); color:var(--accent); font-weight:500; }
+  .frow { display:flex; align-items:center; gap:.45rem; font-family:var(--ui); font-size:.8rem; padding:.3rem 0; color:var(--t2); }
+  .frow .n { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-inline-start:auto; }
+  .frow[aria-current="page"] { color:var(--t1); font-weight:500; }
+
+  /* ============ alerts / toasts ============ */
+  .alert { display:flex; gap:.55rem; align-items:flex-start; padding:.6rem .7rem; border:1px solid; border-radius:var(--r); font-family:var(--ui); font-size:.78rem; }
+  .alert .ai { font-family:var(--mono); font-size:.78rem; line-height:1.3; flex:none; }
+  .alert .ab { min-width:0; } .alert .ab b { display:block; font-weight:600; } .alert .ab p { margin:.15rem 0 0; }
+  .alert a { color:inherit; font-weight:500; }
+  .alert .ax { margin-inline-start:auto; flex:none; background:none; border:0; color:var(--t3); cursor:pointer; font-size:.95rem; padding:0 .1rem; line-height:1; }
+  .alert.err { background:light-dark(oklch(0.968 0.020 28), oklch(0.305 0.050 28)); border-color:light-dark(oklch(0.865 0.055 28), oklch(0.435 0.065 28)); }
+  .alert.err .ai, .alert.err b { color:var(--danger); }
+  .alert.warn { background:light-dark(oklch(0.964 0.030 82), oklch(0.305 0.050 72)); border-color:light-dark(oklch(0.865 0.065 80), oklch(0.435 0.060 68)); }
+  .alert.warn .ai, .alert.warn b { color:var(--warn); }
+  .alert.ok { background:light-dark(oklch(0.962 0.028 150), oklch(0.290 0.048 150)); border-color:light-dark(oklch(0.862 0.060 150), oklch(0.415 0.055 150)); }
+  .alert.ok .ai, .alert.ok b { color:var(--ok); }
+  .alert.info { background:var(--accent-bg); border-color:var(--accent-line); }
+  .alert.info .ai, .alert.info b { color:var(--accent); }
+  .toast { display:flex; align-items:flex-start; gap:.5rem; padding:.55rem .6rem; min-width:15rem; max-width:21rem;
+    background:var(--panel); border:1px solid var(--line-strong); border-inline-start:3px solid var(--t3);
+    border-radius:var(--r); box-shadow:var(--elev-float); font-family:var(--ui); font-size:.77rem; }
+  .toast .ti { font-family:var(--mono); font-size:.78rem; flex:none; line-height:1.3; }
+  .toast .tb { min-width:0; flex:1; } .toast .tb b { display:block; font-weight:600; } .toast .tb p { margin:.1rem 0 0; color:var(--t2); font-size:.75rem; }
+  .toast .tx { background:none; border:0; color:var(--t3); cursor:pointer; font-size:.95rem; padding:0; flex:none; line-height:1; }
+  .toast.err { border-inline-start-color:var(--danger); } .toast.err .ti, .toast.err b { color:var(--danger); }
+  .toast.warn { border-inline-start-color:var(--warn); } .toast.warn .ti, .toast.warn b { color:var(--warn); }
+  .toast.ok { border-inline-start-color:var(--ok); } .toast.ok .ti, .toast.ok b { color:var(--ok); }
+  .toast.info { border-inline-start-color:var(--accent); } .toast.info .ti, .toast.info b { color:var(--accent); }
+
+  /* ============ misc ============ */
+  .row { display:flex; gap:.6rem; align-items:center; padding:.4rem .7rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .stack { display:grid; gap:.5rem; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
+  @media (max-width:64rem){ .grid2 { grid-template-columns:1fr; } }
+  .panel { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:1.1rem 1.2rem; font-size:.8125rem; line-height:1.5; color:var(--t1); }
+  .panel > .t { font:500 .66rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; margin-bottom:.7rem; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:.14rem .55rem; font-family:var(--ui); font-size:.75rem; max-width:24rem; }
+  .kv dt { font-family:var(--mono); font-size:.68rem; color:var(--t3); }
+  .kv dd { margin:0; color:var(--t2); }
+  .empty { padding:1.8rem 1rem; text-align:center; }
+  .empty .ic { font-size:1.4rem; color:var(--t3); }
+  .empty h3 { font-family:var(--display); font-size:1rem; font-weight:600; margin:.5rem 0 .15rem; }
+  .empty p { font-family:var(--ui); font-size:.79rem; color:var(--t3); margin:0 auto .8rem; max-width:22rem; }
+  .sk { background:linear-gradient(90deg, var(--sunk) 25%, var(--panel) 50%, var(--sunk) 75%); background-size:200% 100%; animation:sk 1.4s infinite; }
+  @keyframes sk { to { background-position:-200% 0; } }
+  .skrow { padding:.5rem .7rem; border-bottom:1px solid var(--line); display:grid; gap:.22rem; }
+  .skrow .a { height:.6rem; width:58%; } .skrow .b { height:.5rem; width:36%; }
+  .spin { display:inline-block; width:1rem; height:1rem; border:2px solid var(--line-strong); border-top-color:var(--accent); border-radius:50%; animation:sp .7s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  table.tbl { width:100%; border-collapse:collapse; font-family:var(--ui); font-size:.78rem; }
+  .tbl th { font-size:.6rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t3); text-align:left; padding:.35rem .6rem; border-bottom:1px solid var(--line-strong); }
+  .tbl td { padding:.4rem .6rem; border-bottom:1px solid var(--line); }
+  .tbl tr:hover td { background:var(--sunk); }
+  .tbl .num { text-align:right; font-family:var(--mono); font-size:.72rem; color:var(--t3); }
+  .sheethead { display:flex; align-items:center; gap:.5rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); background:var(--panel); }
+  .sheethead h3 { font-family:var(--display); font-size:.95rem; font-weight:600; margin:0; }
+  .sheetfoot { display:flex; align-items:center; gap:.5rem; padding:.6rem .7rem; border-top:1px solid var(--line); }
+  .grab { width:30px; height:3px; border-radius:2px; background:var(--line-strong); margin:.45rem auto .3rem; }
+  .meta { font-family:var(--mono); font-size:.67rem; color:var(--t3); display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; }
+  .pager { display:flex; align-items:center; gap:.7rem; padding:.5rem .7rem; border-top:1px solid var(--line); font-family:var(--ui); font-size:.75rem; color:var(--t3); }
+  .pager a { color:var(--t2); }
+  .backlink { font-family:var(--ui); font-size:.76rem; color:var(--t2); text-decoration:none; display:inline-flex; gap:.35rem; align-items:center; }
+  hr.hr { border:0; border-top:1px solid var(--line); margin:.7rem 0; }
+  .frame { border:1px solid #e4ddd2; border-radius:10px; overflow:hidden; margin:.6rem 0 1.2rem; box-shadow:0 1px 3px rgb(50 35 20/.05); }
+</style>
+</head>
+<body>
+<div class="doc">
+<a class="back" href="index.html">← round 4</a>
+<h1>Component &amp; state reference</h1>
+<p>Every component the app uses, in every state it can be in. Two skins × light and dark. States that only exist on hover or focus are shown frozen via <code>.is-hover</code> / <code>.is-active</code> / <code>.is-focus</code> — the live rules are identical, this document just holds them still so you can inspect them.</p>
+
+<div class="ctrl">
+  <fieldset><legend>Skin</legend>
+    <input type="radio" name="sk" id="sk-sepia" checked><label for="sk-sepia"><span class="swatch" style="background:#7d5322"></span>Sepia</label>
+    <input type="radio" name="sk" id="sk-mocha"><label for="sk-mocha"><span class="swatch" style="background:#8a5320"></span>Mocha</label>
+  </fieldset>
+  <fieldset><legend>Theme</legend>
+    <input type="radio" name="t" id="light" checked><label for="light"><span class="swatch" style="background:#f7f3ec"></span>Light</label>
+    <input type="radio" name="t" id="dark"><label for="dark"><span class="swatch" style="background:#2b2823"></span>Dark</label>
+  </fieldset>
+  <span style="font-size:.8rem;color:#8a7d70">Tab through anything here — every control has a real focus ring.</span>
+</div>
+
+<!-- ============ TYPOGRAPHY ============ -->
+<h2>1 · Typography</h2>
+<p>Four roles, four faces. Fraunces is only ever a heading. Source Serif 4 carries all prose. Geist is chrome. Geist Mono (Sepia) or JetBrains Mono (Mocha) is metadata, counts, and anything that should read as machine output.</p>
+<div class="grid2">
+  <div class="panel"><div class="t">Display — Fraunces</div><div class="stack">
+    <div><div class="t-mono-sm">h1 · 1.6rem / 600 / −.022em</div><div class="t-d1">Inbox</div></div>
+    <div><div class="t-mono-sm">h2 · 1.3rem / 600</div><div class="t-d2">Reading queue</div></div>
+    <div><div class="t-mono-sm">h3 · 1.05rem / 600</div><div class="t-d3">Databases</div></div>
+    <div><div class="t-mono-sm">brand · 1rem / 600</div><div class="brand">Patch<b>works</b></div></div>
+  </div></div>
+  <div class="panel"><div class="t">Text — Source Serif 4</div><div class="stack">
+    <div><div class="t-mono-sm">body · .95rem / 1.65</div><div class="t-body">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it.</div></div>
+    <div><div class="t-mono-sm">note · .84rem / 1.6 (clamped to 4 lines in lists)</div><div class="t-body-sm">The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it, which is rarer than it should be.</div></div>
+    <div><div class="t-mono-sm">note · italic</div><div class="t-body-sm" style="font-style:italic">Shorter than it looks.</div></div>
+  </div></div>
+  <div class="panel"><div class="t">Chrome — Geist</div><div class="stack">
+    <div><div class="t-mono-sm">ui · .84rem</div><div class="t-ui">Save your changes?</div></div>
+    <div><div class="t-mono-sm">ui-sm · .73rem</div><div class="t-ui-sm">Two days ago · unread · queued</div></div>
+    <div><div class="t-mono-sm">eyebrow · .62rem caps</div><div class="eyebrow">All bookmarks</div></div>
+  </div></div>
+  <div class="panel"><div class="t">Metadata — mono</div><div class="stack">
+    <div><div class="t-mono-sm">meta · .72rem</div><div class="t-mono">simonwillison.net · 2026-09-14 · 14 min</div></div>
+    <div><div class="t-mono-sm">small · .66rem</div><div class="t-mono-sm">@databases · is:unread · after:2026-08</div></div>
+    <div><div class="t-mono-sm">number</div><div class="t-mono" style="color:var(--t2)">142 · 38 · 23</div></div>
+  </div></div>
+</div>
+
+<!-- ============ BUTTONS ============ -->
+<h2>2 · Buttons</h2>
+<h3>Variants</h3>
+<div class="frame"><div class="app">
+  <div class="row">
+    <button class="btn p">Primary</button>
+    <button class="btn">Secondary</button>
+    <button class="btn g">Ghost</button>
+    <button class="btn danger">Destructive</button>
+    <button class="btn danger fill">Delete forever</button>
+    <button class="link">Link</button>
+    <button class="icobtn" aria-label="More actions">⋯</button>
+    <button class="icobtn" aria-label="Close">×</button>
+  </div>
+  <div class="row" style="border-bottom:0">
+    <button class="btn p">Default</button><button class="btn p is-hover">Hover</button>
+    <button class="btn p is-active">Active</button><button class="btn p is-focus">Focus</button>
+    <button class="btn p" disabled>Disabled</button>
+    <button class="btn p"><span class="spin" style="border-color:currentColor;border-top-color:transparent"></span>Saving…</button>
+  </div>
+  <div class="row" style="border-bottom:0">
+    <button class="btn lg">Large</button><button class="btn">Medium</button><button class="btn sm">Small</button>
+    <button class="btn sm p">Small primary</button>
+  </div>
+</div></div>
+<p class="note">The focus ring is a fixed blue in both themes rather than the accent. It has to be recognisable as "you are here" regardless of palette, and it has to stay legible on the accent fill, the sunken fill, and the panel — which is why it isn't brown.</p>
+
+<!-- ============ FORM CONTROLS ============ -->
+<h2>3 · Form controls</h2>
+<div class="grid2">
+  <div class="panel"><div class="t">Text inputs</div><div class="stack">
+    <div class="fld"><label>Default</label><input placeholder="you@example.com"></div>
+    <div class="fld"><label>With value</label><input value="simonwillison.net"></div>
+    <div class="fld"><label>With hint</label><input value="https://go.dev/blog/"><span class="hint">Title will be fetched from the page.</span></div>
+    <div class="fld" data-invalid="true"><label>Invalid</label><input value="not a url" aria-invalid="true" aria-describedby="e1"><span class="ferr" id="e1"><span class="fi">!</span>That doesn't look like a URL — it needs to start with http:// or https://</span></div>
+    <div class="fld"><label>Focus</label><input class="is-focus" value="focused field"></div>
+    <div class="fld"><label>Disabled</label><input disabled value="read only"></div>
+    <div class="fld"><label>Read-only</label><input readonly value="cannot be edited"></div>
+  </div></div>
+  <div class="panel"><div class="t">Textarea &amp; other controls</div><div class="stack">
+    <div class="fld"><label>Textarea</label><textarea placeholder="Why are you saving this?">The multixact section is the one I need.</textarea></div>
+    <div class="fld"><label>Select</label><select class="inp"><option>Newest first</option><option>Oldest first</option><option>Most tagged</option></select></div>
+    <div class="stack" style="gap:.4rem">
+      <span class="flabel">Checkbox &amp; switch</span>
+      <span class="check" aria-checked="false" role="checkbox"><span class="box">✓</span>Add to reading list</span>
+      <span class="check" aria-checked="true" role="checkbox"><span class="box">✓</span>Include notes in share page</span>
+      <span class="check" aria-checked="false" role="checkbox" data-disabled="true"><span class="box">✓</span>Unavailable while offline</span>
+      <span class="check" role="switch" aria-checked="true"><span class="switch"></span>Auto-tagging</span>
+      <span class="check" role="switch" aria-checked="false"><span class="switch"></span>Mute this feed</span>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============ TAGS, PILLS, BADGES ============ -->
+<h2>4 · Tags, pills, badges</h2>
+<div class="grid2">
+  <div class="panel"><div class="t">Tag &amp; collection pills</div><div class="stack">
+    <div><div class="t-mono-sm">unselected</div><div class="row" style="border:0;padding:.3rem 0">
+      <button class="pill" aria-pressed="false"><span class="pg">○</span>#perf</button>
+      <button class="pill" aria-pressed="false"><span class="pg">○</span>#linux</button>
+    </div></div>
+    <div><div class="t-mono-sm">selected</div><div class="row" style="border:0;padding:.3rem 0">
+      <button class="pill" aria-pressed="true"><span class="pg">✓</span>#sqlite</button>
+      <button class="pill" aria-pressed="true"><span class="pg">✓</span>@databases</button>
+    </div></div>
+    <div><div class="t-mono-sm">create new — dashed border, always</div><div class="row" style="border:0;padding:.3rem 0">
+      <button class="pill add"><span class="pg">+</span>new tag</button>
+      <button class="pill add"><span class="pg">+</span>new collection</button>
+    </div></div>
+    <div><div class="t-mono-sm">disabled</div><div class="row" style="border:0;padding:.3rem 0">
+      <button class="pill" disabled><span class="pg">○</span>#locked</button>
+    </div></div>
+    <div><div class="t-mono-sm">suggestion — dashed until accepted</div><div class="row" style="border:0;padding:.3rem 0">
+      <button class="pill add"><span class="pg">○</span>#release</button>
+      <button class="pill" aria-pressed="true"><span class="pg">✓</span>#go</button>
+    </div></div>
+  </div></div>
+  <div class="panel"><div class="t">Inline tags &amp; badges</div><div class="stack">
+    <div><div class="t-mono-sm">hashtags — plain mono text, on items</div><div class="tags" style="margin-top:.3rem"><a href="#">#sqlite</a><a href="#">#databases</a><a href="#">#perf</a></div></div>
+    <div><div class="t-mono-sm">status badges</div><div class="row" style="border:0;padding:.3rem 0">
+      <span class="badge b-q">queued</span><span class="badge b-f">feed</span><span class="badge b-b">private</span><span class="badge b-d">failed</span><span class="badge b-w">stale</span>
+    </div></div>
+    <div><div class="t-mono-sm">collection roles</div><div class="row" style="border:0;padding:.3rem 0">
+      <span class="role">owner</span><span class="role">editor</span><span class="role">viewer</span>
+    </div></div>
+    <div><div class="t-mono-sm">stale — dashed outline</div><div class="row" style="border:0;padding:.3rem 0">
+      <span class="badge" style="border-style:dashed;border-color:currentColor;color:var(--warn)">6 days</span>
+    </div></div>
+    <div><div class="t-mono-sm">key hint</div><div class="row" style="border:0;padding:.3rem 0">
+      <span class="kbd">⌘K</span><span class="kbd">j</span><span class="kbd">⏎</span><span class="kbd">esc</span>
+    </div></div>
+  </div></div>
+</div>
+
+<!-- ============ NAVIGATION ============ -->
+<h2>5 · Navigation</h2>
+<div class="grid2">
+  <div class="frame" style="margin:0"><div class="app">
+    <div class="topbar">
+      <span class="brand">Patch<b>works</b></span>
+      <label class="q"><span class="op">/</span><input placeholder="tag: rust is:unread"></label>
+      <button class="btn sm p">+ Add</button>
+      <span class="avatar">DE</span>
+    </div>
+    <div class="tabs">
+      <a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a>
+      <a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">◉</span>You</a>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Top strip + bottom tabs.</b> The strip is desktop only; tabs are mobile only. The search field lives in the strip on desktop and in the list header on mobile, so it never competes with the tab bar.</div></div>
+  <div class="frame" style="margin:0"><div class="app">
+    <div class="seg"><button aria-pressed="true">All</button><button>Unread</button><button>Queued</button><button>Archived</button></div>
+    <div class="t2row"><a class="t2" href="#" aria-current="page">Items</a><a class="t2" href="#">Members (3)</a><a class="t2" href="#">Share</a><a class="t2" href="#">Settings</a></div>
+    <div style="padding:.5rem .7rem">
+      <div class="frow" aria-current="page"><span>◈</span><span>Everything</span><span class="n">150</span></div>
+      <div class="frow"><span>○</span><span>Unread</span><span class="n">38</span></div>
+      <div class="frow"><span>◔</span><span>All feeds</span><span class="n">8</span></div>
+      <div class="frow"><span>▤</span><span>databases</span><span class="n">48</span></div>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Segmented control, list tabs, folder rail.</b> Three levels of filtering, three components. The rail row is the desktop navigation when there are enough collections to need one.</div></div>
+</div>
+
+<!-- ============ ALERTS ============ -->
+<h2>6 · Alerts</h2>
+<p>Permanent, in-flow, for something the user must deal with. Never colour alone — each carries a glyph and a word.</p>
+<div class="frame"><div class="app"><div class="stack" style="padding:.8rem">
+  <div class="alert err"><span class="ai" aria-hidden="true">✕</span><span class="ab"><b>Couldn't save</b><p>The link timed out while fetching its title. Your note and tags weren't lost.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert warn"><span class="ai" aria-hidden="true">!</span><span class="ab"><b>One feed hasn't updated in 6 days</b><p>simonwillison.net may have moved or stopped publishing.</p><p style="margin-top:.3rem"><a href="#">Open subscriptions</a></p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert ok"><span class="ai" aria-hidden="true">✓</span><span class="ab"><b>Imported 248 bookmarks</b><p>12 were skipped as duplicates.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert info"><span class="ai" aria-hidden="true">i</span><span class="ab"><b>Notes are included in this shared collection</b><p>Turn them off in Share settings if you'd rather visitors saw titles only.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
+</div></div></div>
+
+<!-- ============ TOASTS ============ -->
+<h2>7 · Toasts</h2>
+<p>Transient confirmations and failures that need no decision. A destructive failure never uses a toast alone — if the user typed something that could be lost, it gets an alert or an inline error instead.</p>
+<div class="frame"><div class="app"><div class="stack" style="padding:.8rem;max-width:24rem">
+  <div class="toast ok" role="status"><span class="ti" aria-hidden="true">✓</span><span class="tb"><b>Bookmark saved</b><p>Added to <b>@to-read</b>.</p></span><button class="tx" aria-label="Dismiss">×</button></div>
+  <div class="toast err" role="status"><span class="ti" aria-hidden="true">✕</span><span class="tb"><b>Bookmark not saved</b><p>The server didn't respond. Nothing was lost — <a href="#">retry</a>.</p></span><button class="tx" aria-label="Dismiss">×</button></div>
+  <div class="toast warn" role="status"><span class="ti" aria-hidden="true">!</span><span class="tb"><b>Duplicate link</b><p>You already saved this 3 days ago. <a href="#">Open it</a></p></span><button class="tx" aria-label="Dismiss">×</button></div>
+  <div class="toast info" role="status"><span class="ti" aria-hidden="true">i</span><span class="tb"><b>18 items archived</b><p><a href="#">Undo</a></p></span><button class="tx" aria-label="Dismiss">×</button></div>
+</div></div></div>
+
+<!-- ============ OVERLAYS ============ -->
+<h2>8 · Sheets &amp; dialogs</h2>
+<div class="grid2">
+  <div class="frame" style="margin:0"><div class="app">
+    <div class="grab"></div>
+    <div class="sheethead"><h3>Details</h3><span style="flex:1"></span><button class="btn g sm">Close</button></div>
+    <div style="padding:.7rem">
+      <div class="t-d3">Rewriting SQLite's query planner</div>
+      <div class="t-mono" style="margin-top:.2rem">simonwillison.net/2026/09/sqlite-planner/</div>
+      <hr class="hr">
+      <div class="t-mono-sm">note</div>
+      <textarea class="inp" style="min-height:4rem;font-family:var(--text);line-height:1.6;margin-top:.25rem">He measures the heuristic instead of asserting it.</textarea>
+      <hr class="hr">
+      <div class="row" style="border:0;padding:.2rem 0"><button class="btn sm p">Save</button><button class="btn sm g">Archive</button><span style="flex:1"></span><span class="t-mono-sm">esc</span></div>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Bottom sheet.</b> Grab handle, header with a close affordance, scrollable body, actions in the content flow rather than pinned. On desktop this same content docks as a side pane and the grab handle disappears.</div></div>
+  <div class="frame" style="margin:0"><div class="app">
+    <div class="sheethead"><h3>Add bookmark</h3><span style="flex:1"></span><span class="t-mono-sm">esc</span></div>
+    <div style="padding:.7rem" class="stack">
+      <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="hint">✓ title fetched from go.dev</span></div>
+      <div class="fld"><label>Tags</label><div class="row" style="border:0;padding:0"><button class="pill" aria-pressed="true"><span class="pg">✓</span>#go</button><button class="pill add"><span class="pg">+</span>new tag</button></div></div>
+      <div class="sheetfoot" style="margin:0 -.7rem -.7rem"><button class="btn p sm">Save</button><span style="flex:1"></span><span class="t-mono-sm">⏎ save</span></div>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Dialog.</b> Full-screen on mobile, centred popover on desktop. The header is inside the panel, never above it — that's what makes it read as one surface.</div></div>
+</div>
+
+<!-- ============ STATES ============ -->
+<h2>9 · Empty, loading, error</h2>
+<div class="grid2">
+  <div class="frame" style="margin:0"><div class="app">
+    <div class="empty"><div class="ic">◈</div><h3>Nothing saved yet</h3><p>Paste a link above. Tags, notes and collections are all optional — you can add them whenever you know why you kept it.</p><button class="btn p">Add your first bookmark</button></div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Empty.</b> Always says what to do next, never just "nothing here".</div></div>
+  <div class="frame" style="margin:0"><div class="app">
+    <div class="skrow"><div class="sk a"></div><div class="sk b"></div></div>
+    <div class="skrow"><div class="sk a" style="width:46%"></div><div class="sk b" style="width:44%"></div></div>
+    <div class="skrow"><div class="sk a" style="width:68%"></div><div class="sk b" style="width:30%"></div></div>
+    <div style="padding:.8rem;display:flex;gap:.5rem;align-items:center"><span class="spin"></span><span class="t-mono">Loading 148 more…</span></div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Loading.</b> Skeletons match the real row geometry. Pagination uses an inline spinner rather than more skeletons.</div></div>
+  <div class="frame" style="margin:0"><div class="app">
+    <div style="padding:.7rem"><div class="alert err"><span class="ai" aria-hidden="true">✕</span><span class="ab"><b>Couldn't load your bookmarks</b><p>The database didn't respond.</p><p style="margin-top:.3rem"><a href="#">Try again</a></p></span></div></div>
+    <div class="rowfail" style="padding:.4rem .7rem"><span class="ri">!</span><span>Couldn't fetch the title.</span><button>Retry</button><button>Edit manually</button></div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Error.</b> Whole-region failure gets an alert; single-item failure gets an inline row error with a retry.</div></div>
+</div>
+
+<!-- ============ DATA DISPLAY ============ -->
+<h2>10 · Data display</h2>
+<div class="grid2">
+  <div class="frame" style="margin:0"><div class="app">
+    <table class="tbl">
+      <thead><tr><th>Collection</th><th>Handle</th><th class="num">Items</th><th class="num">Unread</th><th>Role</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b style="font-weight:500">Databases</b></td><td style="font-family:var(--mono);font-size:.72rem;color:var(--accent)">@databases</td><td class="num">48</td><td class="num">12</td><td><span class="role">owner</span></td><td style="text-align:right"><button class="btn g sm">Edit</button></td></tr>
+        <tr><td><b style="font-weight:500">Project A</b></td><td style="font-family:var(--mono);font-size:.72rem;color:var(--accent)">@project-a</td><td class="num">17</td><td class="num">5</td><td><span class="role">editor</span></td><td style="text-align:right"><button class="btn g sm">Edit</button></td></tr>
+        <tr><td><b style="font-weight:500">Perf reading</b></td><td style="font-family:var(--mono);font-size:.72rem;color:var(--accent)">@perf-reading</td><td class="num">31</td><td class="num">20</td><td><span class="role">viewer</span></td><td style="text-align:right"><button class="btn g sm">Open</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Table.</b> Used only where rows are genuinely comparable — collections, members, subscriptions. Never for the bookmark list.</div></div>
+  <div class="frame" style="margin:0"><div class="app" style="padding:.7rem">
+    <div class="stack">
+      <div><div class="t-mono-sm">key–value list</div><dl class="kv"><dt>saved</dt><dd>2 days ago</dd><dt>state</dt><dd>unread · queued</dd><dt>source</dt><dd>saved by you</dd><dt>url</dt><dd>simonwillison.net/2026/09/…</dd></dl></div>
+      <hr class="hr">
+      <div><div class="t-mono-sm">metadata line</div><div class="meta" style="margin-top:.3rem"><span class="badge b-q">queued</span><span>brandur.org</span><span>1w</span><span>~14 min</span></div></div>
+      <hr class="hr">
+      <div><div class="t-mono-sm">back link</div><a class="backlink" href="#"><span aria-hidden="true">←</span>Back to collections</a></div>
+      <hr class="hr">
+      <div><div class="t-mono-sm">pager</div><div class="pager" style="border:0;padding:.2rem 0"><span>Showing 7 of 142</span><span style="flex:1"></span><a href="#">Next 100 ↓</a></div></div>
+    </div>
+  </div>
+  <div style="font-size:.8rem;color:#8a7d70"><b>Small display components.</b> Key–value for the inspection sheet, metadata line for rows, back link for sub-views, pager for the cursor-paginated list.</div></div>
+</div>
+
+<h2>Conventions worth stating once</h2>
+<table style="width:100%;border-collapse:collapse;font-size:.88rem">
+  <thead><tr><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#a1968b">Rule</th><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#a1968b">Why</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf;font-weight:500">Never colour alone</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">Every state carries a glyph or a word. Survives greyscale, colour blindness, and bad screens.</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf;font-weight:500">Focus ring is always blue</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">It must read as "you are here" across two palettes and both themes, and stay visible on the accent fill.</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf;font-weight:500">Dashed border means "creates something new"</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">One border style, one meaning, everywhere — pills, suggestions, and stale badges.</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf;font-weight:500">Fraunces never sets prose</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">It is a display face. Notes are the app's main content and get a face built for reading.</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;font-weight:500">Mono for machine data</td><td style="padding:.55rem .6rem .55rem 0">Hosts, handles, counts, operators, dates. Mono marks it as data rather than prose, which is what makes dense lists scannable.</td></tr>
+  </tbody>
+</table>
+
+<p class="note">Still open from earlier rounds, and worth resolving before build: the note editor's commit path (autosave vs explicit save), and whether the "Show note" expander survives now that the sheet exists.</p>
+</div>
+</body>
+</html>

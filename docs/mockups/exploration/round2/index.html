@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Round 2</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .wrap { width:min(100% - 2.5rem, 64rem); margin-inline:auto; padding-block:3rem 6rem; }
+  h1 { font-size:2rem; letter-spacing:-.025em; margin:0 0 .4rem; }
+  .lede { color:#5c534b; max-width:70ch; margin:0 0 1rem; }
+  h2 { font-size:.72rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:3rem 0 1.2rem; }
+  .grid { display:grid; gap:1.25rem; margin-top:2rem; }
+  .card { display:block; text-decoration:none; color:inherit; border:1px solid #e4ddd2; border-radius:10px; padding:1.5rem 1.6rem; background:#fffdfa; transition:border-color .15s, transform .15s; }
+  .card:hover { border-color:#c9bfb0; transform:translateY(-1px); }
+  .card .k { font:500 .7rem/1 ui-monospace,monospace; letter-spacing:.1em; color:#a1968b; text-transform:uppercase; }
+  .card h3 { font-size:1.25rem; margin:.5rem 0 .15rem; letter-spacing:-.015em; }
+  .card .tag { font-size:.8rem; color:#8a7d70; font-style:italic; }
+  .card p { margin:.8rem 0 0; color:#4a423a; font-size:.93rem; }
+  .card ul { margin:.8rem 0 0; padding-left:1.1rem; color:#5c534b; font-size:.88rem; }
+  .card li { margin:.2rem 0; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:1rem; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th,td { text-align:left; padding:.55rem .7rem .55rem 0; border-bottom:1px solid #e4ddd2; vertical-align:top; }
+  th { font-weight:500; color:#8a7d70; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; }
+  td:first-child { white-space:nowrap; color:#a1968b; font-family:ui-monospace,monospace; font-size:.8rem; }
+  .decisions { border:1px solid #e4ddd2; border-radius:10px; padding:1.4rem 1.6rem; background:#fffdfa; }
+  .decisions dl { display:grid; grid-template-columns:11rem 1fr; gap:.55rem 1.2rem; margin:0; font-size:.9rem; }
+  .decisions dt { color:#a1968b; font-family:ui-monospace,monospace; font-size:.78rem; }
+  .decisions dd { margin:0; color:#4a423a; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1.5rem 0 0; color:#5c534b; font-size:.9rem; max-width:70ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← round 1</a>
+  <h1>Round 2 — three information architectures</h1>
+  <p class="lede">Round 1 converged on structure and diverged on look, which was backwards. This round fixes the look decisions and tests the three information architectures that were genuinely still open. All three are built mobile-first, hold the same warm palette family, and realize the same core loop so the comparison is honest.</p>
+
+  <h2>Decisions settled from round 1</h2>
+  <div class="decisions">
+    <dl>
+      <dt>Baseline</dt><dd>Mobile-first. Desktop is the optimized version — more shown at once, not a different design.</dd>
+      <dt>Item shape</dt><dd>Card on mobile, collapsing to a row with aligned columns on desktop. Same data, two presentations.</dd>
+      <dt>Tags</dt><dd>Text <code>#hashtags</code>, differentiated from title/host/note by weight and colour only. No pills on items.</dd>
+      <dt>Quick add</dt><dd>A plain form — URL, server-fetched title, tag chips, an explicit visible <b>Add to reading list</b> toggle. Inline <code>#tag</code> / <code>@coll</code> syntax accepted as an optional shortcut, never required.</dd>
+      <dt>Navigation</dt><dd>Bottom tabs on mobile (Inbox, Queue, Feeds, Collections, Search), pinned composer above them. Label rail on desktop.</dd>
+      <dt>Reading</dt><dd>Deferred. The queue is a list; items open the original in a new tab. No in-app reader in this round.</dd>
+      <dt>Feeds</dt><dd>Two lifecycles shown side by side, because the IA choice interacts with it.</dd>
+      <dt>Palette</dt><dd>Warm café/mocha held constant across all three, varying only in temperature and saturation.</dd>
+      <dt>Depth</dt><dd>Borders + a slight button shadow by default. Each candidate carries a standalone section comparing flat / default / paper-layered.</dd>
+    </dl>
+  </div>
+
+  <h2>The candidates</h2>
+  <div class="grid">
+    <a class="card" href="cards.html">
+      <span class="k">Candidate 1</span>
+      <h3>Cards</h3>
+      <span class="tag">round 1's B, densified · no columns ever</span>
+      <p>The calm direction made denser. Navigation by tabs and sheets rather than a persistent rail, uniform items with real note presence, and the mobile composer as the app's signature gesture.</p>
+      <ul>
+        <li>Best for: notes, reading, mobile, calm</li>
+        <li>Weakest for: comparing across many items at once</li>
+        <li>Round 1's complaint answered: whitespace, radius, and sans typography all pulled back.</li>
+      </ul>
+    </a>
+    <a class="card" href="ledger.html">
+      <span class="k">Candidate 2</span>
+      <h3>Ledger</h3>
+      <span class="tag">round 1's C, mobile-first</span>
+      <p>The ledger taken seriously as a mobile structure rather than a desktop one. Columns collapse into a card on small screens and return as the width grows; the rail becomes a bottom tab bar.</p>
+      <ul>
+        <li>Best for: retrieval, organization, scanning many items</li>
+        <li>Weakest for: long notes, which have to compress into a sub-line</li>
+        <li>Round 1's complaint answered: the note-count column is gone, notes are always visible as text.</li>
+      </ul>
+    </a>
+    <a class="card" href="split-sheet.html">
+      <span class="k">Candidate 3</span>
+      <h3>Split Sheet</h3>
+      <span class="tag">round 1's A, rebuilt mobile-first</span>
+      <p>The inspector idea kept, but the two-pane desktop layout abandoned. Selection opens a bottom sheet on mobile; the right pane is only a bonus at desktop widths. Permanent visible actions, keyboard-first, dense rows.</p>
+      <ul>
+        <li>Best for: triage, bulk operations, power use</li>
+        <li>Weakest for: casual discovery — actions are hidden until you select</li>
+        <li>Round 1's complaint answered: the desktop-primary framing is gone; mobile is the whole design.</li>
+      </ul>
+    </a>
+  </div>
+
+  <h2>What each candidate shows</h2>
+  <table>
+    <thead><tr><th>Section</th><th>1 · Cards</th><th>2 · Ledger</th><th>3 · Split Sheet</th></tr></thead>
+    <tbody>
+      <tr><td>Bookmark list</td><td>mobile + desktop</td><td>mobile + desktop</td><td>mobile + desktop</td></tr>
+      <tr><td>Quick add</td><td>mobile sheet + desktop</td><td>mobile + desktop</td><td>mobile sheet + desktop</td></tr>
+      <tr><td>Reading queue</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Feeds + both lifecycles</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Search + parsed pills</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Edit tags in place</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Filter sheet</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Collection detail + share</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Bulk select</td><td>light</td><td>light</td><td>full (its home ground)</td></tr>
+      <tr><td>Login / register</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Empty + loading states</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Depth options section</td><td>full</td><td>full</td><td>full</td></tr>
+      <tr><td>Wide-screen options section</td><td>full</td><td>full</td><td>full</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Open each candidate directly in a browser. They're self-contained — one HTML file each, no shared assets except webfonts.</p>
+</div>
+</body>
+</html>

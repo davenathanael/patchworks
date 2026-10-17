@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Round 4</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .wrap { width:min(100% - 2.5rem, 62rem); margin-inline:auto; padding-block:3rem 6rem; }
+  h1 { font-size:2rem; letter-spacing:-.025em; margin:0 0 .4rem; }
+  .lede { color:#5c534b; max-width:70ch; margin:0 0 1rem; }
+  h2 { font-size:.72rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:3rem 0 1.2rem; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:1rem; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; margin-top:1rem; }
+  th,td { text-align:left; padding:.55rem .7rem .55rem 0; border-bottom:1px solid #e4ddd2; vertical-align:top; }
+  th { font-weight:500; color:#8a7d70; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; }
+  td:first-child { white-space:nowrap; color:#a1968b; font-family:ui-monospace,monospace; font-size:.8rem; }
+  .dec { border:1px solid #e4ddd2; border-radius:10px; padding:1.4rem 1.6rem; background:#fffdfa; }
+  .dec dl { display:grid; grid-template-columns:12rem 1fr; gap:.55rem 1.2rem; margin:0; font-size:.9rem; }
+  .dec dt { color:#a1968b; font-family:ui-monospace,monospace; font-size:.78rem; }
+  .dec dd { margin:0; color:#4a423a; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1.5rem 0 0; color:#5c534b; font-size:.9rem; max-width:70ch; }
+  .link { display:block; text-decoration:none; color:inherit; border:1px solid #e4ddd2; border-radius:10px; padding:1.2rem 1.4rem; background:#fffdfa; margin-top:.8rem; transition:border-color .15s, transform .15s; }
+  .link:hover { border-color:#c9bfb0; transform:translateY(-1px); }
+  .link b { font-size:1.05rem; }
+  .link span { display:block; font-size:.86rem; color:#5c534b; margin-top:.35rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← round 3</a>
+  <h1>Round 4 — the final round</h1>
+  <p class="lede">The design is settled. This round finalises the fonts, applies the two accessibility and robustness fixes identified at the end of round 3, and adds the component and state reference that was missing — a document you can hand to implementation without re-reading the whole app mockup.</p>
+
+  <h2>Open it</h2>
+  <a class="link" href="app.html"><b>app.html</b> — the converged application<span>Every screen, with the focus-ring and error-state fixes applied, plus a new section covering failure states.</span></a>
+  <a class="link" href="components.html"><b>components.html</b> — component &amp; state reference<span>Every component in every state. Two skins × light and dark, live switcher. Hover, active and focus states are shown frozen so they can be inspected.</span></a>
+  <a class="link" href="../round3/type.html"><b>type.html</b> — the typography experiment<span>Where the dual-serif decision came from. Kept as the record of why Fraunces was restricted to display.</span></a>
+
+  <h2>What changed in round 4</h2>
+  <table>
+    <thead><tr><th>Change</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Focus states</td><td>Every focusable element gets a 2px ring plus its native affordance, wired with <code>:focus-visible</code> so it never appears on mouse click. Fields additionally get an accent border and a 3px halo. The ring is a fixed blue in both themes rather than the accent — it has to read as "you are here" across two palettes and both themes, and stay visible on top of the accent fill. A skip link is the first child of every app region.</td></tr>
+      <tr><td>Error states</td><td>Four layers, each with a defined job: <code>.ferr</code> for a single invalid field, <code>.alert</code> for a region-level failure, <code>.toast</code> for transient notifications, and <code>.rowfail</code> for one item inside a list. All four carry a glyph and a word, never colour alone. A destructive failure never uses a toast alone.</td></tr>
+      <tr><td>Fonts finalised</td><td>Fraunces for display only, Source Serif 4 for all prose, Geist for chrome, Geist Mono (Sepia) or JetBrains Mono (Mocha) for metadata. Two skins retained: Sepia as default, Mocha as the warmer option.</td></tr>
+      <tr><td>Component reference</td><td>Ten sections covering typography, buttons, form controls, tags and badges, navigation, alerts, toasts, overlays, empty/loading/error, and data display — with the frozen-state technique for hover and focus.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Settled design decisions</h2>
+  <div class="dec">
+    <dl>
+      <dt>Baseline</dt><dd>Mobile-first. Desktop shows more of the same thing, never a different design. Item is a card on mobile and a row past 54rem.</dd>
+      <dt>Type</dt><dd>Fraunces (display) · Source Serif 4 (prose) · Geist (chrome) · Geist Mono or JetBrains Mono (metadata).</dd>
+      <dt>Long notes</dt><dd>Four-line excerpt in the list, expanding in place. The note editor lives in the inspection sheet as a real textarea.</dd>
+      <dt>Inspection</dt><dd>Bottom sheet on mobile with a top-edge shadow; docked side pane at 54rem and up.</dd>
+      <dt>Tags</dt><dd>Plain <code>#hashtags</code> on items. Small neutral pills in pickers, with a dashed border reserved for "creates something new".</dd>
+      <dt>Collections</dt><dd>Separate display title and <code>@handle</code>, both editable.</dd>
+      <dt>Quick add</dt><dd>One <code>&lt;dialog&gt;</code>: full-screen on mobile, centred popover on desktop, header inside the panel.</dd>
+      <dt>Reading</dt><dd>No in-app reader. The queue is a list; current item pinned to top; items open the original in a new tab.</dd>
+      <dt>Feeds</dt><dd>Path A. Feed items are ephemeral until acted on: added to the queue, saved as a bookmark, or dismissed.</dd>
+      <dt>Share page</dt><dd>Public, read-only, one page per collection. Every bookmark with its tags and notes, regardless of your own reading or queue state.</dd>
+      <dt>Account</dt><dd>Fifth tab (Inbox, Queue, Feeds, Collections, You) on mobile; avatar menu in the top strip on desktop.</dd>
+      <dt>Depth</dt><dd>Borders plus a button shadow. Floating surfaces get a real shadow. Nothing else is elevated.</dd>
+      <dt>Wide screens</dt><dd>Cap the width, grow the type. No extra columns, no docked panels.</dd>
+      <dt>Themes</dt><dd>Sepia and Mocha, each in light and dark. Dark backgrounds sit at oklch L≈0.27 rather than the usual 0.18–0.20; body text measures 13:1 against the background, secondary 8:1, muted metadata 5.5:1.</dd>
+    </dl>
+  </div>
+
+  <h2>Known gaps, carried forward</h2>
+  <table>
+    <thead><tr><th>Gap</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Note commit path</td><td>Autosave on blur or explicit save is still undecided. The sheet currently shows a textarea with no commit control.</td></tr>
+      <tr><td>Filter &amp; sort</td><td>Round 3 dropped the filter sheet in favour of query syntax. Sorting has no equivalent at all. Probably a convergence accident rather than a decision.</td></tr>
+      <tr><td>Long-title overflow</td><td>No truncation rule or max-height has been tested against a 120-character title.</td></tr>
+      <tr><td>"Show note" vs sheet</td><td>Two routes to the same content with different affordances. One should probably go.</td></tr>
+      <tr><td>Safe-area insets</td><td>Bottom tabs and the composer need <code>env(safe-area-inset-bottom)</code> on iOS.</td></tr>
+      <tr><td>No-JS quick add</td><td>The round-1 constraint that quick-add works without scripting has not been re-verified against the <code>&lt;dialog&gt;</code> approach.</td></tr>
+      <tr><td>Bulk selection</td><td>Dropped in the convergence. Deliberately, or lost — worth confirming.</td></tr>
+      <tr><td>Archived view</td><td>Present in desktop navigation, never designed.</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Reference material from earlier rounds is preserved separately in <a href="../reference/" style="color:#7d5322"><code>../reference/</code></a> — the workbench inspector and the split-sheet patterns worth carrying into other projects.</p>
+</div>
+</body>
+</html>

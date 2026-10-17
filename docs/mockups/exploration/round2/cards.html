@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Candidate 1: Cards</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600&family=geist:400,500,600&family=jetbrains-mono:400,500&display=swap">
+<style>
+  /* ===== doc chrome (scoped to direct children so it can't leak into the app) ===== */
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 88rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.025em; margin:0 0 .3rem; }
+  .doc > h2 { margin:3.5rem 0 .3rem; font-size:1.45rem; letter-spacing:-.018em; }
+  .doc > h2 + p { color:#5c534b; max-width:76ch; margin:0 0 .6rem; }
+  .doc > h3 { font-size:.7rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:2.2rem 0 .7rem; }
+  .doc > p.lede { color:#5c534b; max-width:76ch; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:.8rem; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#5c534b; font-size:.9rem; max-width:76ch; }
+
+  /* ===== frames ===== */
+  .frame { container-type:inline-size; border:1px solid #e4ddd2; border-radius:10px; overflow:hidden; margin-block:1rem; box-shadow:0 1px 3px rgb(50 35 20/.05); position:relative; }
+  .frame.phone { width:390px; max-width:100%; margin-inline:auto; }
+  .frame-label { font:500 .68rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; padding:.55rem .9rem; background:#f2ede5; border-bottom:1px solid #e4ddd2; display:flex; justify-content:space-between; }
+  .frame-label b { color:#231e1a; }
+  .pair { display:flex; gap:1.25rem; flex-wrap:wrap; align-items:flex-start; }
+
+  /* ===== THE APP — Candidate 1: Cards =====
+     Round 1's B, densified. Radius pulled back to 5px, spacing halved,
+     serif + mono typography replacing Inter-style sans, hashtags not pills.
+     Navigation is tabs on mobile / a top strip on desktop — never a rail. */
+  .app {
+    font-family:"Geist", system-ui, sans-serif;
+    font-size:.875rem; line-height:1.5; color:var(--t1); background:var(--bg);
+    color-scheme: light;
+    --serif:"Fraunces", Georgia, serif;
+    --mono:"JetBrains Mono", ui-monospace, monospace;
+    --bg:#f6f2ec; --surface:#fffdfa; --surface-2:#f0eae1;
+    --t1:#251f1a; --t2:#5f564d; --t3:#9c9083;
+    --line:#e4ddd2; --line-strong:#d3cabb;
+    --accent:#8f5220; --accent-bg:#f7ecdb; --accent-line:#e2cfae;
+    --danger:#a8342a;
+    --r:5px;
+  }
+  .app code { font-family:var(--mono); font-size:.85em; }
+  .app button, .app input, .app textarea, .app select { font:inherit; }
+
+  /* --- top strip (desktop nav) --- */
+  .topstrip { display:flex; align-items:center; gap:.9rem; padding:.45rem .9rem; border-bottom:1px solid var(--line-strong); background:var(--surface); }
+  .brand { font-family:var(--serif); font-size:1.02rem; font-weight:600; letter-spacing:-.02em; }
+  .brand b { color:var(--accent); font-weight:600; }
+  .topnav { display:flex; gap:.1rem; }
+  .topnav a { font-size:.82rem; color:var(--t2); text-decoration:none; padding:.28rem .6rem; border-radius:var(--r); }
+  .topnav a:hover { background:var(--surface-2); color:var(--t1); }
+  .topnav a[aria-current="page"] { background:var(--accent-bg); color:var(--accent); font-weight:500; }
+  .topnav .n { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-inline-start:.25rem; }
+  .spacer { flex:1; }
+
+  /* --- page header --- */
+  .head { padding:.9rem 1rem .5rem; }
+  .head h1 { font-family:var(--serif); font-size:1.3rem; font-weight:600; letter-spacing:-.02em; margin:0; }
+  .head .sub { font-family:var(--mono); font-size:.7rem; color:var(--t3); margin-top:.15rem; }
+  .head.wide { padding:1.1rem 1.4rem .6rem; }
+
+  /* --- THE ITEM: card on mobile, row on desktop. same data. --- */
+  .items { list-style:none; margin:0; padding:0; }
+  .item { padding:.6rem .8rem; border-bottom:1px solid var(--line); }
+  .item:hover { background:#faf6f0; }
+  .item[data-unread="true"] { background:#fffdf7; box-shadow:inset 2px 0 0 var(--accent); }
+  .item .ttl { font-size:.9rem; font-weight:500; line-height:1.35; color:var(--t1); text-decoration:none; display:block; }
+  .item .ttl:hover { color:var(--accent); text-decoration:underline; }
+  .item[data-unread="true"] .ttl { font-weight:600; }
+  .item .meta { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-top:.12rem; display:flex; gap:.45rem; flex-wrap:wrap; }
+  /* hashtags: differentiated from title/host by being mono + accent-tinted, not boxed */
+  .tags { font-family:var(--mono); font-size:.7rem; margin-top:.22rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+  .tags a { color:var(--accent); text-decoration:none; opacity:.85; }
+  .tags a:hover { text-decoration:underline; opacity:1; }
+  .nt { font-size:.83rem; color:var(--t2); line-height:1.55; margin-top:.35rem; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .nt.more { -webkit-line-clamp:unset; line-clamp:unset; }
+  .iacts { display:flex; gap:.3rem; margin-top:.45rem; flex-wrap:wrap; }
+  .st { font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.07em; padding:.12rem .32rem; border-radius:3px; white-space:nowrap; }
+  .st.q { background:#e8f0e6; color:#3f6238; }
+  .st.f { background:#fbeedb; color:#8a5a15; }
+  .st.b { background:var(--surface-2); color:var(--t3); }
+
+  /* desktop ramp: the card collapses into an aligned row */
+  @container (width >= 44rem) {
+    .item { display:grid; grid-template-columns:1fr auto; gap:.4rem 1rem; padding:.5rem 1.4rem; align-items:baseline; }
+    .item .main { min-width:0; }
+    .item .side { display:flex; gap:.4rem; align-items:baseline; white-space:nowrap; }
+    .item .nt { -webkit-line-clamp:1; line-clamp:1; }
+  }
+  @container (width < 44rem) { .item .side { display:none; } }
+
+  /* --- buttons --- */
+  .btn { border:1px solid var(--line-strong); background:var(--surface); color:var(--t1); border-radius:var(--r); padding:.26rem .6rem; font-size:.78rem; cursor:pointer; box-shadow:0 1px 0 var(--line-strong); }
+  .btn:hover { background:var(--surface-2); }
+  .btn:active { box-shadow:none; transform:translateY(1px); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 0 color-mix(in oklch, var(--accent) 70%, black); }
+  .btn.primary:hover { filter:brightness(1.07); }
+  .btn.ghost { border-color:transparent; background:none; box-shadow:none; color:var(--t2); }
+  .btn.ghost:hover { background:var(--surface-2); color:var(--t1); }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { font-size:.73rem; padding:.18rem .45rem; }
+
+  /* --- composer (mobile: pinned above tabs; desktop: inline in head) --- */
+  .composer { display:flex; align-items:center; gap:.45rem; background:var(--surface); border:1px solid var(--line-strong); border-radius:999px; padding:.3rem .35rem .3rem .9rem; box-shadow:0 4px 14px rgb(60 40 20/.10); }
+  .composer input { border:0; outline:0; background:none; flex:1; min-width:0; font-size:.88rem; color:var(--t1); }
+  .composer .go { width:30px; height:30px; border-radius:50%; border:0; background:var(--accent); color:#fff; cursor:pointer; font-size:.95rem; line-height:1; flex:none; }
+  .composer .go:hover { filter:brightness(1.08); }
+
+  /* --- bottom tabs (mobile) --- */
+  .tabs { display:flex; border-top:1px solid var(--line-strong); background:var(--surface); position:sticky; bottom:0; }
+  .tabs a { flex:1; text-align:center; font-size:.66rem; color:var(--t3); text-decoration:none; padding:.4rem .2rem .45rem; display:grid; justify-items:center; gap:.1rem; }
+  .tabs a .ic { font-size:1rem; line-height:1; }
+  .tabs a[aria-current="page"] { color:var(--accent); box-shadow:inset 0 2px 0 var(--accent); }
+  .tabbar { position:sticky; bottom:0; background:var(--surface); }
+  .tabbar .composer { margin:.5rem .7rem; }
+  @container (width >= 44rem) { .tabbar { display:none; } }
+
+  /* --- search --- */
+  .qwrap { padding:.5rem .8rem; background:var(--surface); border-bottom:1px solid var(--line); }
+  .qwrap.wide { padding:.7rem 1.4rem; }
+  .qbox { display:flex; align-items:center; gap:.5rem; border:1px solid var(--line-strong); border-radius:var(--r); padding:.3rem .55rem; background:var(--bg); }
+  .qbox:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+  .qbox .op { font-family:var(--mono); font-size:.75rem; color:var(--accent); }
+  .qbox input { border:0; outline:0; background:none; flex:1; min-width:0; font-family:var(--mono); font-size:.8rem; color:var(--t1); }
+  .pills { display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.45rem; align-items:center; }
+  .pill { font-family:var(--mono); font-size:.7rem; background:var(--accent-bg); color:var(--accent); border-radius:var(--r); padding:.16rem .4rem; display:flex; gap:.3rem; align-items:center; }
+  .pill button { border:0; background:none; color:inherit; cursor:pointer; padding:0; opacity:.55; font-size:.9em; }
+  .pill.add { background:none; border:1px dashed var(--line-strong); color:var(--t3); cursor:pointer; }
+  .ops { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-top:.4rem; display:flex; gap:.55rem; flex-wrap:wrap; }
+  .ops b { color:var(--t2); font-weight:500; }
+
+  /* --- quick add sheet (full-screen on mobile) --- */
+  .sheet { background:var(--surface); border-top:1px solid var(--line-strong); border-radius:10px 10px 0 0; padding:.9rem .9rem 1rem; display:grid; gap:.7rem; }
+  .grab { width:32px; height:3px; border-radius:2px; background:var(--line-strong); margin:-.3rem auto .3rem; }
+  .fld { display:grid; gap:.22rem; }
+  .fld > label { font-size:.72rem; color:var(--t3); }
+  .fld input, .fld textarea { border:1px solid var(--line-strong); border-radius:var(--r); padding:.42rem .6rem; background:var(--bg); color:var(--t1); width:100%; }
+  .fld input:focus, .fld textarea:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+  .fld .fetched { font-family:var(--mono); font-size:.66rem; color:var(--t3); }
+  .fld textarea { min-height:3.6rem; resize:vertical; font-size:.87rem; }
+  .chips { display:flex; gap:.3rem; flex-wrap:wrap; }
+  .chip { font-family:var(--mono); font-size:.73rem; border:1px solid var(--line-strong); background:var(--surface); color:var(--t2); border-radius:var(--r); padding:.2rem .45rem; cursor:pointer; }
+  .chip[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .chip.ghost { border-style:dashed; color:var(--t3); }
+  /* the reading-list toggle gets real presence — it is not a footnote */
+  .qlt { display:flex; align-items:center; gap:.55rem; padding:.55rem .7rem; border:1px solid var(--line-strong); border-radius:var(--r); background:var(--surface-2); cursor:pointer; }
+  .qlt .box { width:1.05rem; height:1.05rem; border:1.5px solid var(--line-strong); border-radius:3px; background:var(--surface); flex:none; display:grid; place-items:center; }
+  .qlt[aria-pressed="true"] .box { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .qlt .lb { font-size:.84rem; }
+  .qlt .hint { font-size:.7rem; color:var(--t3); display:block; }
+  .acts { display:flex; gap:.4rem; align-items:center; }
+  .hintline { font-family:var(--mono); font-size:.68rem; color:var(--t3); }
+
+  /* --- collections --- */
+  .cgrid { display:grid; gap:.5rem; padding:.6rem .8rem; }
+  @container (width >= 40rem) { .cgrid.wide { grid-template-columns:repeat(auto-fill,minmax(16rem,1fr)); padding:.8rem 1.4rem; } }
+  .ccard { border:1px solid var(--line); border-radius:var(--r); background:var(--surface); padding:.7rem .8rem; text-decoration:none; color:inherit; display:block; }
+  .ccard:hover { border-color:var(--line-strong); background:#faf6f0; }
+  .ccard h3 { font-family:var(--serif); font-size:1rem; font-weight:600; margin:0 0 .1rem; letter-spacing:-.01em; }
+  .ccard .d { font-size:.78rem; color:var(--t3); font-style:italic; margin:0 0 .45rem; }
+  .ccard .row { display:flex; align-items:baseline; gap:.5rem; font-family:var(--mono); font-size:.7rem; color:var(--t2); }
+  .ccard .row b { font-family:var(--serif); font-size:1.15rem; font-weight:600; color:var(--t1); }
+  .ccard .spacer { flex:1; }
+
+  /* --- feed --- */
+  .feedrow { padding:.6rem .8rem; border-bottom:1px solid var(--line); }
+  @container (width >= 44rem) { .feedrow { display:grid; grid-template-columns:9rem 1fr auto; gap:1rem; align-items:baseline; padding:.55rem 1.4rem; } }
+  .fsrc { font-family:var(--mono); font-size:.68rem; color:var(--t3); }
+  .sug { display:flex; gap:.35rem; flex-wrap:wrap; align-items:center; margin-top:.35rem; }
+  .sug .lb { font-family:var(--mono); font-size:.67rem; color:var(--t3); }
+  .sug .chip { border-style:dashed; }
+  .sug .chip[aria-pressed="true"] { border-style:solid; }
+
+  /* --- misc surfaces --- */
+  .sheethead { display:flex; align-items:center; gap:.5rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:var(--surface); }
+  .sheethead h2 { font-size:.9rem; margin:0; font-family:var(--serif); font-weight:600; }
+  .frow { display:flex; align-items:center; gap:.6rem; padding:.6rem .8rem; border-bottom:1px solid var(--line); }
+  .frow .lb { font-size:.85rem; }
+  .frow .n { font-family:var(--mono); font-size:.7rem; color:var(--t3); margin-inline-start:auto; }
+  .seg { display:flex; gap:.1rem; padding:.4rem .8rem; background:var(--surface-2); border-bottom:1px solid var(--line); overflow:hidden; }
+  .seg button { border:0; background:none; font-size:.76rem; color:var(--t2); padding:.22rem .5rem; border-radius:var(--r); cursor:pointer; white-space:nowrap; }
+  .seg button[aria-pressed="true"] { background:var(--surface); color:var(--t1); font-weight:500; box-shadow:0 1px 2px rgb(0 0 0/.07); }
+
+  .empty { padding:2.5rem 1.5rem; text-align:center; }
+  .empty .ic { font-size:1.6rem; color:var(--t3); }
+  .empty h3 { font-family:var(--serif); font-size:1.05rem; font-weight:600; margin:.6rem 0 .2rem; }
+  .empty p { font-size:.84rem; color:var(--t3); margin:0 0 1rem; max-width:26rem; margin-inline:auto; }
+  .sk { background:linear-gradient(90deg,#efe9e0 25%,#f6f1e9 50%,#efe9e0 75%); background-size:200% 100%; animation:sk 1.4s infinite; border-radius:3px; }
+  @keyframes sk { to { background-position:-200% 0; } }
+  .skrow { padding:.7rem .8rem; border-bottom:1px solid var(--line); display:grid; gap:.3rem; }
+  .skrow .a { height:.7rem; width:62%; } .skrow .b { height:.55rem; width:38%; }
+
+  /* bulk select */
+  .bulkbar { display:flex; align-items:center; gap:.4rem; padding:.45rem .8rem; background:var(--accent); color:#fff; font-size:.78rem; }
+  .bulkbar .btn { background:transparent; border-color:rgb(255 255 255/.4); color:#fff; box-shadow:none; }
+  .bulkbar .btn:hover { background:rgb(255 255 255/.15); }
+  .item[data-sel="true"] { background:var(--accent-bg); box-shadow:inset 2px 0 0 var(--accent); }
+
+  /* auth */
+  .auth { padding:1.5rem 1.2rem; max-width:22rem; margin-inline:auto; }
+  .auth .mark { font-family:var(--serif); font-size:1.5rem; font-weight:600; letter-spacing:-.025em; text-align:center; }
+  .auth .mark b { color:var(--accent); }
+  .auth .sub { font-size:.83rem; color:var(--t3); text-align:center; margin:.2rem 0 1.3rem; }
+  .auth .fld { margin-bottom:.7rem; }
+  .auth .btn.primary { width:100%; padding:.45rem; }
+  .auth .alt { font-size:.79rem; color:var(--t3); text-align:center; margin-top:1rem; }
+  .auth .alt a { color:var(--accent); }
+  .err { font-size:.75rem; color:var(--danger); margin-top:.2rem; }
+
+  /* depth + wide-screen showcase */
+  .demo { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fffdfa; padding:1.2rem; display:grid; gap:.9rem; }
+  .demo .t { font:500 .68rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; }
+  .demo .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .d-flat .btn { box-shadow:none; }
+  .d-flat .composer { box-shadow:none; }
+  .d-flat .ccard, .d-flat .item { box-shadow:none; }
+  .d-paper .ccard { box-shadow:0 1px 2px rgb(60 40 20/.07), 0 3px 8px rgb(60 40 20/.05); }
+  .d-paper .item[data-unread="true"] { box-shadow:inset 2px 0 0 var(--accent), 0 1px 0 rgb(60 40 20/.04); }
+  .d-paper .composer { box-shadow:0 6px 20px rgb(60 40 20/.16); }
+  .d-paper .btn { box-shadow:0 1px 2px rgb(60 40 20/.14); }
+  .wide2 { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  @container (width < 60rem) { .wide2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="doc">
+  <a class="back" href="index.html">← round 2 index</a>
+  <h1>Candidate 1 — Cards</h1>
+  <p class="lede">Round 1's B, pulled tighter. The whitespace is roughly halved, corner radius drops from 14px to 5px, and the sans-only typography is replaced by Fraunces for titles and JetBrains Mono for metadata. Tags are plain <code>#hashtags</code> rather than pills. Navigation lives in a top strip on desktop and bottom tabs on mobile — deliberately not a rail, because a rail is the thing that made round 1's B feel like a desktop app shrunk down. Items are cards on mobile and collapse into an aligned row past 44rem; the data is identical, only the arrangement changes.</p>
+
+  <!-- ============ CORE LOOP 1: BOOKMARK LIST ============ -->
+  <h2>1 · Bookmark list</h2>
+  <p>The unread treatment from round 1 survives (point 8): a warm tint plus a 2px accent edge, no checkbox, no separate "unread" column. Notes are always visible text rather than a count — round 1's ledger mistake corrected. On desktop the item becomes a row with the metadata pulled into a right-hand cluster, so nothing is lost when the card collapses.</p>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b> · card</span><span>142</span></div>
+      <div class="app">
+        <div class="head">
+          <h1>Inbox</h1>
+          <div class="sub">142 bookmarks · 38 unread</div>
+        </div>
+        <div class="seg"><button aria-pressed="true">All</button><button>Unread</button><button>Queue</button><button>Archived</button></div>
+        <ul class="items">
+          <li class="item" data-unread="true">
+            <div class="main">
+              <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+              <div class="meta"><span>simonwillison.net</span><span>2d</span></div>
+              <div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
+              <p class="nt">Good section on the B-tree rebalance heuristic. Revisit before touching the index planner — the tradeoff discussion maps onto our cursor pagination work.</p>
+              <div class="iacts"><button class="btn sm">Mark read</button><button class="btn sm">Queue</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+            </div>
+          </li>
+          <li class="item" data-unread="true">
+            <div class="main">
+              <a class="ttl" href="#">A Tour of Go's Memory Management</a>
+              <div class="meta"><span>go.dev</span><span>3d</span></div>
+              <div class="tags"><a href="#">#go</a></div>
+              <div class="iacts"><button class="btn sm">Mark read</button><button class="btn sm">Queue</button><button class="btn sm ghost">Tags</button></div>
+            </div>
+          </li>
+          <li class="item">
+            <div class="main">
+              <a class="ttl" href="#">Postgres VACUUM, finally explained properly</a>
+              <div class="meta"><span>brandur.org</span><span>1w</span><span class="st q">queued</span></div>
+              <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+              <p class="nt">The multixact section is the one I need. Everything before it is a rehash of the docs.</p>
+              <div class="iacts"><button class="btn sm ghost">Mark unread</button><button class="btn sm">Tags</button><button class="btn sm ghost">Archive</button></div>
+            </div>
+          </li>
+        </ul>
+        <div class="tabbar">
+          <div class="composer"><input placeholder="Paste a link or write a note…"><button class="go" aria-label="Add">↑</button></div>
+          <nav class="tabs">
+            <a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Collections</a><a href="#"><span class="ic">⌕</span>Search</a>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame" style="flex:1;min-width:26rem">
+      <div class="frame-label"><span><b>Desktop</b> · row</span><span>142</span></div>
+      <div class="app">
+        <div class="topstrip">
+          <span class="brand">Patch<b>works</b></span>
+          <nav class="topnav">
+            <a href="#" aria-current="page">Inbox<span class="n">142</span></a><a href="#">Queue<span class="n">14</span></a><a href="#">Feeds<span class="n">8</span></a><a href="#">Collections<span class="n">9</span></a><a href="#">Archived<span class="n">61</span></a>
+          </nav>
+          <span class="spacer"></span>
+          <div class="composer" style="max-width:22rem"><input placeholder="Paste a link…"><button class="go" aria-label="Add">↑</button></div>
+        </div>
+        <div class="head wide">
+          <h1>Inbox</h1>
+          <div class="sub">142 bookmarks · 38 unread · 14 queued</div>
+        </div>
+        <div class="qwrap wide">
+          <label class="qbox"><span class="op">/</span><input placeholder="tag: rust is:unread"></label>
+        </div>
+        <div class="seg"><button aria-pressed="true">All</button><button>Unread</button><button>Queue</button><button>Archived</button></div>
+        <ul class="items">
+          <li class="item" data-unread="true">
+            <div class="main">
+              <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+              <div class="meta"><span>simonwillison.net</span><span>2d</span></div>
+              <div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
+              <p class="nt">Good section on the B-tree rebalance heuristic — maps onto our cursor pagination work.</p>
+            </div>
+            <div class="side"><span class="st q">queued</span><span class="st f">feed</span><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+          </li>
+          <li class="item" data-unread="true">
+            <div class="main">
+              <a class="ttl" href="#">A Tour of Go's Memory Management</a>
+              <div class="meta"><span>go.dev</span><span>3d</span></div>
+              <div class="tags"><a href="#">#go</a></div>
+            </div>
+            <div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+          </li>
+          <li class="item">
+            <div class="main">
+              <a class="ttl" href="#">Postgres VACUUM, finally explained properly</a>
+              <div class="meta"><span>brandur.org</span><span>1w</span></div>
+              <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+              <p class="nt">The multixact section is the one I need.</p>
+            </div>
+            <div class="side"><span class="st q">queued</span><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+          </li>
+          <li class="item">
+            <div class="main">
+              <a class="ttl" href="#">The Design Philosophy Behind Alpine Linux</a>
+              <div class="meta"><span>wiki.alpinelinux.org</span><span>6d</span></div>
+              <div class="tags"><a href="#">#linux</a></div>
+            </div>
+            <div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CORE LOOP 2: QUICK ADD ============ -->
+  <h2>2 · Quick add</h2>
+  <p>Round 1's point 15 and 17, resolved. On mobile the composer expands to a full-screen sheet — not a dialog, because a dialog on a 390px screen is just a sheet with worse manners. The URL field fetches the title <em>before</em> save, so you see what you're about to file. "Add to reading list" is a real, visible, pre-toggled row with its own explanatory line, not a checkbox footnote (point 17). Inline <code>#tag</code> syntax still works in the tag field and is hinted at, but never required (point 6).</p>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b> · full-screen sheet</span><span>expanded</span></div>
+      <div class="app">
+        <div class="sheethead"><h2>Add bookmark</h2><span class="spacer"></span><button class="btn sm ghost">Close</button></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="fld">
+            <label for="q1">URL</label>
+            <input id="q1" value="https://go.dev/blog/memory-management/">
+            <span class="fetched">✓ title fetched from go.dev</span>
+          </div>
+          <div class="fld">
+            <label for="q2">Title</label>
+            <input id="q2" value="A Tour of Go's Memory Management">
+          </div>
+          <div class="fld">
+            <label for="q3">Note</label>
+            <textarea id="q3" placeholder="Why are you saving this?"></textarea>
+          </div>
+          <div class="fld">
+            <label>Tags</label>
+            <div class="chips">
+              <button class="chip" aria-pressed="true">#go</button>
+              <button class="chip">#memory</button>
+              <button class="chip ghost">+ new tag</button>
+            </div>
+            <span class="fetched">type # to create a new tag</span>
+          </div>
+          <div class="fld">
+            <label>Collections</label>
+            <div class="chips">
+              <button class="chip">databases</button>
+              <button class="chip" aria-pressed="true">to-read</button>
+              <button class="chip ghost">+ new collection</button>
+            </div>
+          </div>
+          <button class="qlt" aria-pressed="true">
+            <span class="box">✓</span>
+            <span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue, to read later</span></span>
+          </button>
+          <div style="font-size:.8rem;color:var(--t2);background:var(--accent-bg);border-radius:var(--r);padding:.5rem .65rem">
+            Similar to <a href="#" style="color:var(--accent)">“Go GC tuning in practice”</a>, saved 3 days ago.
+          </div>
+          <div class="acts">
+            <button class="btn primary">Save</button>
+            <span class="spacer"></span>
+            <span class="hintline">⏎ save</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame" style="flex:1;min-width:26rem">
+      <div class="frame-label"><span><b>Desktop</b> · popover panel</span><span>⌘⏎ or ↑ in composer</span></div>
+      <div class="app">
+        <div class="topstrip">
+          <span class="brand">Patch<b>works</b></span>
+          <nav class="topnav"><a href="#" aria-current="page">Inbox</a><a href="#">Queue</a><a href="#">Feeds</a><a href="#">Collections</a></nav>
+          <span class="spacer"></span>
+          <div class="composer" style="max-width:22rem"><input placeholder="Paste a link…"><button class="go">↑</button></div>
+        </div>
+        <div style="padding:1rem 1.4rem;background:var(--surface-2);border-bottom:1px solid var(--line)">
+          <div style="max-width:34rem;background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgb(60 40 20/.10);overflow:hidden">
+            <div class="sheethead"><h2>Add bookmark</h2><span class="spacer"></span><span class="hintline">esc</span></div>
+            <div style="padding:.9rem 1rem;display:grid;gap:.7rem">
+              <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="fetched">✓ title fetched from go.dev</span></div>
+              <div class="fld"><label>Title</label><input value="A Tour of Go's Memory Management"></div>
+              <div class="fld"><label>Note</label><textarea style="min-height:2.8rem"></textarea></div>
+              <div class="fld"><label>Tags</label><div class="chips"><button class="chip" aria-pressed="true">#go</button><button class="chip">#memory</button><button class="chip ghost">+ new tag</button></div></div>
+              <div class="fld"><label>Collections</label><div class="chips"><button class="chip">databases</button><button class="chip" aria-pressed="true">to-read</button><button class="chip ghost">+ new</button></div></div>
+              <button class="qlt" aria-pressed="true"><span class="box">✓</span><span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue</span></span></button>
+              <div class="acts"><button class="btn primary">Save</button><button class="btn ghost">Save and add another</button><span class="spacer"></span><span class="hintline">⏎ save · esc close</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:.8rem 1.4rem;color:var(--t3);font-size:.8rem">The list behind is inert while the panel is open.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CORE LOOP 3: READING QUEUE ============ -->
+  <h2>3 · Reading queue</h2>
+  <p>Point 10 resolved: no in-app reader. The queue is a list, position is stated, and tapping a title opens the original in a new tab. Each item carries an estimate so you can decide whether to keep going. Marking done advances without a page transition.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Reading queue</b> · FIFO</span><span>14 queued</span></div>
+    <div class="app">
+      <div class="topstrip">
+        <span class="brand">Patch<b>works</b></span>
+        <nav class="topnav"><a href="#">Inbox<span class="n">142</span></a><a href="#" aria-current="page">Queue<span class="n">14</span></a><a href="#">Feeds<span class="n">8</span></a><a href="#">Collections</a></nav>
+        <span class="spacer"></span>
+        <div class="composer" style="max-width:20rem"><input placeholder="Paste a link…"><button class="go">↑</button></div>
+      </div>
+      <div class="head wide">
+        <h1>Reading queue</h1>
+        <div class="sub">oldest first · 3 of 14 · about 34 min remaining</div>
+      </div>
+      <ul class="items">
+        <li class="item">
+          <div class="main"><a class="ttl" href="#" target="_blank" rel="noopener">Rewriting SQLite's query planner for fun ↗</a><div class="meta"><span>simonwillison.net</span><span>queued 2d</span><span>~12 min</span></div><div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div><p class="nt">Good section on the B-tree rebalance heuristic.</p></div>
+          <div class="side"><button class="btn sm primary">Done</button><button class="btn sm">Later</button><button class="btn sm ghost">Archive</button></div>
+        </li>
+        <li class="item">
+          <div class="main"><a class="ttl" href="#" target="_blank" rel="noopener">A Tour of Go's Memory Management ↗</a><div class="meta"><span>go.dev</span><span>queued 3d</span><span>~8 min</span></div><div class="tags"><a href="#">#go</a></div></div>
+          <div class="side"><button class="btn sm primary">Done</button><button class="btn sm">Later</button><button class="btn sm ghost">Archive</button></div>
+        </li>
+        <li class="item" data-unread="true">
+          <div class="main"><a class="ttl" href="#" target="_blank" rel="noopener">Postgres VACUUM, finally explained properly ↗</a><div class="meta"><span>brandur.org</span><span>queued 1w</span><span>~14 min</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div><p class="nt">The multixact section is the one I need.</p></div>
+          <div class="side"><button class="btn sm primary">Done</button><button class="btn sm">Later</button><button class="btn sm ghost">Archive</button></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ CORE LOOP 4: FEEDS (both lifecycles) ============ -->
+  <h2>4 · Feeds & item triage</h2>
+  <p>Point 11, fully realized, and point 1 answered both ways. Tag suggestions are dashed until accepted — visibly provisional, which is honest about what they are. The two candidate lifecycles are shown as the same markup with different outcomes, so you can judge which one fits this IA.</p>
+  <h3>Path A — ephemeral item → queue item → bookmark only if you ask</h3>
+  <div class="frame">
+    <div class="frame-label"><span><b>Feeds</b> · path A</span><span>4 subscribed · 8 unread</span></div>
+    <div class="app">
+      <div class="topstrip"><span class="brand">Patch<b>works</b></span><nav class="topnav"><a href="#">Inbox</a><a href="#">Queue</a><a href="#" aria-current="page">Feeds<span class="n">8</span></a><a href="#">Collections</a></nav><span class="spacer"></span><button class="btn sm">+ Subscribe</button></div>
+      <div class="head wide"><h1>Feeds</h1><div class="sub">8 unread of 27 · auto-tagging on · nothing is saved until you say so</div></div>
+      <div class="seg"><button aria-pressed="true">Unread</button><button>All</button><button>Saved</button><button>Subscriptions</button></div>
+      <ul class="items">
+        <li class="item" data-unread="true">
+          <div class="main">
+            <a class="ttl" href="#" target="_blank" rel="noopener">What's new in Go 1.26: iterators everywhere ↗</a>
+            <div class="meta"><span>golang.blog</span><span>2h</span><span class="st f">feed</span></div>
+            <div class="sug"><span class="lb">suggested</span><button class="chip" aria-pressed="true">#go</button><button class="chip" aria-pressed="true">#release</button><button class="chip ghost">+ tag</button></div>
+            <p class="nt">Range-over-func finally landed in the standard library. Here's what changes for iterators, errors, and allocation.</p>
+            <div class="iacts"><button class="btn sm primary">Add to reading queue</button><button class="btn sm">Save as bookmark</button><button class="btn sm ghost">Dismiss</button></div>
+          </div>
+        </li>
+        <li class="item" data-unread="true">
+          <div class="main">
+            <a class="ttl" href="#" target="_blank" rel="noopener">Efficient pagination with Postgres ↗</a>
+            <div class="meta"><span>brandur.org</span><span>6h</span><span class="st f">feed</span></div>
+            <div class="sug"><span class="lb">suggested</span><button class="chip" aria-pressed="true">#postgres</button><button class="chip">#perf</button><button class="chip ghost">+ tag</button></div>
+            <div class="iacts"><button class="btn sm primary">Add to reading queue</button><button class="btn sm">Save as bookmark</button><button class="btn sm ghost">Dismiss</button></div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <h3>Path B — feed item auto-creates a source-flagged bookmark</h3>
+  <div class="frame">
+    <div class="frame-label"><span><b>Feeds</b> · path B</span><span>same markup, different outcome</span></div>
+    <div class="app">
+      <div class="topstrip"><span class="brand">Patch<b>works</b></span><nav class="topnav"><a href="#">Inbox</a><a href="#">Queue</a><a href="#" aria-current="page">Feeds<span class="n">8</span></a></nav><span class="spacer"></span><button class="btn sm">+ Subscribe</button></div>
+      <div class="head wide"><h1>Feeds</h1><div class="sub">arriving items are already bookmarks, flagged by source — they show up in Inbox with a <span class="st f">feed</span> badge</div></div>
+      <div class="seg"><button aria-pressed="true">Unread</button><button>All</button><button>Subscriptions</button></div>
+      <ul class="items">
+        <li class="item" data-unread="true">
+          <div class="main">
+            <a class="ttl" href="#" target="_blank" rel="noopener">What's new in Go 1.26: iterators everywhere ↗</a>
+            <div class="meta"><span>golang.blog</span><span>2h</span><span class="st f">via feed</span></div>
+            <div class="tags"><a href="#">#go</a><a href="#">#release</a><a href="#">#auto-saved</a></div>
+            <p class="nt">Range-over-func finally landed in the standard library. Here's what changes for iterators, errors, and allocation.</p>
+            <div class="iacts"><button class="btn sm primary">Add to reading queue</button><button class="btn sm">Not interested → archive</button><button class="btn sm ghost">Tags</button></div>
+          </div>
+        </li>
+        <li class="item" data-unread="true">
+          <div class="main">
+            <a class="ttl" href="#" target="_blank" rel="noopener">Efficient pagination with Postgres ↗</a>
+            <div class="meta"><span>brandur.org</span><span>6h</span><span class="st f">via feed</span></div>
+            <div class="tags"><a href="#">#postgres</a><a href="#">#auto-saved</a></div>
+            <div class="iacts"><button class="btn sm primary">Add to reading queue</button><button class="btn sm">Not interested → archive</button><button class="btn sm ghost">Tags</button></div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+  <p class="note">Path A keeps your bookmark count meaning "things I chose," which is truer but means feed items live in a second place and you must remember to act. Path B keeps one list but means most of your bookmarks are things you didn't choose — and "I want to find the thing I deliberately saved" becomes a filter rather than the default. Point 1 leaned A; this is the cost of A made visible.</p>
+
+  <!-- ============ CORE LOOP 5: SEARCH ============ -->
+  <h2>5 · Search</h2>
+  <p>Point 12: parsing is realtime. As you type, the clause pills update live and results stream in without a submit. The operator legend sits permanently under the field rather than behind a help link, because syntax you never see is syntax you never learn.</p>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>18 results</span></div>
+      <div class="app">
+        <div class="qwrap">
+          <label class="qbox"><span class="op">/</span><input value="tag:postgres is:unread"></label>
+          <div class="pills"><span class="pill">tag:postgres <button>×</button></span><span class="pill">is:unread <button>×</button></span><button class="pill add">+ filter</button></div>
+        </div>
+        <div class="head"><h1>18 results</h1><div class="sub">matched title, note, host, url · 0.04s</div></div>
+        <ul class="items">
+          <li class="item" data-unread="true"><div class="main"><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div><p class="nt">The multixact section is the one I need.</p></div></li>
+          <li class="item" data-unread="true"><div class="main"><a class="ttl" href="#">Efficient pagination with Postgres</a><div class="meta"><span>brandur.org</span><span>1d</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div></li>
+          <li class="item" data-unread="true"><div class="main"><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#security</a></div></div></li>
+        </ul>
+        <nav class="tabs"><a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#" aria-current="page"><span class="ic">⌕</span>Search</a></nav>
+      </div>
+    </div>
+    <div class="frame" style="flex:1;min-width:26rem">
+      <div class="frame-label"><span><b>Desktop</b></span><span>18 results</span></div>
+      <div class="app">
+        <div class="topstrip"><span class="brand">Patch<b>works</b></span><nav class="topnav"><a href="#" aria-current="page">Inbox</a><a href="#">Queue</a><a href="#">Feeds</a><a href="#">Collections</a></nav><span class="spacer"></span></div>
+        <div class="head wide"><h1>Search</h1><div class="sub">18 results · 0.04s</div></div>
+        <div class="qwrap wide">
+          <label class="qbox"><span class="op">/</span><input value='tag:postgres is:unread -tag:"write soon" after:2026-08'><span class="op" style="color:var(--t3)">esc</span></label>
+          <div class="pills">
+            <span class="pill">tag:postgres <button>×</button></span><span class="pill">is:unread <button>×</button></span><span class="pill">−tag:"write soon" <button>×</button></span><span class="pill">after:2026-08 <button>×</button></span><button class="pill add">+ filter</button>
+          </div>
+          <div class="ops"><span><b>tag:</b></span><span><b>coll:</b></span><span><b>host:</b></span><span><b>site:</b></span><span><b>is:unread</b></span><span><b>is:queued</b></span><span><b>is:archived</b></span><span><b>after:</b></span><span><b>before:</b></span><span><b>-</b> exclude</span><span><b>"exact"</b></span><span><b>OR</b></span></div>
+        </div>
+        <ul class="items">
+          <li class="item" data-unread="true"><div class="main"><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div><p class="nt">The multixact section is the one I need.</p></div><div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+          <li class="item" data-unread="true"><div class="main"><a class="ttl" href="#">Efficient pagination with Postgres</a><div class="meta"><span>brandur.org</span><span>1d</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div><div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+          <li class="item"><div class="main"><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#security</a></div></div><div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+          <li class="item"><div class="main"><a class="ttl" href="#">Postgres connection pooling: the short version</a><div class="meta"><span>brandur.org</span><span>3w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div><div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECONDARY FLOWS ============ -->
+  <h2>Secondary flows</h2>
+  <p>Point 30: these are present but thinner than the core loop.</p>
+
+  <h3>Edit tags in place</h3>
+  <p>Point 22. Tapping the tag row or the <b>Tags</b> button expands it inside the item — no modal, no navigation, no page load. Creating a new tag and collection happens in the same place, which answers point 17's open question.</p>
+  <div class="frame" style="max-width:44rem">
+    <div class="frame-label"><span><b>Tag editing</b> · inline, in the item</span><span>no modal</span></div>
+    <div class="app">
+      <ul class="items">
+        <li class="item" data-unread="true">
+          <div class="main">
+            <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+            <div class="meta"><span>simonwillison.net</span><span>2d</span></div>
+            <div style="margin-top:.45rem;padding:.55rem .6rem;border:1px solid var(--accent-line);border-radius:var(--r);background:#fffdf8">
+              <div style="font-family:var(--mono);font-size:.66rem;color:var(--t3);margin-bottom:.35rem">TAGS — enter or comma to add, # to create</div>
+              <div class="chips">
+                <button class="chip" aria-pressed="true">#sqlite ×</button><button class="chip" aria-pressed="true">#databases ×</button><input class="chip" style="width:7rem" placeholder="add tag…"><button class="chip ghost">+ create #new-tag</button>
+              </div>
+              <div style="font-family:var(--mono);font-size:.66rem;color:var(--t3);margin:.5rem 0 .3rem">COLLECTIONS</div>
+              <div class="chips"><button class="chip">databases</button><button class="chip" aria-pressed="true">to-read ×</button><button class="chip ghost">+ create collection</button></div>
+              <div class="acts" style="margin-top:.55rem"><button class="btn sm primary">Done</button><button class="btn sm ghost">Cancel</button></div>
+            </div>
+            <p class="nt">Good section on the B-tree rebalance heuristic.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Filter &amp; sort sheet</h3>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b> · sheet</span><span>filters</span></div>
+    <div class="app">
+      <div class="sheethead"><h2>Filter</h2><span class="spacer"></span><button class="btn sm ghost">Close</button></div>
+      <div style="padding:.6rem 0 1rem">
+        <div class="frow"><span class="lb">Unread only</span><span class="n">38</span><span class="qlt" style="padding:.2rem;background:none;border:0" aria-pressed="true"><span class="box" style="width:.9rem;height:.9rem">✓</span></span></div>
+        <div class="frow"><span class="lb">In reading queue</span><span class="n">14</span><span class="qlt" style="padding:.2rem;background:none;border:0"><span class="box" style="width:.9rem;height:.9rem"></span></span></div>
+        <div class="frow"><span class="lb">From a feed</span><span class="n">8</span><span class="qlt" style="padding:.2rem;background:none;border:0"><span class="box" style="width:.9rem;height:.9rem"></span></span></div>
+        <div class="frow"><span class="lb">Has a note</span><span class="n">61</span><span class="qlt" style="padding:.2rem;background:none;border:0"><span class="box" style="width:.9rem;height:.9rem"></span></span></div>
+        <div class="frow"><span class="lb">Saved after</span><span class="n">2026-08-01</span></div>
+        <div class="frow"><span class="lb">Sort by</span><span class="n">newest first</span></div>
+        <div style="padding:.7rem .8rem 0"><div class="acts"><button class="btn primary">Apply</button><button class="btn ghost">Reset</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Collection detail + share</h3>
+  <div class="frame" style="max-width:44rem">
+    <div class="frame-label"><span><b>databases</b> · detail</span><span>owner · 3 members</span></div>
+    <div class="app">
+      <div class="topstrip"><span class="brand">Patch<b>works</b></span><nav class="topnav"><a href="#">Inbox</a><a href="#">Queue</a><a href="#">Feeds</a><a href="#" aria-current="page">Collections</a></nav><span class="spacer"></span></div>
+      <div class="head wide">
+        <h1>databases</h1>
+        <div class="sub">48 items · 12 unread · you own this · <a href="#" style="color:var(--accent)">share link on</a></div>
+      </div>
+      <div class="seg"><button aria-pressed="true">Items</button><button>Members (3)</button><button>Settings</button></div>
+      <ul class="items">
+        <li class="item"><div class="main"><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div><div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div></div></li>
+        <li class="item"><div class="main"><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div><div class="tags"><a href="#">#postgres</a></div></div></li>
+      </ul>
+      <div style="padding:.8rem 1.4rem;border-top:1px solid var(--line);display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+        <button class="btn sm">+ Invite member</button><button class="btn sm">Copy share link</button><span class="spacer"></span><button class="btn sm ghost">Edit collection</button><button class="btn sm ghost danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <h3>Bulk select</h3>
+  <p>Light here — long-press enters select mode, a bar replaces the composer, and actions apply to the selection. Competent, not the focus of this IA.</p>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b> · select mode</span><span>3 selected</span></div>
+    <div class="app">
+      <div class="bulkbar"><span>3 selected</span><span class="spacer"></span><button class="btn sm">Tag</button><button class="btn sm">Queue</button><button class="btn sm">Archive</button><button class="btn sm">Done</button></div>
+      <ul class="items">
+        <li class="item" data-sel="true"><div class="main"><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><div class="meta"><span>brandur.org</span><span>1w</span></div></div></li>
+        <li class="item" data-sel="true"><div class="main"><a class="ttl" href="#">Row-level security in practice</a><div class="meta"><span>brandur.org</span><span>2w</span></div></div></li>
+        <li class="item" data-sel="true"><div class="main"><a class="ttl" href="#">Postgres connection pooling</a><div class="meta"><span>brandur.org</span><span>3w</span></div></div></li>
+        <li class="item"><div class="main"><a class="ttl" href="#">Understanding b-tree page splits</a><div class="meta"><span>wiki.postgresql.org</span><span>1mo</span></div></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Login &amp; register</h3>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>login</span></div>
+      <div class="app" style="min-height:24rem">
+        <div class="auth">
+          <div class="mark">Patch<b>works</b></div>
+          <div class="sub">Your bookmarks, self-hosted.</div>
+          <div class="fld"><label for="l1">Email</label><input id="l1" value="you@example.com"></div>
+          <div class="fld"><label for="l2">Password</label><input id="l2" type="password" value="password"><div class="err">That password is incorrect.</div></div>
+          <button class="btn primary">Sign in</button>
+          <div class="alt">No account? <a href="#">Create one</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>register</span></div>
+      <div class="app" style="min-height:24rem">
+        <div class="auth">
+          <div class="mark">Patch<b>works</b></div>
+          <div class="sub">Single owner. No tracking, no accounts elsewhere.</div>
+          <div class="fld"><label for="r1">Email</label><input id="r1" placeholder="you@example.com"></div>
+          <div class="fld"><label for="r2">Password</label><input id="r2" type="password" placeholder="at least 12 characters"></div>
+          <div class="fld"><label for="r3">Confirm</label><input id="r3" type="password"><div class="err">Passwords don't match.</div></div>
+          <button class="btn primary">Create account</button>
+          <div class="alt">Already have one? <a href="#">Sign in</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Empty &amp; loading</h3>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>empty inbox</span></div>
+      <div class="app">
+        <div class="head"><h1>Inbox</h1><div class="sub">0 bookmarks</div></div>
+        <div class="empty">
+          <div class="ic">◈</div>
+          <h3>Nothing saved yet</h3>
+          <p>Paste a link below and it'll be here. Tags and notes are optional.</p>
+          <button class="btn primary">Add your first bookmark</button>
+        </div>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>zero results</span></div>
+      <div class="app">
+        <div class="qwrap"><label class="qbox"><span class="op">/</span><input value="tag:nonexistent"></label><div class="pills"><span class="pill">tag:nonexistent <button>×</button></span></div></div>
+        <div class="empty">
+          <div class="ic">⌕</div>
+          <h3>No matches</h3>
+          <p>No bookmark matches <code>tag:nonexistent</code>. Try removing a clause, or search the full text instead.</p>
+          <button class="btn">Clear search</button>
+        </div>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>loading</span></div>
+      <div class="app">
+        <div class="head"><h1>Inbox</h1><div class="sub">loading…</div></div>
+        <div class="skrow"><div class="sk a"></div><div class="sk b"></div></div>
+        <div class="skrow"><div class="sk a" style="width:48%"></div><div class="sk b" style="width:44%"></div></div>
+        <div class="skrow"><div class="sk a" style="width:70%"></div><div class="sk b" style="width:31%"></div></div>
+        <div class="skrow"><div class="sk a" style="width:55%"></div><div class="sk b" style="width:39%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DEPTH SHOWCASE ============ -->
+  <h2>Depth options</h2>
+  <p>Point 28. Default is borders plus a slight button shadow. Here are all three applied to the same elements so you can see which elements earn depth — and I'm least sure about the paper option, so it's worth a look.</p>
+  <div class="wide2">
+    <div class="demo d-flat">
+      <span class="t">1 · Fully flat — borders and tint only</span>
+      <div class="row"><button class="btn primary">Save</button><button class="btn">Mark read</button><button class="btn ghost">Tags</button><button class="btn ghost danger">Archive</button></div>
+      <div class="composer" style="max-width:20rem"><input placeholder="Paste a link…"><button class="go">↑</button></div>
+      <div class="ccard"><h3>databases</h3><p class="d">Everything relational.</p><div class="row"><b>48</b> items<span class="spacer"></span><span class="pill" style="background:var(--accent-bg);color:var(--accent);padding:.1rem .35rem;border-radius:3px;font-family:var(--mono);font-size:.65rem">shared</span></div></div>
+      <p style="font-size:.8rem;color:#5c534b;margin:0">Cheapest and most timeless. Buttons lose their press affordance entirely without the shadow — you need a colour or border change to show the press.</p>
+    </div>
+    <div class="demo">
+      <span class="t">2 · Default — borders + button shadow only</span>
+      <div class="row"><button class="btn primary">Save</button><button class="btn">Mark read</button><button class="btn ghost">Tags</button><button class="btn ghost danger">Archive</button></div>
+      <div class="composer" style="max-width:20rem"><input placeholder="Paste a link…"><button class="go">↑</button></div>
+      <div class="ccard"><h3>databases</h3><p class="d">Everything relational.</p><div class="row"><b>48</b> items<span class="spacer"></span><span class="pill" style="background:var(--accent-bg);color:var(--accent);padding:.1rem .35rem;border-radius:3px;font-family:var(--mono);font-size:.65rem">shared</span></div></div>
+      <p style="font-size:.8rem;color:#5c534b;margin:0">Depth is spent only where there's a press to feel. The composer keeps a slightly stronger shadow because it genuinely floats above the list.</p>
+    </div>
+    <div class="demo d-paper">
+      <span class="t">3 · Paper — layered, physical</span>
+      <div class="row"><button class="btn primary">Save</button><button class="btn">Mark read</button><button class="btn ghost">Tags</button><button class="btn ghost danger">Archive</button></div>
+      <div class="composer" style="max-width:20rem"><input placeholder="Paste a link…"><button class="go">↑</button></div>
+      <div class="ccard"><h3>databases</h3><p class="d">Everything relational.</p><div class="row"><b>48</b> items<span class="spacer"></span><span class="pill" style="background:var(--accent-bg);color:var(--accent);padding:.1rem .35rem;border-radius:3px;font-family:var(--mono);font-size:.65rem">shared</span></div></div>
+      <p style="font-size:.8rem;color:#5c534b;margin:0">Cards lift, the composer casts a real shadow, buttons feel raised. Warmest and most tactile — and the one most at risk of drifting toward generic. Works better here than it would in a dense list, where it'd become visual noise.</p>
+    </div>
+  </div>
+
+  <!-- ============ WIDE SCREEN ============ -->
+  <h2>Wide-screen options</h2>
+  <p>Point 27. Default is cap-width-and-grow-type, with the alternatives shown so you can judge whether anything on the right earns its place.</p>
+  <div class="wide2">
+    <div class="demo">
+      <span class="t">Default · cap width, grow type</span>
+      <div style="border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:1rem;max-width:38rem">
+        <div style="font-family:'Fraunces',serif;font-size:1.5rem;font-weight:600;letter-spacing:-.02em">Inbox</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:#9c9083;margin-bottom:.7rem">142 bookmarks · 38 unread</div>
+        <div style="border-top:1px solid var(--line);padding:.5rem 0;font-size:.85rem">Rewriting SQLite's query planner for fun</div>
+        <div style="padding:.5rem 0;font-size:.85rem;color:#5f564d;border-bottom:1px solid var(--line)">A Tour of Go's Memory Management</div>
+        <div style="padding:.5rem 0;font-size:.85rem;color:#5f564d">Postgres VACUUM, finally explained properly</div>
+      </div>
+      <p style="font-size:.8rem;color:#5c534b;margin:0">Calm and predictable. On a 4K display it leaves a lot of empty space, which can read as elegant or as unfinished depending on the room.</p>
+    </div>
+    <div class="demo">
+      <span class="t">Alternative A · two-column list</span>
+      <div style="border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem">
+        <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;grid-column:1/-1;margin-bottom:.4rem">Inbox</div>
+        <div style="border-top:1px solid var(--line);padding:.45rem 0;font-size:.82rem">Rewriting SQLite's query planner</div>
+        <div style="border-top:1px solid var(--line);padding:.45rem 0;font-size:.82rem">Row-level security in practice</div>
+        <div style="padding:.45rem 0;font-size:.82rem;border-bottom:1px solid var(--line);color:#5f564d">A Tour of Go's Memory</div>
+        <div style="padding:.45rem 0;font-size:.82rem;border-bottom:1px solid var(--line);color:#5f564d">Connection pooling, short version</div>
+        <div style="padding:.45rem 0;font-size:.82rem;color:#5f564d">The Design Philosophy Behind Alpine</div>
+        <div style="padding:.45rem 0;font-size:.82rem;color:#5f564d">B-tree page splits, visually</div>
+      </div>
+      <p style="font-size:.8rem;color:#5c534b;margin:0">Fills space and halves scrolling. Costs reading continuity — you can't scan top-to-bottom in order, and this IA's items aren't uniform height, so columns will look ragged.</p>
+    </div>
+    <div class="demo">
+      <span class="t">Alternative B · docked utility panel</span>
+      <div style="border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:1rem;display:grid;grid-template-columns:1fr 11rem;gap:1.5rem">
+        <div>
+          <div style="font-family:'Fraunces',serif;font-size:1.2rem;font-weight:600;margin-bottom:.4rem">Inbox</div>
+          <div style="border-top:1px solid var(--line);padding:.45rem 0;font-size:.82rem">Rewriting SQLite's query planner</div>
+          <div style="border-top:1px solid var(--line);padding:.45rem 0;font-size:.82rem;color:#5f564d">A Tour of Go's Memory Management</div>
+          <div style="padding:.45rem 0;font-size:.82rem;color:#5f564d">Postgres VACUUM, explained properly</div>
+        </div>
+        <div style="border-inline-start:1px solid var(--line);padding-inline-start:1rem">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:#9c9083;margin-bottom:.4rem">Top tags</div>
+          <div style="font-family:'JetBrains Mono',font-size:.7rem;color:#8f5220;line-height:1.9">#postgres 18</div>
+          <div style="font-family:'JetBrains Mono',font-size:.7rem;color:#8f5220;line-height:1.9">#go 15</div>
+          <div style="font-family:'JetBrains Mono',font-size:.7rem;color:#8f5220;line-height:1.9">#perf 9</div>
+          <div style="font-family:'JetBrains Mono',font-size:.7rem;color:#8f5220;line-height:1.9">#linux 7</div>
+        </div>
+      </div>
+      <p style="font-size:.8rem;color:#5c534b;margin:0">Adds something genuinely useful rather than just filling width. Most defensible of the alternatives, but it's a second nav surface competing with the top strip.</p>
+    </div>
+  </div>
+
+  <h2>Verdict on this direction</h2>
+  <p><b>Strongest at</b> — notes, reading, and mobile. The note is a first-class part of the item here rather than a sub-line or an inspector field, which is the thing round 1's ledger could not do. The mobile composer → full-screen sheet is the most natural capture gesture of the three. Typographically it's the calmest and least generated-looking.</p>
+  <p><b>Still weak at</b> — cross-item comparison, which is inherent to the card model and not fixable within this IA. If organize-heavy use ever becomes the dominant activity rather than one of three equal ones, this is the candidate that suffers. It also has the least room to grow into bulk operations, and the top-strip navigation on desktop is a weaker pattern than a rail for a user with nine collections.</p>
+  <p class="note">The one decision this candidate forces: whether feed items are ephemeral (path A) or auto-bookmarked (path B). This IA is fairly neutral on it — both work — so it can be decided later on its own merits. That's a point in this direction's favour.</p>
+</div>
+</body>
+</html>

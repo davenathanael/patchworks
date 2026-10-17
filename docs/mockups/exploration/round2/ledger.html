@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Candidate 2: Ledger</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=source-serif-4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=geist:400,500,600&family=geist-mono:400,500&display=swap">
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 88rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.025em; margin:0 0 .3rem; }
+  .doc > h2 { margin:3.5rem 0 .3rem; font-size:1.45rem; letter-spacing:-.018em; }
+  .doc > h2 + p { color:#5c534b; max-width:76ch; margin:0 0 .6rem; }
+  .doc > h3 { font-size:.7rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:2.2rem 0 .7rem; }
+  .doc > p.lede { color:#5c534b; max-width:76ch; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:.8rem; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#5c534b; font-size:.9rem; max-width:76ch; }
+  .frame { container-type:inline-size; border:1px solid #e4ddd2; border-radius:10px; overflow:hidden; margin-block:1rem; box-shadow:0 1px 3px rgb(50 35 20/.05); position:relative; }
+  .frame.phone { width:390px; max-width:100%; margin-inline:auto; }
+  .frame-label { font:500 .68rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; padding:.55rem .9rem; background:#f2ede5; border-bottom:1px solid #e4ddd2; display:flex; justify-content:space-between; }
+  .frame-label b { color:#231e1a; }
+  .pair { display:flex; gap:1.25rem; flex-wrap:wrap; align-items:flex-start; }
+
+  /* ===== THE APP — Candidate 2: Ledger, mobile-first =====
+     Same data as Candidate 1, arranged as a ledger. On mobile the columns
+     collapse into a stacked card; past 52rem the aligned columns return.
+     Desktop nav is a label rail; mobile nav is a bottom tab bar. */
+  .app {
+    font-family:"Source Serif 4", Georgia, serif;
+    font-size:.9375rem; line-height:1.5; color:var(--t1); background:var(--bg);
+    color-scheme: light;
+    --ui:"Geist", system-ui, sans-serif;
+    --mono:"Geist Mono", ui-monospace, monospace;
+    --bg:#fdfbf7; --paper:#fff; --rail:#f7f2ea;
+    --t1:#231f1a; --t2:#5b5349; --t3:#968b7d;
+    --line:#e9e2d7; --line-strong:#d8d0c1;
+    --accent:#8a5726; --accent-bg:#f7eeda;
+    --danger:#a8342a; --ok:#4c6b40;
+    --r:3px;
+  }
+  .app code { font-family:var(--mono); font-size:.85em; }
+  .app button, .app input, .app textarea { font:inherit; }
+
+  /* --- header (both sizes; serif, generous, quiet) --- */
+  .head { padding:1rem .9rem .5rem; }
+  .head.wide { padding:1.4rem 1.6rem .6rem; }
+  .eyebrow { font-family:var(--ui); font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:var(--t3); }
+  .head h1 { font-size:1.45rem; font-weight:600; letter-spacing:-.02em; margin:.15rem 0 0; line-height:1.15; }
+  .head.wide h1 { font-size:1.7rem; }
+  .head .stat { font-family:var(--ui); font-size:.73rem; color:var(--t3); display:flex; gap:.7rem; flex-wrap:wrap; margin-top:.3rem; }
+  .head .stat b { font-family:var(--mono); font-weight:500; color:var(--t2); }
+  .rule { border-bottom:1px solid var(--line-strong); }
+
+  /* --- nav: bottom tabs on mobile, label rail on desktop --- */
+  .tabs { display:flex; border-top:1px solid var(--line-strong); background:var(--paper); position:sticky; bottom:0; }
+  .tabs a { flex:1; text-align:center; font-family:var(--ui); font-size:.66rem; color:var(--t3); text-decoration:none; padding:.45rem .2rem .5rem; display:grid; justify-items:center; gap:.12rem; }
+  .tabs a .ic { font-size:1rem; line-height:1; }
+  .tabs a[aria-current="page"] { color:var(--accent); box-shadow:inset 0 2px 0 var(--accent); }
+  @container (width >= 52rem) { .tabs { display:none; } }
+
+  .shell { display:grid; grid-template-columns:9rem 1fr; min-height:34rem; }
+  @container (width < 52rem) { .shell { grid-template-columns:1fr; } .rail { display:none; } }
+  .rail { background:var(--rail); border-inline-end:1px solid var(--line); padding:1.2rem .7rem; }
+  .rail .mark { font-size:1.05rem; font-weight:600; letter-spacing:-.02em; display:block; color:var(--t1); text-decoration:none; margin-bottom:1.2rem; }
+  .rail .grp { font-family:var(--ui); font-size:.6rem; text-transform:uppercase; letter-spacing:.11em; color:var(--t3); margin:1.1rem 0 .35rem; }
+  .rail a { display:flex; align-items:baseline; gap:.35rem; font-size:.84rem; color:var(--t2); text-decoration:none; padding:.16rem 0; }
+  .rail a:hover { color:var(--t1); }
+  .rail a .n { font-family:var(--mono); font-size:.66rem; color:var(--t3); margin-inline-start:auto; }
+  .rail a[aria-current="page"] { color:var(--accent); font-weight:600; }
+  .rail a[aria-current="page"] .n { color:var(--accent); }
+  .rail .foot { margin-top:1.8rem; padding-top:.8rem; border-top:1px solid var(--line); font-family:var(--ui); font-size:.7rem; color:var(--t3); }
+
+  /* --- THE ITEM: stacked card on mobile, aligned row on desktop --- */
+  .items { list-style:none; margin:0; padding:0; }
+  .item { padding:.6rem .9rem; border-bottom:1px solid var(--line); display:grid; grid-template-columns:auto 1fr; gap:.1rem .5rem; }
+  .item:hover { background:#fcf8f1; }
+  .item .bullet { width:.5rem; height:.5rem; border-radius:50%; background:transparent; margin-top:.42rem; }
+  .item[data-unread="true"] { background:#fffcf5; }
+  .item[data-unread="true"] .bullet { background:var(--accent); }
+  .item[data-sel="true"] { background:var(--accent-bg); box-shadow:inset 2px 0 0 var(--accent); }
+  .item .ttl { font-size:.95rem; font-weight:600; line-height:1.3; color:var(--t1); text-decoration:none; display:block; }
+  .item .ttl:hover { color:var(--accent); }
+  .item[data-unread="false"] .ttl { font-weight:400; color:var(--t2); }
+  /* note is always readable text — never a count (point 7) */
+  .nt { font-size:.85rem; color:var(--t2); line-height:1.5; font-style:italic; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .nt.open { -webkit-line-clamp:unset; line-clamp:unset; }
+  .host { font-family:var(--mono); font-size:.68rem; color:var(--t3); }
+  .tags { font-family:var(--mono); font-size:.7rem; display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.1rem; }
+  .tags a { color:var(--accent); text-decoration:none; opacity:.85; }
+  .tags a:hover { text-decoration:underline; opacity:1; }
+  .st { font-family:var(--ui); font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; padding:.12rem .3rem; border-radius:3px; white-space:nowrap; }
+  .st.q { background:#e9f0e5; color:var(--ok); }
+  .st.f { background:#fbeedb; color:#8a5a15; }
+  .st.s { background:#f1ece2; color:var(--t3); }
+  .side { grid-column:2; display:flex; gap:.3rem; margin-top:.35rem; flex-wrap:wrap; }
+
+  /* mobile: host falls under the note as its own grid row in column 2 */
+  @container (width < 52rem) { .c-host { grid-column:2; font-size:.68rem; margin-top:.1rem; } }
+
+  /* desktop: columns return */
+  @container (width >= 52rem) {
+    .item { grid-template-columns:auto minmax(0,1fr) 6.5rem 7rem 3rem 4rem auto; gap:.2rem .8rem; padding:.5rem 1.6rem; align-items:baseline; }
+    .item .body { min-width:0; }
+    .c-host { font-family:var(--mono); font-size:.68rem; color:var(--t3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item .c-tags { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item .c-date { font-family:var(--mono); font-size:.7rem; color:var(--t3); text-align:right; }
+    .item .c-state { text-align:right; }
+    .side { grid-column:auto; margin-top:0; justify-content:flex-end; }
+    .nt { -webkit-line-clamp:1; line-clamp:1; }
+    .hdr { display:grid; grid-template-columns:auto minmax(0,1fr) 6.5rem 7rem 3rem 4rem auto; gap:.2rem .8rem; padding:.45rem 1.6rem; border-bottom:1px solid var(--line-strong); }
+    .hdr span { font-family:var(--ui); font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:var(--t3); }
+    .hdr .r { text-align:right; }
+  }
+  @container (width < 52rem) { .hdr { display:none; } .c-date, .c-state, .c-tags { display:none; } }
+
+  /* --- buttons --- */
+  .btn { font-family:var(--ui); font-size:.78rem; border:1px solid var(--line-strong); background:var(--paper); color:var(--t1); border-radius:var(--r); padding:.26rem .6rem; cursor:pointer; box-shadow:0 1px 0 var(--line-strong); }
+  .btn:hover { background:#f8f4ec; }
+  .btn:active { box-shadow:none; transform:translateY(1px); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 1px 0 color-mix(in oklch, var(--accent) 70%, black); }
+  .btn.ghost { border-color:transparent; background:none; box-shadow:none; color:var(--t2); }
+  .btn.ghost:hover { background:#f0ebe1; color:var(--t1); }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { font-size:.73rem; padding:.18rem .45rem; }
+
+  /* --- search --- */
+  .qwrap { padding:.55rem .9rem; background:var(--paper); border-bottom:1px solid var(--line); }
+  .qwrap.wide { padding:.8rem 1.6rem; }
+  .qbox { display:flex; align-items:center; gap:.5rem; border-bottom:1.5px solid var(--t2); padding-bottom:.3rem; }
+  .qbox:focus-within { border-bottom-color:var(--accent); }
+  .qbox .op { font-family:var(--mono); font-size:.8rem; color:var(--accent); }
+  .qbox input { border:0; outline:0; background:none; flex:1; min-width:0; font-family:var(--mono); font-size:.8rem; color:var(--t1); }
+  .pills { display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.5rem; align-items:center; }
+  .pill { font-family:var(--mono); font-size:.7rem; background:var(--accent-bg); color:var(--accent); border-radius:var(--r); padding:.15rem .4rem; display:flex; gap:.3rem; align-items:center; }
+  .pill button { border:0; background:none; color:inherit; cursor:pointer; padding:0; opacity:.55; }
+  .pill.add { background:none; border:1px dashed var(--line-strong); color:var(--t3); cursor:pointer; }
+  .ops { font-family:var(--mono); font-size:.68rem; color:var(--t3); margin-top:.45rem; display:flex; gap:.55rem; flex-wrap:wrap; }
+  .ops b { color:var(--t2); font-weight:500; }
+
+  /* --- composer --- */
+  .composer { display:flex; align-items:center; gap:.45rem; border:1px solid var(--line-strong); border-radius:var(--r); background:var(--paper); padding:.3rem .35rem .3rem .7rem; }
+  .composer input { border:0; outline:0; background:none; flex:1; min-width:0; font-family:var(--mono); font-size:.8rem; color:var(--t1); }
+  .composer .go { border:0; background:var(--accent); color:#fff; border-radius:3px; padding:.25rem .6rem; cursor:pointer; font-family:var(--ui); font-size:.76rem; }
+
+  /* --- quick add --- */
+  .qa { background:var(--paper); border:1px solid var(--line-strong); border-radius:var(--r); overflow:hidden; }
+  .qa .line { display:flex; align-items:center; gap:.5rem; padding:.5rem .6rem; }
+  .qa .line .op { font-family:var(--mono); font-size:.78rem; color:var(--t3); }
+  .qa .line input { border:0; outline:0; background:none; flex:1; min-width:0; font-family:var(--mono); font-size:.82rem; color:var(--t1); }
+  .qa .more { border-top:1px solid var(--line); padding:.6rem; display:grid; gap:.6rem; }
+  .fld { display:grid; gap:.22rem; }
+  .fld > label { font-family:var(--ui); font-size:.71rem; color:var(--t3); }
+  .fld input, .fld textarea { border:1px solid var(--line-strong); border-radius:var(--r); padding:.4rem .55rem; background:var(--bg); color:var(--t1); width:100%; }
+  .fld input:focus, .fld textarea:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+  .fld textarea { min-height:3.2rem; resize:vertical; font-size:.88rem; }
+  .fetched { font-family:var(--mono); font-size:.66rem; color:var(--ok); }
+  .chips { display:flex; gap:.3rem; flex-wrap:wrap; align-items:center; }
+  .chip { font-family:var(--mono); font-size:.73rem; border:1px solid var(--line-strong); background:var(--paper); color:var(--t2); border-radius:var(--r); padding:.2rem .45rem; cursor:pointer; }
+  .chip[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .chip.ghost { border-style:dashed; color:var(--t3); }
+  .qlt { display:flex; align-items:center; gap:.55rem; padding:.5rem .65rem; border:1px solid var(--line-strong); border-radius:var(--r); background:#f9f4ea; cursor:pointer; }
+  .qlt .box { width:1.05rem; height:1.05rem; border:1.5px solid var(--line-strong); border-radius:2px; background:var(--paper); flex:none; display:grid; place-items:center; font-size:.7rem; }
+  .qlt[aria-pressed="true"] .box { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .qlt .lb { font-family:var(--ui); font-size:.83rem; }
+  .qlt .hint { font-family:var(--ui); font-size:.7rem; color:var(--t3); display:block; }
+  .hintline { font-family:var(--mono); font-size:.67rem; color:var(--t3); }
+
+  /* --- collections: the same component, columns on desktop --- */
+  .cgrid { display:grid; gap:.5rem; padding:.6rem .9rem; }
+  @container (width >= 46rem) { .cgrid.wide { grid-template-columns:repeat(auto-fill,minmax(17rem,1fr)); padding:.8rem 1.6rem; } }
+  .ccard { border:1px solid var(--line); border-radius:var(--r); background:var(--paper); padding:.65rem .75rem; text-decoration:none; color:inherit; display:block; }
+  .ccard:hover { border-color:var(--line-strong); background:#fcf8f1; }
+  .ccard h3 { font-size:1rem; font-weight:600; margin:0 0 .05rem; letter-spacing:-.01em; }
+  .ccard .d { font-size:.8rem; color:var(--t3); font-style:italic; margin:0 0 .4rem; }
+  .ccard .row { display:flex; align-items:baseline; gap:.5rem; font-family:var(--mono); font-size:.7rem; color:var(--t2); }
+  .ccard .row b { font-family:inherit; font-size:1.1rem; font-weight:600; color:var(--t1); }
+
+  /* --- feed --- */
+  .feedrow { padding:.6rem .9rem; border-bottom:1px solid var(--line); display:grid; grid-template-columns:auto 1fr; gap:.1rem .5rem; }
+  @container (width >= 52rem) { .feedrow { grid-template-columns:8.5rem 1fr auto; gap:1rem; padding:.55rem 1.6rem; align-items:baseline; } }
+  .fsrc { font-family:var(--mono); font-size:.68rem; color:var(--t3); }
+  .sug { display:flex; gap:.3rem; flex-wrap:wrap; align-items:center; margin-top:.35rem; }
+  .sug .lb { font-family:var(--mono); font-size:.67rem; color:var(--t3); }
+  .sug .chip { border-style:dashed; }
+  .sug .chip[aria-pressed="true"] { border-style:solid; }
+
+  /* --- misc --- */
+  .seg { display:flex; gap:.1rem; padding:.4rem .9rem; background:var(--rail); border-bottom:1px solid var(--line); overflow:hidden; }
+  .seg button { font-family:var(--ui); border:0; background:none; font-size:.76rem; color:var(--t2); padding:.22rem .5rem; border-radius:var(--r); cursor:pointer; white-space:nowrap; }
+  .seg button[aria-pressed="true"] { background:var(--paper); color:var(--t1); font-weight:500; box-shadow:0 1px 2px rgb(0 0 0/.06); }
+  .frow { display:flex; align-items:center; gap:.6rem; padding:.6rem .9rem; border-bottom:1px solid var(--line); }
+  .frow .lb { font-family:var(--ui); font-size:.85rem; }
+  .frow .n { font-family:var(--mono); font-size:.7rem; color:var(--t3); margin-inline-start:auto; }
+  .empty { padding:2.5rem 1.5rem; text-align:center; }
+  .empty .ic { font-size:1.6rem; color:var(--t3); }
+  .empty h3 { font-size:1.05rem; font-weight:600; margin:.5rem 0 .2rem; }
+  .empty p { font-family:var(--ui); font-size:.84rem; color:var(--t3); margin:0 auto 1rem; max-width:26rem; }
+  .skrow { padding:.7rem .9rem; border-bottom:1px solid var(--line); display:grid; gap:.3rem; }
+  .sk { background:linear-gradient(90deg,#efe9e0 25%,#f7f2ea 50%,#efe9e0 75%); background-size:200% 100%; animation:sk 1.4s infinite; border-radius:3px; }
+  @keyframes sk { to { background-position:-200% 0; } }
+  .skrow .a { height:.7rem; width:62%; } .skrow .b { height:.55rem; width:40%; }
+  .bulkbar { display:flex; align-items:center; gap:.4rem; padding:.45rem .9rem; background:var(--accent); color:#fff; font-family:var(--ui); font-size:.78rem; }
+  .bulkbar .btn { background:transparent; border-color:rgb(255 255 255/.4); color:#fff; box-shadow:none; }
+  .auth { padding:1.5rem 1.2rem; max-width:22rem; margin-inline:auto; }
+  .auth .mark { font-size:1.5rem; font-weight:600; letter-spacing:-.025em; text-align:center; }
+  .auth .sub { font-family:var(--ui); font-size:.83rem; color:var(--t3); text-align:center; margin:.2rem 0 1.3rem; }
+  .auth .fld { margin-bottom:.7rem; }
+  .auth .btn.primary { width:100%; padding:.45rem; }
+  .auth .alt { font-family:var(--ui); font-size:.79rem; color:var(--t3); text-align:center; margin-top:1rem; }
+  .auth .alt a { color:var(--accent); }
+  .err { font-family:var(--ui); font-size:.75rem; color:var(--danger); margin-top:.2rem; }
+  .demo { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fffdfa; padding:1.2rem; display:grid; gap:.9rem; }
+  .demo .t { font:500 .68rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a1968b; }
+  .demo .row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .d-flat .btn, .d-flat .composer, .d-flat .ccard, .d-flat .composer .go { box-shadow:none; }
+  .d-paper .ccard, .d-paper .item { box-shadow:0 1px 2px rgb(60 40 20/.07); }
+  .d-paper .btn { box-shadow:0 1px 2px rgb(60 40 20/.14); }
+  .d-paper .composer { box-shadow:0 4px 16px rgb(60 40 20/.13); }
+  .wide2 { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  @container (width < 60rem) { .wide2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="doc">
+  <a class="back" href="index.html">← round 2 index</a>
+  <h1>Candidate 2 — Ledger</h1>
+  <p class="lede">Round 1's C, taken seriously as a mobile structure rather than a desktop one. The column alignment is real and it's what makes this direction worth choosing — you can scan straight down the host or tag column and see which sources dominate. But round 1 treated that as a desktop-only idea and stubbed mobile. Here the mobile presentation is the primary design and the columns are simply what appears when there's room for them. Same data, same components, one layout that earns its density as width allows.</p>
+  <p class="note">Two round 1 mistakes corrected: the note is no longer a 0-or-1 count column but always-visible text (point 7), and the rail's navigation labels change to match the action vocabulary of wherever you are — selecting a queue shows <i>Done / Later</i>, not <i>Read / Queue</i> (point 6).</p>
+
+  <h2>1 · Bookmark list</h2>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b> · stacked</span><span>142</span></div>
+      <div class="app">
+        <div class="head">
+          <div class="eyebrow">All bookmarks</div>
+          <h1>142 saved</h1>
+          <div class="stat"><span><b>38</b> unread</span><span><b>14</b> queued</span><span><b>23</b> hosts</span></div>
+        </div>
+        <div class="seg"><button aria-pressed="true">All</button><button>Unread</button><button>Queue</button><button>Archived</button></div>
+        <ul class="items">
+          <li class="item" data-unread="true">
+            <span class="bullet"></span>
+            <div class="body">
+              <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+              <div class="host">simonwillison.net · 2d <span class="st q">queued</span></div>
+              <div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
+              <p class="nt">Good section on the B-tree rebalance heuristic. Revisit before touching the index planner.</p>
+              <div class="side"><button class="btn sm">Read</button><button class="btn sm">Done</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+            </div>
+          </li>
+          <li class="item" data-unread="true">
+            <span class="bullet"></span>
+            <div class="body">
+              <a class="ttl" href="#">A Tour of Go's Memory Management</a>
+              <div class="host">go.dev · 3d</div>
+              <div class="tags"><a href="#">#go</a></div>
+              <div class="side"><button class="btn sm">Read</button><button class="btn sm">Queue</button><button class="btn sm ghost">Tags</button></div>
+            </div>
+          </li>
+          <li class="item" data-unread="false">
+            <span class="bullet"></span>
+            <div class="body">
+              <a class="ttl" href="#">Postgres VACUUM, finally explained properly</a>
+              <div class="host">brandur.org · 1w</div>
+              <div class="tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+              <p class="nt">The multixact section is the one I need.</p>
+              <div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+            </div>
+          </li>
+        </ul>
+        <div style="padding:.6rem .9rem"><div class="composer"><span class="op" style="font-family:var(--mono);color:var(--t3)">+</span><input placeholder="Paste a URL…"><button class="go">Save</button></div></div>
+        <nav class="tabs"><a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a><a href="#"><span class="ic">◷</span>Queue</a><a href="#"><span class="ic">◔</span>Feeds</a><a href="#"><span class="ic">▤</span>Coll</a><a href="#"><span class="ic">⌕</span>Search</a></nav>
+      </div>
+    </div>
+
+    <div class="frame" style="flex:1;min-width:30rem">
+      <div class="frame-label"><span><b>Desktop</b> · columns</span><span>142</span></div>
+      <div class="app">
+        <div class="shell">
+          <aside class="rail">
+            <a class="mark" href="#">Patchworks</a>
+            <div class="grp">Browse</div>
+            <a href="#" aria-current="page">All<span class="n">142</span></a>
+            <a href="#">Unread<span class="n">38</span></a>
+            <a href="#">Reading<span class="n">14</span></a>
+            <a href="#">Archived<span class="n">61</span></a>
+            <div class="grp">Sources</div>
+            <a href="#">Feeds<span class="n">8</span></a>
+            <div class="grp">Collections</div>
+            <a href="#">databases<span class="n">48</span></a>
+            <a href="#">to-read<span class="n">64</span></a>
+            <a href="#">perf-reading<span class="n">31</span></a>
+            <a href="#">go-deep-dives<span class="n">22</span></a>
+            <a href="#">All collections<span class="n">9</span></a>
+            <div class="foot">you@example.com<br>Sign out</div>
+          </aside>
+          <main>
+            <div class="head wide"><div class="eyebrow">All bookmarks</div><h1>142 saved</h1><div class="stat"><span><b>38</b> unread</span><span><b>14</b> queued</span><span><b>23</b> hosts</span><span>sorted by <b>saved ↓</b></span></div></div>
+            <div class="qwrap wide"><label class="qbox"><span class="op">/</span><input placeholder="tag: rust is:unread"></label></div>
+            <div style="padding:.6rem 1.6rem"><div class="composer"><span class="op" style="font-family:var(--mono);color:var(--t3)">+</span><input placeholder="Paste a URL, or type to add a bookmark…"><button class="go">Save</button></div></div>
+            <div class="hdr"><span></span><span>Entry</span><span>Host</span><span>Tags</span><span class="r">Saved</span><span class="r">State</span><span></span></div>
+            <ul class="items">
+              <li class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div class="body"><a class="ttl" href="#">Rewriting SQLite's query planner for fun</a><p class="nt">Good section on the B-tree rebalance heuristic.</p></div>
+                <div class="c-host">simonwillison.net</div>
+                <div class="c-tags tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
+                <div class="c-date">2d</div>
+                <div class="c-state"><span class="st q">queued</span></div>
+                <div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+              </li>
+              <li class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div class="body"><a class="ttl" href="#">A Tour of Go's Memory Management</a></div>
+                <div class="c-host">go.dev</div>
+                <div class="c-tags tags"><a href="#">#go</a></div>
+                <div class="c-date">3d</div><div class="c-state"></div>
+                <div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+              </li>
+              <li class="item" data-unread="false">
+                <span class="bullet"></span>
+                <div class="body"><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><p class="nt">The multixact section is the one I need.</p></div>
+                <div class="c-host">brandur.org</div>
+                <div class="c-tags tags"><a href="#">#postgres</a><a href="#">#perf</a></div>
+                <div class="c-date">1w</div><div class="c-state"></div>
+                <div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+              </li>
+              <li class="item" data-unread="false">
+                <span class="bullet"></span>
+                <div class="body"><a class="ttl" href="#">The Design Philosophy Behind Alpine Linux</a></div>
+                <div class="c-host">wiki.alpinelinux.org</div>
+                <div class="c-tags tags"><a href="#">#linux</a></div>
+                <div class="c-date">6d</div><div class="c-state"></div>
+                <div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+              </li>
+              <li class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div class="body"><a class="ttl" href="#">Row-level security in practice</a></div>
+                <div class="c-host">brandur.org</div>
+                <div class="c-tags tags"><a href="#">#postgres</a><a href="#">#security</a></div>
+                <div class="c-date">2w</div><div class="c-state"></div>
+                <div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div>
+              </li>
+            </ul>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>2 · Quick add</h2>
+  <p>Inline on both sizes rather than a sheet, because the ledger's whole argument is that the list stays visible while you work. Plain fields, server-fetched title, explicit reading-list row.</p>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>expanded</span></div>
+      <div class="app">
+        <div class="qa" style="margin:.7rem .9rem">
+          <div class="line"><span class="op">+</span><input placeholder="Paste a URL…"><button class="go">Save</button></div>
+          <div class="more">
+            <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="fetched">✓ title fetched from go.dev</span></div>
+            <div class="fld"><label>Title</label><input value="A Tour of Go's Memory Management"></div>
+            <div class="fld"><label>Note</label><textarea placeholder="Why are you saving this?"></textarea></div>
+            <div class="fld"><label>Tags</label><div class="chips"><button class="chip" aria-pressed="true">#go</button><button class="chip">#memory</button><button class="chip ghost">+ new</button></div><span class="hintline">type # to create</span></div>
+            <div class="fld"><label>Collections</label><div class="chips"><button class="chip">databases</button><button class="chip" aria-pressed="true">to-read</button><button class="chip ghost">+ new</button></div></div>
+            <button class="qlt" aria-pressed="true"><span class="box">✓</span><span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue</span></span></button>
+            <div class="acts" style="display:flex;gap:.4rem;align-items:center"><button class="btn primary">Save bookmark</button><span class="spacer" style="flex:1"></span><span class="hintline">esc</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="frame" style="flex:1;min-width:26rem">
+      <div class="frame-label"><span><b>Desktop</b></span><span>list stays visible</span></div>
+      <div class="app">
+        <div class="shell">
+          <aside class="rail"><a class="mark" href="#">Patchworks</a><div class="grp">Browse</div><a href="#" aria-current="page">All<span class="n">142</span></a><a href="#">Unread<span class="n">38</span></a><div class="foot">Sign out</div></aside>
+          <main>
+            <div class="head wide"><div class="eyebrow">Add</div><h1>New bookmark</h1></div>
+            <div class="qa" style="margin:1rem 1.6rem;max-width:38rem">
+              <div class="line"><span class="op">+</span><input value="https://go.dev/blog/memory-management/"><button class="go">Save</button></div>
+              <div class="more">
+                <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="fetched">✓ title fetched from go.dev</span></div>
+                <div class="fld"><label>Title</label><input value="A Tour of Go's Memory Management"></div>
+                <div class="fld"><label>Note</label><textarea style="min-height:2.6rem"></textarea></div>
+                <div class="fld"><label>Tags</label><div class="chips"><button class="chip" aria-pressed="true">#go</button><button class="chip">#memory</button><button class="chip ghost">+ new</button></div></div>
+                <div class="fld"><label>Collections</label><div class="chips"><button class="chip">databases</button><button class="chip" aria-pressed="true">to-read</button><button class="chip ghost">+ new</button></div></div>
+                <button class="qlt" aria-pressed="true"><span class="box">✓</span><span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue</span></span></button>
+                <div style="font-family:var(--ui);font-size:.8rem;color:var(--t2);background:var(--accent-bg);border-radius:var(--r);padding:.5rem .65rem">Similar to <a href="#" style="color:var(--accent)">“Go GC tuning in practice”</a>, saved 3 days ago.</div>
+                <div style="display:flex;gap:.4rem;align-items:center"><button class="btn primary">Save bookmark</button><button class="btn ghost">Cancel</button><span style="flex:1"></span><span class="hintline">⏎ save · esc close</span></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>3 · Reading queue</h2>
+  <p>Vocabulary changes with the view (point 6): here the actions are <i>Done / Later / Archive</i>, not <i>Read / Queue</i>. No in-app reader — the title opens the original in a new tab.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Reading</b> · FIFO</span><span>3 of 14</span></div>
+    <div class="app">
+      <div class="shell">
+        <aside class="rail"><a class="mark" href="#">Patchworks</a><div class="grp">Browse</div><a href="#">All<span class="n">142</span></a><a href="#">Unread<span class="n">38</span></a><a href="#" aria-current="page">Reading<span class="n">14</span></a><a href="#">Archived<span class="n">61</span></a></aside>
+        <main>
+          <div class="head wide"><div class="eyebrow">Reading queue · oldest first</div><h1>14 queued</h1><div class="stat"><span>position <b>3</b> of <b>14</b></span><span>est. <b>34 min</b> remaining</span></div></div>
+          <div class="hdr"><span></span><span>Entry</span><span>Host</span><span>Tags</span><span class="r">Queued</span><span class="r">Est.</span><span></span></div>
+          <ul class="items">
+            <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#" target="_blank" rel="noopener">Rewriting SQLite's query planner for fun ↗</a><p class="nt">Good section on the B-tree rebalance heuristic.</p></div>
+                <div class="c-host">simonwillison.net</div><div class="c-tags tags"><a href="#">#sqlite</a><a href="#">#databases</a></div><div class="c-date">2d</div><div class="c-state" style="font-family:var(--mono);font-size:.7rem;color:var(--t3)">12 min</div><div class="side"><button class="btn sm primary">Done</button><button class="btn sm">Later</button><button class="btn sm ghost">Archive</button></div></li>
+            <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#" target="_blank" rel="noopener">A Tour of Go's Memory Management ↗</a></div>
+                <div class="c-host">go.dev</div><div class="c-tags tags"><a href="#">#go</a></div><div class="c-date">3d</div><div class="c-state" style="font-family:var(--mono);font-size:.7rem;color:var(--t3)">8 min</div><div class="side"><button class="btn sm primary">Done</button><button class="btn sm">Later</button><button class="btn sm ghost">Archive</button></div></li>
+            <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#" target="_blank" rel="noopener">Postgres VACUUM, finally explained properly ↗</a><p class="nt">The multixact section is the one I need.</p></div>
+                <div class="c-host">brandur.org</div><div class="c-tags tags"><a href="#">#postgres</a><a href="#">#perf</a></div><div class="c-date">1w</div><div class="c-state" style="font-family:var(--mono);font-size:.7rem;color:var(--t3)">14 min</div><div class="side"><button class="btn sm primary">Done</button><button class="btn sm">Later</button><button class="btn sm ghost">Archive</button></div></li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <h2>4 · Feeds &amp; item triage</h2>
+  <p>Both lifecycles, same as candidate 1. The difference this IA makes: path B's source-flagged items flow straight into this ledger's columns, which suits it; path A keeps feeds as a separate surface with no ledger at all.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Feeds</b> · path A, ephemeral</span><span>4 subscribed · 8 unread</span></div>
+    <div class="app">
+      <div class="shell">
+        <aside class="rail"><a class="mark" href="#">Patchworks</a><div class="grp">Browse</div><a href="#">All<span class="n">142</span></a><a href="#">Reading<span class="n">14</span></a><div class="grp">Sources</div><a href="#" aria-current="page">Feeds<span class="n">8</span></a><a href="#">golang.blog<span class="n">3</span></a><a href="#">brandur.org<span class="n">4</span></a><a href="#">simonwillison.net<span class="n">1</span></a></aside>
+        <main>
+          <div class="head wide"><div class="eyebrow">Feeds</div><h1>Unread from 4 feeds</h1><div class="stat"><span>auto-tagging <b>on</b></span><span>nothing is saved until you say so</span></div></div>
+          <div class="seg"><button aria-pressed="true">Unread</button><button>All</button><button>Saved</button><button>Subscriptions</button></div>
+          <ul class="items">
+            <li class="item" data-unread="true">
+              <span class="bullet"></span>
+              <div class="body"><a class="ttl" href="#" target="_blank" rel="noopener">What's new in Go 1.26: iterators everywhere ↗</a><div class="host">golang.blog · 2h <span class="st f">feed</span></div><p class="nt">Range-over-func finally landed in the standard library.</p></div>
+              <div class="side"><div class="sug"><span class="lb">suggested</span><button class="chip" aria-pressed="true">#go</button><button class="chip" aria-pressed="true">#release</button><button class="chip ghost">+ tag</button></div><div style="display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap"><button class="btn sm primary">Add to queue</button><button class="btn sm">Save as bookmark</button><button class="btn sm ghost">Dismiss</button></div></div>
+            </li>
+            <li class="item" data-unread="true">
+              <span class="bullet"></span>
+              <div class="body"><a class="ttl" href="#" target="_blank" rel="noopener">Efficient pagination with Postgres ↗</a><div class="host">brandur.org · 6h <span class="st f">feed</span></div></div>
+              <div class="side"><div class="sug"><span class="lb">suggested</span><button class="chip" aria-pressed="true">#postgres</button><button class="chip">#perf</button><button class="chip ghost">+ tag</button></div><div style="display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap"><button class="btn sm primary">Add to queue</button><button class="btn sm">Save as bookmark</button><button class="btn sm ghost">Dismiss</button></div></div>
+            </li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <h2>5 · Search</h2>
+  <div class="frame">
+    <div class="frame-label"><span><b>Search</b> · realtime parsing</span><span>18 results · 0.04s</span></div>
+    <div class="app">
+      <div class="shell">
+        <aside class="rail"><a class="mark" href="#">Patchworks</a><div class="grp">Browse</div><a href="#">All<span class="n">142</span></a><a href="#">Unread<span class="n">38</span></a></aside>
+        <main>
+          <div class="head wide"><div class="eyebrow">Search</div><h1>18 results</h1><div class="stat"><span>matched <b>title, note, host, url</b></span><span><b>0.04s</b></span></div></div>
+          <div class="qwrap wide">
+            <label class="qbox"><span class="op">/</span><input value='tag:postgres is:unread -tag:"write soon" after:2026-08'></label>
+            <div class="pills"><span class="pill">tag:postgres <button>×</button></span><span class="pill">is:unread <button>×</button></span><span class="pill">−tag:"write soon" <button>×</button></span><span class="pill">after:2026-08 <button>×</button></span><button class="pill add">+ filter</button></div>
+            <div class="ops"><span><b>tag:</b></span><span><b>coll:</b></span><span><b>host:</b></span><span><b>site:</b></span><span><b>is:unread</b></span><span><b>is:queued</b></span><span><b>is:archived</b></span><span><b>after:</b></span><span><b>before:</b></span><span><b>-</b> exclude</span><span><b>"exact"</b></span><span><b>OR</b></span></div>
+          </div>
+          <div class="hdr"><span></span><span>Entry</span><span>Host</span><span>Tags</span><span class="r">Saved</span><span class="r">State</span><span></span></div>
+          <ul class="items">
+            <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Postgres VACUUM, finally explained properly</a><p class="nt">The multixact section is the one I need.</p></div>
+                <div class="c-host">brandur.org</div><div class="c-tags tags"><a href="#">#postgres</a><a href="#">#perf</a></div><div class="c-date">1w</div><div class="c-state"></div><div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+            <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Efficient pagination with Postgres</a></div>
+                <div class="c-host">brandur.org</div><div class="c-tags tags"><a href="#">#postgres</a><a href="#">#perf</a></div><div class="c-date">1d</div><div class="c-state"></div><div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+            <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Row-level security in practice</a></div>
+                <div class="c-host">brandur.org</div><div class="c-tags tags"><a href="#">#postgres</a><a href="#">#security</a></div><div class="c-date">2w</div><div class="c-state"></div><div class="side"><button class="btn sm">Read</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+            <li class="item" data-unread="false"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Postgres connection pooling: the short version</a></div>
+                <div class="c-host">brandur.org</div><div class="c-tags tags"><a href="#">#postgres</a><a href="#">#perf</a></div><div class="c-date">3w</div><div class="c-state"></div><div class="side"><button class="btn sm ghost">Unread</button><button class="btn sm ghost">Tags</button><button class="btn sm ghost">Archive</button></div></li>
+          </ul>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <h2>Secondary flows</h2>
+
+  <h3>Edit tags in place · filter sheet · collection detail + share</h3>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b> · tag edit</span><span>inline</span></div>
+      <div class="app">
+        <ul class="items">
+          <li class="item" data-unread="true"><span class="bullet"></span><div class="body">
+            <a class="ttl" href="#">Rewriting SQLite's query planner for fun</a>
+            <div style="margin-top:.4rem;padding:.5rem .55rem;border:1px solid var(--accent);border-radius:var(--r);background:#fffdf7;display:grid;gap:.4rem">
+              <div style="font-family:var(--mono);font-size:.65rem;color:var(--t3)">TAGS — # to create</div>
+              <div class="chips"><button class="chip" aria-pressed="true">#sqlite ×</button><button class="chip" aria-pressed="true">#databases ×</button><input class="chip" style="width:6rem" placeholder="add…"><button class="chip ghost">+ create</button></div>
+              <div style="font-family:var(--mono);font-size:.65rem;color:var(--t3)">COLLECTIONS</div>
+              <div class="chips"><button class="chip">databases</button><button class="chip" aria-pressed="true">to-read ×</button><button class="chip ghost">+ create</button></div>
+              <div style="display:flex;gap:.35rem"><button class="btn sm primary">Done</button><button class="btn sm ghost">Cancel</button></div>
+            </div>
+          </div></li>
+        </ul>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b> · filter sheet</span><span>filters</span></div>
+      <div class="app">
+        <div class="seg"><button aria-pressed="true">Filter</button></div>
+        <div class="frow"><span class="lb">Unread only</span><span class="n">38</span><button class="qlt" style="padding:.15rem;background:none;border:0" aria-pressed="true"><span class="box" style="width:.9rem;height:.9rem">✓</span></button></div>
+        <div class="frow"><span class="lb">In reading queue</span><span class="n">14</span><button class="qlt" style="padding:.15rem;background:none;border:0"><span class="box" style="width:.9rem;height:.9rem"></span></button></div>
+        <div class="frow"><span class="lb">From a feed</span><span class="n">8</span><button class="qlt" style="padding:.15rem;background:none;border:0"><span class="box" style="width:.9rem;height:.9rem"></span></button></div>
+        <div class="frow"><span class="lb">Saved after</span><span class="n">2026-08-01</span></div>
+        <div class="frow"><span class="lb">Sort by</span><span class="n">newest first</span></div>
+        <div style="padding:.7rem .9rem"><div style="display:flex;gap:.4rem"><button class="btn primary">Apply</button><button class="btn ghost">Reset</button></div></div>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b> · collection</span><span>databases</span></div>
+      <div class="app">
+        <div class="head"><div class="eyebrow">Collection · you own this</div><h1>databases</h1><div class="stat"><span><b>48</b> items</span><span><b>12</b> unread</span><span><b>3</b> members</span></div></div>
+        <div class="seg"><button aria-pressed="true">Items</button><button>Members</button><button>Share</button></div>
+        <ul class="items">
+          <li class="item" data-unread="true"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Postgres VACUUM, explained properly</a><div class="host">brandur.org · 1w</div><div class="tags"><a href="#">#postgres</a></div></div></li>
+          <li class="item" data-unread="false"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Row-level security in practice</a><div class="host">brandur.org · 2w</div><div class="tags"><a href="#">#postgres</a></div></div></li>
+        </ul>
+        <div style="padding:.7rem .9rem;display:flex;gap:.4rem;flex-wrap:wrap"><button class="btn sm primary">Invite member</button><button class="btn sm">Copy share link</button><button class="btn sm ghost">Edit</button><button class="btn sm ghost danger">Delete</button></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Bulk select · login · empty &amp; loading</h3>
+  <div class="pair">
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>select mode</span></div>
+      <div class="app">
+        <div class="bulkbar"><span>3 selected</span><span style="flex:1"></span><button class="btn sm">Tag</button><button class="btn sm">Queue</button><button class="btn sm">Archive</button></div>
+        <ul class="items">
+          <li class="item" data-sel="true"><span class="bullet" style="background:var(--accent)"></span><div class="body"><a class="ttl" href="#">Postgres VACUUM, explained properly</a><div class="host">brandur.org · 1w</div></div></li>
+          <li class="item" data-sel="true"><span class="bullet" style="background:var(--accent)"></span><div class="body"><a class="ttl" href="#">Row-level security in practice</a><div class="host">brandur.org · 2w</div></div></li>
+          <li class="item"><span class="bullet"></span><div class="body"><a class="ttl" href="#">Connection pooling, short version</a><div class="host">brandur.org · 3w</div></div></li>
+        </ul>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>login</span></div>
+      <div class="app" style="min-height:22rem">
+        <div class="auth">
+          <div class="mark">Patchworks</div>
+          <div class="sub">Your bookmarks, self-hosted.</div>
+          <div class="fld"><label>Email</label><input value="you@example.com"></div>
+          <div class="fld"><label>Password</label><input type="password" value="password"><div class="err">That password is incorrect.</div></div>
+          <button class="btn primary">Sign in</button>
+          <div class="alt">No account? <a href="#">Create one</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="frame phone">
+      <div class="frame-label"><span><b>390px</b></span><span>empty</span></div>
+      <div class="app">
+        <div class="head"><div class="eyebrow">All bookmarks</div><h1>0 saved</h1></div>
+        <div class="empty"><div class="ic">◈</div><h3>Nothing here yet</h3><p>Paste a link below. Tags and notes are optional — you can always add them later.</p><button class="btn primary">Add your first bookmark</button></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Depth options</h2>
+  <p>The paper option is strongest here — the ledger is already a printed-document metaphor, so a slight lift reads as intentional rather than decorative.</p>
+  <div class="wide2">
+    <div class="demo d-flat"><span class="t">1 · Fully flat</span><div class="row"><button class="btn primary">Save</button><button class="btn">Done</button><button class="btn ghost">Tags</button><button class="btn ghost danger">Archive</button></div><div class="composer"><input placeholder="tag: rust" style="border:0;outline:0;background:none;flex:1;font-family:var(--mono);font-size:.8rem"><button class="go">Save</button></div><p style="font-size:.8rem;color:#5c534b;margin:0">The ledger already reads as flat and printed, so this costs the least here. Buttons lose their press affordance without a shadow.</p></div>
+    <div class="demo"><span class="t">2 · Default — borders + button shadow</span><div class="row"><button class="btn primary">Save</button><button class="btn">Done</button><button class="btn ghost">Tags</button><button class="btn ghost danger">Archive</button></div><div class="composer"><input placeholder="tag: rust" style="border:0;outline:0;background:none;flex:1;font-family:var(--mono);font-size:.8rem"><button class="go">Save</button></div><p style="font-size:.8rem;color:#5c534b;margin:0">Keeps the paper feel while still giving controls tactility. Safe default.</p></div>
+    <div class="demo d-paper"><span class="t">3 · Paper — layered</span><div class="row"><button class="btn primary">Save</button><button class="btn">Done</button><button class="btn ghost">Tags</button><button class="btn ghost danger">Archive</button></div><div class="composer"><input placeholder="tag: rust" style="border:0;outline:0;background:none;flex:1;font-family:var(--mono);font-size:.8rem"><button class="go">Save</button></div><p style="font-size:.8rem;color:#5c534b;margin:0">Fits the metaphor best of the three candidates — cards and rows lift slightly, controls feel raised. Risk is low here precisely because the design is already document-like.</p></div>
+  </div>
+
+  <h2>Wide-screen options</h2>
+  <p>This IA has the strongest wide-screen case of the three, because a ledger is <i>about</i> columns and more width means more columns — host, saved, state, and eventually reading time.</p>
+  <div class="wide2">
+    <div class="demo"><span class="t">Default · cap width, grow type</span><div style="border:1px solid var(--line);background:var(--paper);padding:1rem;max-width:34rem"><div class="eyebrow" style="font-family:'Geist',sans-serif;font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;color:#968b7d">All bookmarks</div><div style="font-family:'Source Serif 4',Georgia,serif;font-size:1.35rem;font-weight:600;margin:.2rem 0 .5rem">142 saved</div><div style="border-top:1px solid var(--line);padding:.45rem 0;font-size:.85rem">Rewriting SQLite's query planner for fun</div><div style="padding:.45rem 0;font-size:.85rem;color:#5b5349;border-bottom:1px solid var(--line)">A Tour of Go's Memory Management</div></div><p style="font-size:.8rem;color:#5c534b;margin:0">Predictable, but leaves the columns half-used.</p></div>
+    <div class="demo"><span class="t">Alternative · widen the ledger</span><div style="border:1px solid var(--line);background:var(--paper);padding:1rem;font-family:'Geist Mono',monospace;font-size:.6rem;color:#968b7d;display:grid;grid-template-columns:auto 1fr 7rem 3rem auto;gap:.3rem 1rem;text-transform:uppercase;letter-spacing:.1rem"><span></span><span>Entry</span><span>Tags</span><span class="r">Saved</span><span></span><span style="font-family:'Source Serif 4',serif;font-size:.85rem;text-transform:none;letter-spacing:0;color:#231f1a">Rewriting SQLite's query planner for fun</span><span style="font-family:'Geist Mono',monospace;font-size:.7rem;text-transform:none;letter-spacing:0;color:#8a5726">#sqlite #databases</span><span class="r" style="font-family:'Geist Mono',monospace;font-size:.7rem;text-transform:none;letter-spacing:0;color:#968b7d">2d</span><span style="font-family:'Geist',sans-serif;font-size:.7rem;text-transform:none;letter-spacing:0;color:#5b5349">Read · Tags</span><span style="font-family:'Source Serif 4',serif;font-size:.85rem;text-transform:none;letter-spacing:0;color:#5b5349">A Tour of Go's Memory Management</span><span style="font-family:'Geist Mono',monospace;font-size:.7rem;text-transform:none;letter-spacing:0;color:#8a5726">#go</span><span class="r" style="font-family:'Geist Mono',monospace;font-size:.7rem;text-transform:none;letter-spacing:0;color:#968b7d">3d</span><span></span></div><p style="font-size:.8rem;color:#5c534b;margin:0">Not "cap width" but "let the columns use the space" — the ledger's own logic. Adds host, state, and estimate columns rather than more rows, which is more information rather than just more area.</p></div>
+    <div class="demo"><span class="t">Alternative · two-column ledger</span><div style="border:1px solid var(--line);background:var(--paper);padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem;font-size:.85rem"><div style="font-family:'Source Serif 4',serif;font-weight:600;grid-column:1/-1;margin-bottom:.3rem">142 saved</div><div style="border-top:1px solid var(--line);padding:.4rem 0">Rewriting SQLite's query planner</div><div style="border-top:1px solid var(--line);padding:.4rem 0">Row-level security in practice</div><div style="padding:.4rem 0;border-bottom:1px solid var(--line);color:#5b5349">A Tour of Go's Memory Management</div><div style="padding:.4rem 0;border-bottom:1px solid var(--line);color:#5b5349">Connection pooling, short version</div></div><p style="font-size:.8rem;color:#5c534b;margin:0">Halves scrolling but breaks top-to-bottom order. Weaker here than in candidate 1 because order matters more in a ledger.</p></div>
+  </div>
+
+  <h2>Verdict on this direction</h2>
+  <p><b>Strongest at</b> — retrieval and organization, by a clear margin. This is the only candidate where you can scan 20 items and answer "how much of this is from brandur.org" without reading a single title. Collections is the best collections view in the set, because role, shared state, and counts are columns. And it's the only one that naturally uses extra width — a wide screen adds columns, which is more information rather than more whitespace.</p>
+  <p><b>Still weak at</b> — notes, which is the thing candidate 1 is built around. A note here is a clamped single line on desktop, which is exactly the compromise round 1 objected to. If your notes are long and you actually reread them, this IA will keep disappointing you. Mobile is workable but not distinctive: it's the same list with fewer columns, which is correct but not memorable.</p>
+  <p class="note">The tension this candidate can't resolve: columns are what make it strong and what force notes to compress. If note-reading matters more than column-scanning, candidate 1 wins; if the reverse, this one does.</p>
+</div>
+</body>
+</html>

@@ -1,6 +1,8 @@
 # ADR 0001: Mocha/chocolate styling overhaul
 
-**Status:** Accepted · **Date:** 2026-08-31
+**Status:** Superseded by [ADR 0002](./0002-converged-ui-design-system.md) · **Date:** 2026-08-31
+
+> Partially superseded. The engineering discipline (cascade layers, no build step, hand-authored palette, tokenisation) still stands; the visual decisions — palette, radius, type system, navigation, breakpoint — do not. See ADR 0002.
 
 ## Context
 

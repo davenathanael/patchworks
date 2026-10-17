@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Candidate D: Split Deck</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=inter:400,450,500,600&display=swap">
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=instrument-serif:400&display=swap">
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500&display=swap">
+<style>
+  /* ===== doc chrome ===== */
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#1c1917; background:#faf9f7; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 86rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .3rem; }
+  .doc .lede { color:#57534e; max-width:74ch; margin:0 0 .5rem; }
+  .doc > h2 { margin:4rem 0 .3rem; font-size:1.5rem; letter-spacing:-.015em; }
+  .doc > h2 + p { color:#57534e; max-width:74ch; margin:0 0 .5rem; }
+  .doc > h3 { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:#a8a29e; margin:2.5rem 0 .8rem; }
+  .back { font-size:.85rem; color:#a8a29e; text-decoration:none; }
+  .note { border-left:3px solid #d6d3d1; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#57534e; font-size:.9rem; max-width:74ch; }
+
+  .frame { container-type:inline-size; border:1px solid #e7e5e4; border-radius:10px; overflow:hidden; margin-block:1.25rem; box-shadow:0 1px 4px rgb(0 0 0/.05); position:relative; }
+  .frame.phone { width:390px; max-width:100%; margin-inline:auto; }
+  .frame-label { font:500 .7rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a8a29e; padding:.6rem 1rem; background:#f5f5f4; border-bottom:1px solid #e7e5e4; display:flex; justify-content:space-between; }
+  .frame-label b { color:#1c1917; }
+
+  /* ===== THE APP: D — Split Deck =====
+     Three panes: folders · stream · reader. Keyboard-native.
+     Bookmarks and feed items are the same object in one stream.
+     Deliberately cooler, flatter palette than the current mocha. */
+  .app {
+    font-family:"Inter", system-ui, sans-serif;
+    font-size:.8125rem; line-height:1.5; color:var(--t1); background:var(--bg);
+    color-scheme: light;
+    --serif:"Instrument Serif", Georgia, serif;
+    --mono:"JetBrains Mono", ui-monospace, monospace;
+    --bg:#fafafa; --pane:#fff; --rail:#f4f4f5;
+    --t1:#18181b; --t2:#52525b; --t3:#a1a1aa;
+    --line:#e8e8ea; --line-strong:#d4d4d8;
+    --accent:#2563eb; --accent-bg:#eff4ff; --accent-border:#bfd3fb;
+    --danger:#dc2626; --ok:#059669; --amber:#b45309;
+    --r:7px;
+  }
+  .app button, .app input { font:inherit; }
+
+  /* --- window chrome: the app IS the window --- */
+  .win { display:grid; grid-template-rows:auto 1fr; min-height:38rem; }
+  .titlebar { display:flex; align-items:center; gap:.6rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:var(--pane); }
+  .dots { display:flex; gap:.3rem; }
+  .dots i { width:.6rem; height:.6rem; border-radius:50%; background:var(--line-strong); display:block; }
+  .omnibox { flex:1; max-width:30rem; margin-inline:auto; display:flex; align-items:center; gap:.45rem; background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:.22rem .7rem; }
+  .omnibox:focus-within { border-color:var(--accent-border); background:var(--pane); box-shadow:0 0 0 3px var(--accent-bg); }
+  .omnibox .kbd { font:500 .72rem/1 var(--mono); color:var(--t3); }
+  .omnibox input { border:0; outline:0; background:none; flex:1; font-size:.78rem; color:var(--t1); min-width:0; font-family:var(--mono); }
+  .tb-actions { display:flex; gap:.35rem; align-items:center; }
+
+  .kbd { font:500 .65rem/1 var(--mono); color:var(--t2); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:4px; padding:.16rem .32rem; background:#fff; }
+  .btn { border:1px solid var(--line-strong); background:var(--pane); color:var(--t1); border-radius:6px; padding:.28rem .65rem; font-size:.76rem; cursor:pointer; white-space:nowrap; }
+  .btn:hover { background:#f4f4f5; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { filter:brightness(1.08); }
+  .btn.ghost { border-color:transparent; background:none; color:var(--t2); }
+  .btn.ghost:hover { background:#f4f4f5; color:var(--t1); }
+  .btn.danger { color:var(--danger); }
+  .btn.sm { font-size:.72rem; padding:.2rem .5rem; }
+
+  /* --- three panes --- */
+  .panes { display:grid; grid-template-columns:13rem 21rem 1fr; min-height:0; }
+  @container (width < 72rem) { .panes { grid-template-columns:13rem 1fr; } .pane-reader { display:none; } }
+  @container (width < 46rem) { .panes { grid-template-columns:1fr; } .pane-folders { display:none; } }
+
+  /* --- pane 1: folders (the only place nav lives) --- */
+  .pane-folders { background:var(--rail); border-inline-end:1px solid var(--line); padding:.8rem .6rem; overflow:hidden; }
+  .fgroup { font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--t3); padding:.5rem .5rem .35rem; font-weight:600; }
+  .folder { display:flex; align-items:center; gap:.45rem; padding:.3rem .5rem; border-radius:6px; color:var(--t2); font-size:.79rem; cursor:pointer; width:100%; border:0; background:none; text-align:start; }
+  .folder:hover { background:#e9e9ec; color:var(--t1); }
+  .folder[aria-current="page"] { background:var(--pane); color:var(--t1); font-weight:500; box-shadow:0 1px 2px rgb(0 0 0/.05); }
+  .folder .ic { font-size:.9rem; width:1rem; text-align:center; flex:none; }
+  .folder .n { margin-inline-start:auto; font:400 .7rem/1 var(--mono); color:var(--t3); }
+  .folder[aria-current="page"] .n { color:var(--accent); }
+  .fdivider { height:1px; background:var(--line); margin:.6rem .5rem; }
+  .fadd { display:flex; gap:.3rem; padding:.4rem .5rem; }
+
+  /* --- pane 2: the stream --- */
+  .pane-stream { border-inline-end:1px solid var(--line); background:var(--pane); display:grid; grid-template-rows:auto auto 1fr auto; min-width:0; }
+  .stream-head { padding:.7rem .8rem .5rem; border-bottom:1px solid var(--line); }
+  .stream-head h1 { font-size:1rem; font-weight:600; letter-spacing:-.015em; margin:0; }
+  .stream-head .sub { font-size:.72rem; color:var(--t3); margin-top:.1rem; }
+  .seg { display:flex; gap:.15rem; padding:.5rem .8rem; border-bottom:1px solid var(--line); background:var(--bg); }
+  .seg button { border:0; background:none; font-size:.74rem; color:var(--t2); padding:.25rem .55rem; border-radius:999px; cursor:pointer; }
+  .seg button[aria-pressed="true"] { background:var(--pane); color:var(--t1); font-weight:500; box-shadow:0 1px 2px rgb(0 0 0/.07); }
+
+  .stream { overflow:hidden; }
+  .item { display:grid; grid-template-columns:auto 1fr; gap:.55rem; padding:.55rem .8rem; border-bottom:1px solid var(--line); cursor:pointer; }
+  .item:hover { background:var(--bg); }
+  .item[aria-selected="true"] { background:var(--accent-bg); box-shadow:inset 2px 0 0 var(--accent); }
+  .item .bullet { width:.55rem; height:.55rem; border-radius:50%; margin-top:.4rem; background:transparent; }
+  .item[data-unread="true"] .bullet { background:var(--accent); }
+  .item .from { font-size:.66rem; color:var(--t3); display:flex; gap:.35rem; align-items:center; margin-bottom:.1rem; }
+  .item .from .badge { font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; font-weight:600; padding:.1rem .3rem; border-radius:4px; }
+  .badge.feed { background:#fdf4e3; color:var(--amber); }
+  .badge.link { background:#f1f1f4; color:var(--t2); }
+  .item h3 { font-size:.81rem; font-weight:500; line-height:1.35; margin:0 0 .12rem; color:var(--t1); }
+  .item[aria-selected="true"] h3 { color:var(--accent); }
+  .item .snippet { font-size:.75rem; color:var(--t3); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .item .chips { display:flex; gap:.3rem; margin-top:.3rem; flex-wrap:wrap; }
+  .chip { font-size:.66rem; font-family:var(--mono); color:var(--t2); background:#f1f1f4; border-radius:4px; padding:.1rem .3rem; border:0; cursor:pointer; }
+  .chip[aria-pressed="true"] { background:var(--accent); color:#fff; }
+  .chip.sug { background:transparent; border:1px dashed var(--line-strong); color:var(--t3); }
+  .chip.sug[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .stream-foot { border-top:1px solid var(--line); padding:.5rem .8rem; display:flex; align-items:center; gap:.5rem; background:var(--bg); font-size:.72rem; color:var(--t3); }
+  .stream-foot .spacer { flex:1; }
+
+  /* --- pane 3: reader --- */
+  .pane-reader { overflow:hidden; background:var(--bg); display:grid; grid-template-rows:auto 1fr auto; min-width:0; }
+  .reader-head { padding:.8rem 1.2rem; border-bottom:1px solid var(--line); background:var(--pane); display:flex; gap:.5rem; align-items:center; }
+  .reader-head .title { font-size:.8rem; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .reader-head .spacer { flex:1; }
+  .reader-body { padding:1.6rem 2rem; overflow:hidden; }
+  .reader-body .stamp { font-size:.72rem; color:var(--t3); margin-bottom:.5rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+  .reader-body h2 { font-family:var(--serif); font-size:2rem; font-weight:400; line-height:1.15; letter-spacing:-.01em; margin:0 0 .7rem; max-width:32rem; }
+  .reader-body .lede { font-size:.95rem; color:var(--t2); line-height:1.6; max-width:34rem; margin:0 0 1.2rem; }
+  .reader-body .preview { max-width:34rem; border-top:1px solid var(--line); padding-top:1rem; }
+  .reader-body .preview p { font-size:.85rem; line-height:1.7; color:var(--t2); margin:0 0 .8rem; }
+  .reader-body .preview p:first-of-type { font-size:.95rem; }
+  .reader-body blockquote { margin:1rem 0; padding-inline-start:.9rem; border-inline-start:2px solid var(--accent); color:var(--t1); font-style:italic; }
+  .reader-foot { border-top:1px solid var(--line); background:var(--pane); padding:.6rem 1.2rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+
+  /* --- palette --- */
+  .palette { position:absolute; inset:2.6rem auto auto 50%; transform:translateX(-50%); width:min(94%,34rem); background:#fff; border:1px solid var(--line-strong); border-radius:10px; box-shadow:0 16px 48px rgb(0 0 0/.18); overflow:hidden; z-index:5; }
+  .palette .p-in { display:flex; align-items:center; gap:.5rem; padding:.6rem .8rem; border-bottom:1px solid var(--line); }
+  .palette .p-in .kbd { color:var(--t3); }
+  .palette .p-in input { border:0; outline:0; font-size:.85rem; flex:1; font-family:var(--mono); min-width:0; }
+  .palette ul { list-style:none; margin:0; padding:.3rem; max-height:14rem; overflow:hidden; }
+  .palette li { padding:.4rem .6rem; border-radius:6px; display:flex; align-items:center; gap:.6rem; font-size:.8rem; }
+  .palette li[aria-selected="true"] { background:var(--accent-bg); }
+  .palette li .d { color:var(--t3); font-size:.72rem; margin-inline-start:auto; }
+  .palette .grp { font-size:.62rem; text-transform:uppercase; letter-spacing:.09em; color:var(--t3); padding:.5rem .6rem .2rem; font-weight:600; }
+
+  /* --- keyboard hint bar --- */
+  .keybar { display:flex; gap:1rem; padding:.45rem .9rem; border-top:1px solid var(--line); background:var(--pane); font-size:.7rem; color:var(--t3); flex-wrap:wrap; }
+  .keybar span { display:flex; gap:.3rem; align-items:center; }
+
+  /* --- command bar on mobile --- */
+  .mbar { display:none; }
+  @container (width < 46rem) {
+    .mbar { display:flex; border-top:1px solid var(--line); background:var(--pane); }
+    .mbar a { flex:1; text-align:center; font-size:.68rem; color:var(--t3); text-decoration:none; padding:.5rem .2rem; }
+    .mbar a[aria-current="page"] { color:var(--accent); }
+    .mbar a .ic { display:block; font-size:1rem; line-height:1.2; }
+    .reader-body { padding:1rem 1.1rem; }
+    .reader-body h2 { font-size:1.5rem; }
+    .keybar { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+  <a class="back" href="index.html">← all candidates</a>
+  <h1>Candidate D — Split Deck</h1>
+  <p class="lede">The interaction-model divergence. Three panes, all visible: folders on the left, a stream in the middle, and the thing itself on the right. The structural bet is that <b>bookmarks and feed items are the same kind of object</b> — something found on the internet worth keeping — so they live in one mixed stream and share one action vocabulary. Triaging a feed item and filing a bookmark are the same three keystrokes. A command palette covers everything else. On mobile the panes collapse to list → item, the standard mail-client degradation.</p>
+  <p class="note">Note the deliberate palette break: this is a cool neutral with a single blue accent, not the current warm mocha. Part of the question here is whether "calm" is a property of the palette at all, or only of the layout.</p>
+
+  <!-- ============ 1. BOOKMARK LIST (3-pane) ============ -->
+  <h2>1 · The deck</h2>
+  <p>Everything at once: where you are, what's there, and what it says. Selecting an item loads it in the reader pane without a page transition, so a scan down 20 items costs one page load rather than 20. The footer is the triage surface — the same three buttons appear whether the item came from a feed or from your own typing.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Desktop</b> · folders / stream / reader</span><span>142 bookmarks · 8 feed items</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input placeholder="tag: rust is:unread  ·  or a command"></label>
+          <div class="tb-actions"><button class="btn sm">＋ Add</button><span class="kbd">⌘⏎</span></div>
+        </div>
+        <div class="panes">
+          <aside class="pane-folders">
+            <div class="fgroup">Inbox</div>
+            <button class="folder" aria-current="page"><span class="ic">◈</span>Everything<span class="n">150</span></button>
+            <button class="folder"><span class="ic">○</span>Unread<span class="n">38</span></button>
+            <button class="folder"><span class="ic">◷</span>Reading queue<span class="n">14</span></button>
+            <button class="folder"><span class="ic">◌</span>Archived<span class="n">61</span></button>
+            <div class="fdivider"></div>
+            <div class="fgroup">Feeds</div>
+            <button class="folder"><span class="ic">◔</span>All feeds<span class="n">8</span></button>
+            <button class="folder"><span class="ic">◔</span>golang.blog<span class="n">3</span></button>
+            <button class="folder"><span class="ic">◔</span>brandur.org<span class="n">4</span></button>
+            <button class="folder"><span class="ic">◔</span>simonwillison.net<span class="n">1</span></button>
+            <div class="fadd"><button class="btn sm" style="flex:1">＋ Subscribe</button></div>
+            <div class="fdivider"></div>
+            <div class="fgroup">Collections</div>
+            <button class="folder"><span class="ic">▤</span>databases<span class="n">48</span></button>
+            <button class="folder"><span class="ic">▤</span>to-read<span class="n">64</span></button>
+            <button class="folder"><span class="ic">▤</span>perf-reading<span class="n">31</span></button>
+            <button class="folder"><span class="ic">▤</span>go-deep-dives<span class="n">22</span></button>
+            <button class="folder"><span class="ic">▤</span>rust-postmortems<span class="n">15</span></button>
+            <button class="folder"><span class="ic">⋯</span>All 9<span class="n">9</span></button>
+            <div class="fadd"><button class="btn sm" style="flex:1">＋ New collection</button></div>
+          </aside>
+
+          <section class="pane-stream">
+            <div class="stream-head">
+              <h1>Everything</h1>
+              <div class="sub">bookmarks and feed items, newest first</div>
+            </div>
+            <div class="seg">
+              <button aria-pressed="true">All</button>
+              <button>Unread</button>
+              <button>Queued</button>
+              <button>Feeds</button>
+            </div>
+            <div class="stream">
+              <div class="item" aria-selected="true" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>golang.blog</span><span>2h</span></div>
+                  <h3>What's new in Go 1.26: iterators everywhere</h3>
+                  <div class="snippet">Range-over-func finally landed in the standard library. Here's what changes for iterators, errors, and allocation.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="true">go</button><button class="chip sug" aria-pressed="true">release</button><button class="chip sug" aria-pressed="false">+ tag</button></div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>simonwillison.net</span><span>2d</span></div>
+                  <h3>Rewriting SQLite's query planner for fun</h3>
+                  <div class="snippet">Good section on the B-tree rebalance heuristic — the tradeoff discussion maps onto our cursor pagination work.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">sqlite</button><button class="chip" aria-pressed="true">databases</button></div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>go.dev</span><span>3d</span></div>
+                  <h3>A Tour of Go's Memory Management</h3>
+                  <div class="snippet">Stack growth, escape analysis, and what the GC actually costs you.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">go</button></div>
+                </div>
+              </div>
+              <div class="item" aria-selected="false">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>brandur.org</span><span>6h</span></div>
+                  <h3>Efficient pagination with Postgres</h3>
+                  <div class="snippet">Keyset pagination, tie-breaking, and why offset pagination degrades the way it does.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="true">postgres</button><button class="chip sug" aria-pressed="false">perf</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>brandur.org</span><span>1w</span></div>
+                  <h3>Postgres VACUUM, finally explained properly</h3>
+                  <div class="snippet">The multixact section is the one I need. Everything before it rehashes the docs.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">postgres</button><button class="chip" aria-pressed="true">perf</button><button class="chip" aria-pressed="true">◷ queued</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>wiki.alpinelinux.org</span><span>6d</span></div>
+                  <h3>The Design Philosophy Behind Alpine Linux</h3>
+                  <div class="snippet">Correctness, simplicity, and the tradeoffs of not shipping a glibc.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">linux</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="stream-foot">
+              <span>6 of 150</span><span class="spacer"></span><span class="kbd">j</span><span class="kbd">k</span><span class="kbd">⏎</span><span class="kbd">⌘A</span>
+            </div>
+          </section>
+
+          <section class="pane-reader">
+            <div class="reader-head">
+              <span class="title">What's new in Go 1.26: iterators everywhere</span>
+              <span class="spacer"></span>
+              <button class="btn sm">Open original ↗</button>
+              <button class="btn sm ghost">Share</button>
+            </div>
+            <div class="reader-body">
+              <div class="stamp">
+                <span class="badge feed">feed item</span><span>golang.blog</span><span>2 hours ago</span>
+              </div>
+              <h2>What's new in Go 1.26: iterators everywhere</h2>
+              <p class="lede">Range-over-func finally landed in the standard library. Here's what changes for iterators, errors, and allocation — and why the compiler team decided the old two-value range was the wrong shape.</p>
+              <div class="preview">
+                <p>The iterator proposal has been in the works for three release cycles, and the shape that finally shipped is not the one most people expected.</p>
+                <p>Instead of <code>seq[V]</code> with a separate yield function, Go 1.26 adopts range-over-func directly. A function of the shape <code>func(yield func(V) bool)</code> is now rangeable, which means the iterator and the loop are the same abstraction.</p>
+                <blockquote>The consequence is that iteration can no longer be resumed after the loop exits — and the committee decided that was the right trade.</blockquote>
+                <p>For library authors this mostly simplifies things. The three-method iterator interface goes away, replaced by one method with a callback. Allocation profile improves in the common case because the yield closure can be stack-allocated.</p>
+              </div>
+            </div>
+            <div class="reader-foot">
+              <button class="btn primary">Save as bookmark</button>
+              <button class="btn">＋ Collections</button>
+              <button class="btn">＋ Reading queue</button>
+              <span style="flex:1"></span>
+              <button class="btn ghost">Dismiss</button>
+              <button class="btn ghost">Mute feed</button>
+            </div>
+          </section>
+        </div>
+        <div class="keybar">
+          <span><span class="kbd">j</span>/<span class="kbd">k</span> move</span>
+          <span><span class="kbd">s</span> save</span>
+          <span><span class="kbd">r</span> read</span>
+          <span><span class="kbd">q</span> queue</span>
+          <span><span class="kbd">e</span> archive</span>
+          <span><span class="kbd">⌘K</span> everything else</span>
+          <span><span class="kbd">?</span> shortcuts</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Command palette</h3>
+  <p>Every action, every filter, every navigation target, in one searchable list. Because the deck hides most row actions behind selection, the palette is what keeps it viable — and it's the fastest path to anything on mobile.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>⌘K</b> · command palette</span><span>type anything</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input value="tag:" style="pointer-events:none"></label>
+          <div class="tb-actions"><button class="btn sm">＋ Add</button></div>
+        </div>
+        <div class="panes" style="filter:saturate(.4);opacity:.5">
+          <aside class="pane-folders">
+            <div class="fgroup">Inbox</div>
+            <button class="folder"><span class="ic">◈</span>Everything<span class="n">150</span></button>
+            <button class="folder"><span class="ic">○</span>Unread<span class="n">38</span></button>
+            <button class="folder"><span class="ic">◷</span>Reading queue<span class="n">14</span></button>
+            <div class="fgroup">Feeds</div><button class="folder"><span class="ic">◔</span>All feeds<span class="n">8</span></button>
+          </aside>
+          <section class="pane-stream">
+            <div class="stream-head"><h1>Everything</h1><div class="sub">150 items</div></div>
+            <div class="item"><span class="bullet"></span><div><h3>What's new in Go 1.26</h3></div></div>
+            <div class="item"><span class="bullet"></span><div><h3>Rewriting SQLite's query planner</h3></div></div>
+          </section>
+          <section class="pane-reader"><div class="reader-body"></div></section>
+        </div>
+        <div class="palette">
+          <div class="p-in"><span class="kbd">⌘K</span><input value="tag:"></div>
+          <ul>
+            <li class="grp">Filter</li>
+            <li aria-selected="true">Search for <b>tag:</b> as free text<span class="d">⏎</span></li>
+            <li>Filter to tag <b>rust</b><span class="d">⇧⏎</span></li>
+            <li class="grp">Actions on selection (3 items)</li>
+            <li>Add tag <b>rust</b> to selected<span class="d">⏎</span></li>
+            <li>Save all 3 feed items as bookmarks<span class="d">⌥⏎</span></li>
+            <li class="grp">Go to</li>
+            <li>Reading queue<span class="d">G then R</span></li>
+            <li>Collection: perf-reading<span class="d">G then P</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Mobile</h3>
+  <p>Stream and reader become two levels. The folder list is a sheet. Triage buttons move to a sticky bottom bar, which is where thumbs are.</p>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>stream → reader</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input placeholder="search"></label>
+          <button class="btn sm ghost">☰</button>
+        </div>
+        <div class="panes">
+          <section class="pane-stream">
+            <div class="stream-head"><h1>Everything</h1><div class="sub">150 items</div></div>
+            <div class="seg"><button aria-pressed="true">All</button><button>Unread</button><button>Queued</button><button>Feeds</button></div>
+            <div class="stream">
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>golang.blog</span><span>2h</span></div>
+                  <h3>What's new in Go 1.26: iterators everywhere</h3>
+                  <div class="snippet">Range-over-func finally landed in the standard library.</div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>simonwillison.net</span><span>2d</span></div>
+                  <h3>Rewriting SQLite's query planner for fun</h3>
+                  <div class="snippet">Good section on the B-tree rebalance heuristic.</div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>go.dev</span><span>3d</span></div>
+                  <h3>A Tour of Go's Memory Management</h3>
+                  <div class="snippet">Stack growth, escape analysis, GC costs.</div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>brandur.org</span><span>6h</span></div>
+                  <h3>Efficient pagination with Postgres</h3>
+                  <div class="snippet">Keyset pagination and tie-breaking.</div>
+                </div>
+              </div>
+            </div>
+            <div class="stream-foot"><span>4 of 150</span><span class="spacer"></span><button class="btn sm primary">＋ Save link</button></div>
+          </section>
+        </div>
+        <div class="keybar" style="display:none"></div>
+        <nav class="mbar">
+          <a href="#" aria-current="page"><span class="ic">◈</span>Inbox</a>
+          <a href="#"><span class="ic">◷</span>Queue</a>
+          <a href="#"><span class="ic">◔</span>Feeds</a>
+          <a href="#"><span class="ic">▤</span>Collections</a>
+          <a href="#"><span class="ic">⌕</span>Search</a>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2. QUICK ADD ============ -->
+  <h2>2 · Quick add</h2>
+  <p>⌘⏎ from anywhere opens a centered capture dialog, because in a three-pane app a full-width inline form would be fighting the layout for attention. Inline <b>#tag</b> and <b>@collection</b> tokenize as you type. The dialog is small and dismissible, which suits a task that takes four seconds.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Quick add</b> · ⌘⏎ capture</span><span>type-ahead, dismiss on ⎋</span></div>
+    <div class="app">
+      <div class="win" style="min-height:20rem">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input placeholder="search"></label>
+        </div>
+        <div class="panes" style="filter:saturate(.35);opacity:.45;min-height:14rem">
+          <aside class="pane-folders"><div class="fgroup">Inbox</div><button class="folder"><span class="ic">◈</span>Everything<span class="n">150</span></button></aside>
+          <section class="pane-stream"><div class="stream-head"><h1>Everything</h1></div><div class="item"><span class="bullet"></span><div><h3>What's new in Go 1.26</h3></div></div></section>
+          <section class="pane-reader"></section>
+        </div>
+        <div class="palette" style="inset:4.5rem auto auto 50%; width:min(94%,26rem)">
+          <div class="p-in"><span class="kbd">⏎</span><input value="https://go.dev/blog/memory-management/ #go @databases !q"></div>
+          <ul>
+            <li><b>https://go.dev/blog/memory-management/</b><span class="d">link</span></li>
+            <li><b style="color:var(--accent)">#go</b> → tag<span class="d">⏎</span></li>
+            <li><b style="color:var(--accent)">@databases</b> → collection<span class="d">⏎</span></li>
+            <li><b style="color:var(--accent)">!q</b> → reading queue<span class="d">⏎</span></li>
+            <li style="color:var(--t3)">↑↓ to choose · ⌘⏎ to save all · ⎋ to dismiss</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. COLLECTIONS ============ -->
+  <h2>3 · Collections</h2>
+  <p>Collections live in the folder rail, so "open a collection" is a selection, not a navigation event — the stream and reader panes stay alive. Selecting "All collections" swaps the stream to a collection overview, which is a compact card list rather than a table, because you're choosing here, not comparing.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Collections</b> · overview in stream pane</span><span>9 collections · 3 shared</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input placeholder="tag: rust is:unread"></label>
+          <div class="tb-actions"><button class="btn sm primary">＋ New</button></div>
+        </div>
+        <div class="panes">
+          <aside class="pane-folders">
+            <div class="fgroup">Inbox</div>
+            <button class="folder"><span class="ic">◈</span>Everything<span class="n">150</span></button>
+            <button class="folder"><span class="ic">○</span>Unread<span class="n">38</span></button>
+            <div class="fdivider"></div>
+            <div class="fgroup">Collections</div>
+            <button class="folder" aria-current="page"><span class="ic">⋯</span>All 9<span class="n">9</span></button>
+            <button class="folder"><span class="ic">▤</span>databases<span class="n">48</span></button>
+            <button class="folder"><span class="ic">▤</span>to-read<span class="n">64</span></button>
+            <button class="folder"><span class="ic">▤</span>perf-reading<span class="n">31</span></button>
+            <button class="folder"><span class="ic">▤</span>go-deep-dives<span class="n">22</span></button>
+            <div class="fadd"><button class="btn sm" style="flex:1">＋ New collection</button></div>
+          </aside>
+          <section class="pane-stream">
+            <div class="stream-head"><h1>Collections</h1><div class="sub">9 total · 3 shared · 2 edited by others</div></div>
+            <div class="seg"><button aria-pressed="true">Mine</button><button>Shared with me</button><button>Archived</button></div>
+            <div class="stream">
+              <div class="item">
+                <span class="bullet" style="background:var(--accent)"></span>
+                <div>
+                  <div class="from"><span class="badge link">owner</span><span>48 items</span><span>12 unread</span><span>2d ago</span></div>
+                  <h3>databases</h3>
+                  <div class="snippet">Everything relational. Indexes, query planners, vacuum.</div>
+                  <div class="chips"><button class="chip">postgres</button><button class="chip">sqlite</button><button class="chip">share link</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet" style="background:var(--ok)"></span>
+                <div>
+                  <div class="from"><span class="badge link">editor</span><span>15 items</span><span>0 unread</span><span>3w ago</span></div>
+                  <h3>rust-postmortems</h3>
+                  <div class="snippet">Write-ups of projects that migrated to or away from Rust.</div>
+                  <div class="chips"><button class="chip">rust</button><button class="chip">share link</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet" style="background:var(--t3)"></span>
+                <div>
+                  <div class="from"><span class="badge link">viewer</span><span>31 items</span><span>20 unread</span><span>1mo ago</span></div>
+                  <h3>perf-reading</h3>
+                  <div class="snippet">Profiling, measurement, and the occasional flame graph.</div>
+                  <div class="chips"><button class="chip">perf</button><button class="chip">share link</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet" style="background:var(--accent)"></span>
+                <div>
+                  <div class="from"><span class="badge link">owner</span><span>64 items</span><span>44 unread</span><span>1w ago</span></div>
+                  <h3>to-read</h3>
+                  <div class="snippet">Scratch pile. Reviewed weekly.</div>
+                  <div class="chips"><button class="chip">share</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="stream-foot"><span>4 of 9</span><span class="spacer"></span><span class="kbd">G then C</span></div>
+          </section>
+          <section class="pane-reader">
+            <div class="reader-head"><span class="title">databases</span><span class="spacer"></span><button class="btn sm">Members</button><button class="btn sm ghost">Share link</button><button class="btn sm">Edit</button></div>
+            <div class="reader-body">
+              <div class="stamp"><span class="badge link">you own this</span><span>48 items</span><span>12 unread</span><span>3 shared members</span></div>
+              <h2>databases</h2>
+              <p class="lede">Everything relational. Indexes, query planners, vacuum, and connection pooling. Created 8 months ago, last modified 2 days ago.</p>
+              <div class="preview">
+                <div style="display:grid;gap:.5rem;font-size:.8rem">
+                  <div style="display:flex;gap:.6rem;align-items:center"><b style="font:500 .7rem/1 var(--mono);color:var(--t3);width:5rem">OWNER</b> you@example.com</div>
+                  <div style="display:flex;gap:.6rem;align-items:center"><b style="font:500 .7rem/1 var(--mono);color:var(--t3);width:5rem">EDITOR</b> a@example.com</div>
+                  <div style="display:flex;gap:.6rem;align-items:center"><b style="font:500 .7rem/1 var(--mono);color:var(--t3);width:5rem">VIEWER</b> b@example.com</div>
+                </div>
+              </div>
+            </div>
+            <div class="reader-foot">
+              <button class="btn primary">Open collection</button>
+              <button class="btn">＋ Add member</button>
+              <span style="flex:1"></span>
+              <button class="btn ghost danger">Delete</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4. READING ============ -->
+  <h2>4 · Reading queue</h2>
+  <p>Queue selection changes the item pane's verb set from "save/queue/archive" to "done/skip/archive" and nothing else about the layout. The reader pane shows position — "3 of 14" — because a queue without position is just a list.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Reading queue</b> · FIFO</span><span>14 queued</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input placeholder="search"></label>
+        </div>
+        <div class="panes">
+          <aside class="pane-folders">
+            <div class="fgroup">Inbox</div>
+            <button class="folder"><span class="ic">◈</span>Everything<span class="n">150</span></button>
+            <button class="folder"><span class="ic">○</span>Unread<span class="n">38</span></button>
+            <button class="folder" aria-current="page"><span class="ic">◷</span>Reading queue<span class="n">14</span></button>
+            <button class="folder"><span class="ic">◌</span>Archived<span class="n">61</span></button>
+          </aside>
+          <section class="pane-stream">
+            <div class="stream-head"><h1>Reading queue</h1><div class="sub">oldest first · 14 queued</div></div>
+            <div class="seg"><button aria-pressed="true">Queue</button><button>Saved for later</button><button>All feeds</button></div>
+            <div class="stream">
+              <div class="item"><span class="bullet"></span><div><div class="from"><span>1</span><span>simonwillison.net</span><span>queued 2d</span></div><h3>Rewriting SQLite's query planner for fun</h3><div class="snippet">Good section on the B-tree rebalance heuristic.</div></div></div>
+              <div class="item"><span class="bullet"></span><div><div class="from"><span>2</span><span>go.dev</span><span>queued 3d</span></div><h3>A Tour of Go's Memory Management</h3><div class="snippet">Stack growth, escape analysis, GC costs.</div></div></div>
+              <div class="item" aria-selected="true" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span>3</span><span>brandur.org</span><span>queued 1w</span></div>
+                  <h3>Postgres VACUUM, finally explained properly</h3>
+                  <div class="snippet">The multixact section is the one I need. Everything before it rehashes the docs.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">postgres</button><button class="chip" aria-pressed="true">perf</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="stream-foot"><span>3 of 14</span><span class="spacer"></span><span class="kbd">d</span><span class="kbd">s</span></div>
+          </section>
+          <section class="pane-reader">
+            <div class="reader-head"><span class="title">Postgres VACUUM, finally explained properly</span><span class="spacer"></span><button class="btn sm">Open original ↗</button></div>
+            <div class="reader-body">
+              <div class="stamp"><span>3 of 14</span><span>brandur.org</span><span>queued 1 week ago</span><span>~8 min</span></div>
+              <h2>Postgres VACUUM, finally explained properly</h2>
+              <p class="lede">Vacuum is the most misunderstood routine in PostgreSQL, and most of the confusion comes from documentation that describes the mechanism accurately but the purpose poorly.</p>
+              <div class="preview">
+                <p>The purpose is simple: reclaim space and keep the visibility map honest. Everything downstream — index bloat, autovacuum thresholds, the aggressive-worker heuristics — is a consequence of those two jobs being expensive.</p>
+                <blockquote>Vacuum exists to answer two questions: where is the dead space, and who is allowed to see which row version.</blockquote>
+                <p>The multixact section is the one I need for the pagination work. Everything before it is a rehash of the official docs.</p>
+              </div>
+            </div>
+            <div class="reader-foot">
+              <button class="btn primary">Done — next</button>
+              <button class="btn">Keep for later</button>
+              <span style="flex:1"></span>
+              <button class="btn ghost danger">Archive</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5. FEEDS ============ -->
+  <h2>5 · Feeds</h2>
+  <p>Feeds are the reason this direction exists. Feed items and bookmarks occupy the same stream with a small badge distinguishing them, so "save this" is always the same two keystrokes regardless of origin. Auto-tagging shows as dashed chips you tap to accept — visually provisional on purpose. Reading always happens on the original site; the reader pane shows a preview, never scraped content.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Feeds</b> · triage</span><span>4 subscribed · 8 unread</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input placeholder="feed: golang.blog"></label>
+          <div class="tb-actions"><button class="btn sm primary">＋ Subscribe</button></div>
+        </div>
+        <div class="panes">
+          <aside class="pane-folders">
+            <div class="fgroup">Inbox</div>
+            <button class="folder"><span class="ic">◈</span>Everything<span class="n">150</span></button>
+            <div class="fdivider"></div>
+            <div class="fgroup">Feeds</div>
+            <button class="folder" aria-current="page"><span class="ic">◔</span>All feeds<span class="n">8</span></button>
+            <button class="folder"><span class="ic">◔</span>golang.blog<span class="n">3</span></button>
+            <button class="folder"><span class="ic">◔</span>brandur.org<span class="n">4</span></button>
+            <button class="folder"><span class="ic">◔</span>simonwillison.net<span class="n">1</span></button>
+            <button class="folder"><span class="ic">◔</span>news.ycombinator<span class="n">0</span></button>
+            <div class="fadd"><button class="btn sm" style="flex:1">＋ Subscribe</button></div>
+          </aside>
+          <section class="pane-stream">
+            <div class="stream-head"><h1>All feeds</h1><div class="sub">8 unread of 27 · auto-tagging on</div></div>
+            <div class="seg"><button aria-pressed="true">Unread</button><button>All</button><button>Saved</button></div>
+            <div class="stream">
+              <div class="item" aria-selected="true" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>golang.blog</span><span>2h</span></div>
+                  <h3>What's new in Go 1.26: iterators everywhere</h3>
+                  <div class="snippet">Range-over-func finally landed in the standard library. Here's what changes for iterators, errors, and allocation.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="true">go</button><button class="chip sug" aria-pressed="true">release</button><button class="chip sug" aria-pressed="false">+ tag</button></div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>brandur.org</span><span>6h</span></div>
+                  <h3>Efficient pagination with Postgres</h3>
+                  <div class="snippet">Keyset pagination, tie-breaking, and why offset pagination degrades the way it does.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="true">postgres</button><button class="chip sug" aria-pressed="false">perf</button></div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>news.ycombinator</span><span>1d</span></div>
+                  <h3>Ask HN: what are you working on?</h3>
+                  <div class="snippet">Monthly thread. Nothing auto-tagged yet.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="false">+ tag</button></div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>simonwillison.net</span><span>2d</span></div>
+                  <h3>Django and LLMs, plus a new Python blog</h3>
+                  <div class="snippet">Plus: an annotated version of the Red Hat kernel bug report, and why Datasette gained a plugin system.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="false">python</button><button class="chip sug" aria-pressed="false">llm</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="stream-foot"><span>4 of 27</span><span class="spacer"></span><button class="btn sm">Save all 8</button></div>
+          </section>
+          <section class="pane-reader">
+            <div class="reader-head"><span class="title">What's new in Go 1.26: iterators everywhere</span><span class="spacer"></span><button class="btn sm">Open original ↗</button></div>
+            <div class="reader-body">
+              <div class="stamp"><span class="badge feed">unread feed item</span><span>golang.blog</span><span>2 hours ago</span></div>
+              <h2>What's new in Go 1.26: iterators everywhere</h2>
+              <p class="lede">Range-over-func finally landed in the standard library. Here's what changes for iterators, errors, and allocation — and why the compiler team decided the old two-value range was the wrong shape.</p>
+              <div class="preview">
+                <p>The shape that finally shipped is not the one most people expected. Instead of <code>seq[V]</code> with a separate yield function, Go 1.26 adopts range-over-func directly.</p>
+                <p>For library authors this mostly simplifies things. The three-method iterator interface goes away, replaced by one method with a callback, and the allocation profile improves because the yield closure can be stack-allocated.</p>
+              </div>
+            </div>
+            <div class="reader-foot">
+              <button class="btn primary">Save as bookmark</button>
+              <button class="btn">＋ Collections</button>
+              <button class="btn">＋ Reading queue</button>
+              <span style="flex:1"></span>
+              <button class="btn ghost">Dismiss</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6. SEARCH ============ -->
+  <h2>6 · Search</h2>
+  <p>The omnibox at the top of the window is the search field, always in the same place on every screen. Syntax parses as you type and the results land in the stream, so search never leaves the layout — you don't navigate to a results page, you filter the stream you're already in.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Search</b> · results in the stream</span><span>18 results · 0.04s</span></div>
+    <div class="app">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <label class="omnibox"><span class="kbd">⌘K</span><input value='tag:postgres is:unread -tag:"write soon" after:2026-08'></label>
+          <div class="tb-actions"><button class="btn sm ghost">esc clears</button></div>
+        </div>
+        <div class="panes">
+          <aside class="pane-folders">
+            <div class="fgroup">Active query</div>
+            <button class="folder" aria-current="page"><span class="ic">◔</span>tag:postgres<span class="n">18</span></button>
+            <button class="folder"><span class="ic">◔</span>is:unread<span class="n">18</span></button>
+            <button class="folder"><span class="ic">◔</span>− "write soon"<span class="n">3</span></button>
+            <button class="folder"><span class="ic">◔</span>after: 2026-08<span class="n">11</span></button>
+            <div class="fgroup">Operators</div>
+            <button class="folder"><span class="ic">·</span>coll:<span class="n"></span></button>
+            <button class="folder"><span class="ic">·</span>host:<span class="n"></span></button>
+            <button class="folder"><span class="ic">·</span>is:archived<span class="n"></span></button>
+            <button class="folder"><span class="ic">·</span>is:queued<span class="n"></span></button>
+            <button class="folder"><span class="ic">·</span>before:<span class="n"></span></button>
+            <button class="folder"><span class="ic">·</span>OR<span class="n"></span></button>
+          </aside>
+          <section class="pane-stream">
+            <div class="stream-head"><h1>18 results</h1><div class="sub">matched title, note, host, and URL · 0.04s</div></div>
+            <div class="seg"><button aria-pressed="true">Results</button><button>Group by host</button><button>Group by tag</button></div>
+            <div class="stream">
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>brandur.org</span><span>1w</span></div>
+                  <h3>Postgres VACUUM, finally explained properly</h3>
+                  <div class="snippet">The multixact section is the one I need. Everything before it is a rehash of the docs.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">postgres</button><button class="chip" aria-pressed="true">perf</button></div>
+                </div>
+              </div>
+              <div class="item" data-unread="true">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge feed">feed</span><span>brandur.org</span><span>1d</span></div>
+                  <h3>Efficient pagination with Postgres</h3>
+                  <div class="snippet">Keyset pagination, tie-breaking, and why offset pagination degrades.</div>
+                  <div class="chips"><button class="chip sug" aria-pressed="true">postgres</button><button class="chip sug" aria-pressed="false">perf</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>brandur.org</span><span>2w</span></div>
+                  <h3>Row-level security in practice</h3>
+                  <div class="snippet">Policies, performance implications, and the footguns of per-row checks.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">postgres</button><button class="chip" aria-pressed="true">security</button></div>
+                </div>
+              </div>
+              <div class="item">
+                <span class="bullet"></span>
+                <div>
+                  <div class="from"><span class="badge link">saved</span><span>brandur.org</span><span>3w</span></div>
+                  <h3>Postgres connection pooling: the short version</h3>
+                  <div class="snippet">Transaction pooling, prepared statements, and PgBouncer's modes.</div>
+                  <div class="chips"><button class="chip" aria-pressed="true">postgres</button><button class="chip" aria-pressed="true">perf</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="stream-foot"><span>4 of 18</span><span class="spacer"></span><span class="kbd">⌘A</span><span class="kbd">⌥⏎ bulk</span></div>
+          </section>
+          <section class="pane-reader">
+            <div class="reader-head"><span class="title">18 results</span><span class="spacer"></span><button class="btn sm">Save all 18</button><button class="btn sm">Archive all 18</button></div>
+            <div class="reader-body">
+              <div class="stamp"><span class="badge link">query</span><span>4 operators</span></div>
+              <h2>18 results for tag:postgres</h2>
+              <p class="lede">All 18 match <b>tag:postgres</b> and <b>is:unread</b>. Three were excluded by <b>−tag:"write soon"</b>. Eleven fall after 2026-08. Matched across title, note, host, and URL.</p>
+              <div class="preview">
+                <div style="display:grid;gap:.4rem;font-size:.78rem;color:var(--t2)">
+                  <div><b style="font-family:var(--mono);color:var(--t3)">postgres</b> — 18 results · 3 hosts · 6 tags</div>
+                  <div><b style="font-family:var(--mono);color:var(--t3)">brandur.org</b> — 14 of 18</div>
+                  <div><b style="font-family:var(--mono);color:var(--t3)">perf</b> — 6 of 18</div>
+                </div>
+              </div>
+            </div>
+            <div class="reader-foot">
+              <button class="btn primary">Save all 18 as bookmarks</button>
+              <button class="btn">＋ to collection</button>
+              <button class="btn">＋ to queue</button>
+              <span style="flex:1"></span>
+              <button class="btn ghost danger">Archive all 18</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>What this direction is good and bad for</h2>
+  <p><b>Good for</b> — the RSS feature, by a wide margin. This is the only candidate where "add a feed" and "save a bookmark" are the same gesture in the same list, which is the whole point of having both. It also handles bulk operations naturally (⌘A then an action on the reader pane), and the constant-position layout means you never lose your place while triaging. The reader pane makes scanning twenty items one interaction rather than twenty page loads, which is the retrieve-heavy win.</p>
+  <p><b>Bad for</b> — everything else, a bit. Three panes means less room for the list on any screen, and the mobile degradation is genuinely worse than B's (which was designed mobile-first) and only marginally better than C's. Selection-dependent actions are a real accessibility and discoverability cost — nothing tells a first-time visitor that <b>s</b> saves. Quick-add as a modal fights the layout rather than fitting it. And the cool palette is a gamble: it may read as more neutral and modern, or as a departure from a warm identity you'd rather keep.</p>
+  <p class="note">The open question if you pick this direction: does merging feeds and bookmarks into one stream feel clarifying or like a loss of structure? It's a real fork in the road for the feature set, independent of layout — and it's the only direction that forces you to actually decide it.</p>
+</div>
+</body>
+</html>

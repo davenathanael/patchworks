@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Candidate A: Workbench</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=geist:400,500,600&display=swap">
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=jetbrains-mono:400,500&display=swap">
+<style>
+  /* ===== doc chrome ===== */
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; color:#1c1917; background:#faf9f7; line-height:1.55; }
+  .doc { width:min(100% - 2.5rem, 86rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  .doc > h1 { font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .3rem; }
+  .doc .lede { color:#57534e; max-width:74ch; margin:0 0 .5rem; }
+  .doc > h2 { margin:4rem 0 .3rem; font-size:1.5rem; letter-spacing:-.015em; }
+  .doc > h2 + p { color:#57534e; max-width:74ch; margin:0 0 .5rem; }
+  .doc > h3 { font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:#a8a29e; margin:2.5rem 0 .8rem; }
+  .back { font-size:.85rem; color:#a8a29e; text-decoration:none; }
+  .note { border-left:3px solid #d6d3d1; padding:.1rem 0 .1rem 1rem; margin:1rem 0 0; color:#57534e; font-size:.9rem; max-width:74ch; }
+
+  /* ===== frames ===== */
+  .frame { container-type:inline-size; border:1px solid #e7e5e4; border-radius:10px; overflow:hidden; margin-block:1.25rem; box-shadow:0 1px 3px rgb(0 0 0/.05); }
+  .frame.phone { width:390px; max-width:100%; margin-inline:auto; }
+  .frame-label { font:500 .7rem/1 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; color:#a8a29e; padding:.55rem .9rem; background:#f5f5f4; border-bottom:1px solid #e7e5e4; display:flex; justify-content:space-between; }
+  .frame-label b { color:#1c1917; }
+
+  /* ===== THE APP: A — Workbench =====
+     Two-pane, keyboard-first, no sidebar, zero decorative chrome.
+     Hairline rules do the structural work. Every action visible. */
+  .app {
+    font-family:"Geist", system-ui, sans-serif;
+    font-size:.8125rem; line-height:1.45; color:var(--t1); background:var(--bg);
+    accent-color:var(--accent);
+    color-scheme: light;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --bg:#fcfcfb; --panel:#fff; --t1:#1a1a19; --t2:#5a5956; --t3:#96948f;
+    --line:#e3e2df; --line-strong:#cfceca; --accent:#9a5b12; --accent-bg:#fdf3e3;
+    --danger:#b3261e; --ok:#2f6b3a;
+    --r:2px;
+  }
+
+  /* --- top command bar: search IS the nav --- */
+  .cmd { display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; border-bottom:1px solid var(--line-strong); background:var(--panel); }
+  .brand { font-weight:600; letter-spacing:-.02em; font-size:.9rem; padding-inline-end:.6rem; border-inline-end:1px solid var(--line); white-space:nowrap; }
+  .q { flex:1; display:flex; align-items:center; gap:.5rem; border:1px solid var(--line-strong); border-radius:var(--r); padding:.2rem .5rem; background:var(--bg); }
+  .q:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .q .prompt { color:var(--accent); font:500 .8rem/1 var(--mono); }
+  .q input { border:0; background:none; font:inherit; font-family:var(--mono); font-size:.78rem; color:var(--t1); flex:1; outline:0; min-width:0; }
+  .q input::placeholder { color:var(--t3); }
+  .kbd { font:500 .65rem/1 var(--mono); color:var(--t2); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:.2rem .3rem; background:#fff; white-space:nowrap; }
+  .btn { font:inherit; font-size:.75rem; border:1px solid var(--line-strong); border-radius:var(--r); background:#fff; color:var(--t1); padding:.25rem .55rem; cursor:pointer; white-space:nowrap; }
+  .btn:hover { background:#f4f4f2; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { filter:brightness(1.08); }
+  .btn.ghost { border-color:transparent; background:none; color:var(--t2); }
+  .btn.ghost:hover { background:#f4f4f2; color:var(--t1); }
+  .btn.danger { color:var(--danger); }
+  .btn.danger:hover { background:#fdf1f0; }
+
+  /* --- workspace: list + inspector --- */
+  .ws { display:grid; grid-template-columns: 1fr 22rem; min-height:34rem; }
+  @container (width < 58rem) { .ws { grid-template-columns:1fr; } .inspector { display:none; } }
+
+  .col-list { border-inline-end:1px solid var(--line); min-width:0; }
+  .bar { display:flex; align-items:center; gap:.6rem; padding:.35rem .6rem; border-bottom:1px solid var(--line); font-size:.72rem; color:var(--t2); flex-wrap:wrap; }
+  .bar .count { font-family:var(--mono); color:var(--t3); }
+  .bar .spacer { flex:1; }
+  .sel { color:var(--t1); font-weight:500; }
+  .tab { font-size:.72rem; padding:.15rem .45rem; border-radius:var(--r); color:var(--t2); text-decoration:none; }
+  .tab[aria-current="page"] { background:var(--accent-bg); color:var(--accent); font-weight:500; }
+
+  /* --- the row: everything visible, nothing hidden --- */
+  .rows { list-style:none; margin:0; padding:0; }
+  .row { display:grid; grid-template-columns:1.25rem 1fr auto; gap:.6rem; padding:.4rem .6rem; border-bottom:1px solid var(--line); align-items:start; }
+  .row:hover { background:#f7f7f5; }
+  .row[data-sel="true"] { background:var(--accent-bg); box-shadow:inset 2px 0 0 var(--accent); }
+  .row .mark { font:500 .7rem/1.3 var(--mono); color:var(--t3); padding-top:.15rem; text-align:right; }
+  .row[data-read="true"] .t { color:var(--t3); font-weight:400; }
+  .row .t { font-size:.8rem; font-weight:500; color:var(--t1); text-decoration:none; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .t:hover { color:var(--accent); text-decoration:underline; }
+  .meta { font:400 .68rem/1.4 var(--mono); color:var(--t3); display:flex; gap:.45rem; flex-wrap:wrap; }
+  .meta .tag { color:var(--t2); }
+  .meta .tag::before { content:"#"; color:var(--t3); }
+  .meta .note-inline { color:var(--t2); font-family:"Geist",sans-serif; font-style:italic; }
+  .rowacts { display:flex; gap:.15rem; align-items:center; }
+  .rowacts .btn { font-size:.68rem; padding:.15rem .35rem; }
+  @container (width < 44rem) { .rowacts .lbl { display:none; } }
+
+  /* --- inspector --- */
+  .inspector { background:var(--panel); min-width:0; }
+  .insp-head { padding:.5rem .7rem; border-bottom:1px solid var(--line); display:flex; gap:.4rem; align-items:center; }
+  .insp-head .kbd { margin-inline-start:auto; }
+  .insp-body { padding:.7rem; display:grid; gap:.9rem; }
+  .insp-title { font-size:.9rem; font-weight:600; line-height:1.3; margin:0; }
+  .insp-url { font:400 .68rem/1.4 var(--mono); color:var(--t3); word-break:break-all; }
+  .field-label { font:500 .65rem/1 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--t3); margin-bottom:.3rem; display:block; }
+  .ftextarea, .finput { width:100%; border:1px solid var(--line-strong); border-radius:var(--r); padding:.3rem .4rem; font:inherit; font-size:.78rem; background:var(--bg); color:var(--t1); }
+  .ftextarea { min-height:5rem; resize:vertical; font-size:.8rem; }
+  .finput:focus, .ftextarea:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .chips { display:flex; flex-wrap:wrap; gap:.25rem; }
+  .chip { font:500 .68rem/1 var(--mono); border:1px solid var(--line-strong); border-radius:var(--r); padding:.2rem .35rem; color:var(--t2); background:#fff; }
+  .chip[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:.2rem .6rem; font-size:.72rem; }
+  .kv dt { color:var(--t3); font-family:var(--mono); font-size:.68rem; }
+  .kv dd { margin:0; color:var(--t2); }
+
+  /* --- quick add: a single always-visible command line --- */
+  .qa { padding:.5rem .6rem; border-bottom:1px solid var(--line-strong); background:var(--panel); display:grid; gap:.35rem; }
+  .qa-line { display:flex; gap:.4rem; align-items:center; }
+  .qa-line .finput { font-family:var(--mono); font-size:.82rem; padding:.35rem .5rem; }
+  .qa-hint { font:400 .66rem/1.4 var(--mono); color:var(--t3); display:flex; gap:.7rem; flex-wrap:wrap; }
+  .qa-hint b { color:var(--accent); font-weight:500; }
+
+  /* --- tables (collections, feeds) --- */
+  table.grid { width:100%; border-collapse:collapse; font-size:.78rem; }
+  table.grid th { text-align:left; font:500 .65rem/1 var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--t3); padding:.4rem .6rem; border-bottom:1px solid var(--line-strong); }
+  table.grid td { padding:.45rem .6rem; border-bottom:1px solid var(--line); vertical-align:middle; }
+  table.grid tr:hover td { background:#f7f7f5; }
+  table.grid td.num, table.grid th.num { text-align:right; font-family:var(--mono); color:var(--t3); font-size:.72rem; }
+  a.plain { color:var(--t1); text-decoration:none; font-weight:500; }
+  a.plain:hover { color:var(--accent); text-decoration:underline; }
+  .role { font:500 .65rem/1 var(--mono); text-transform:uppercase; color:var(--t3); border:1px solid var(--line); border-radius:var(--r); padding:.15rem .3rem; }
+
+  /* --- reader / feed triage --- */
+  .feed-row { display:grid; grid-template-columns:auto 1fr auto; gap:.6rem; padding:.55rem .6rem; border-bottom:1px solid var(--line); }
+  .feed-src { font:400 .66rem/1.5 var(--mono); color:var(--t3); }
+  .feed-row h4 { font-size:.8rem; font-weight:500; margin:0 0 .15rem; }
+  .feed-row h4 a { color:var(--t1); text-decoration:none; }
+  .feed-row h4 a:hover { color:var(--accent); }
+  .feed-actions { display:flex; gap:.2rem; }
+
+  /* --- reader pane (two-pane reading) --- */
+  .reader { padding:1.1rem 1.3rem; max-width:44rem; }
+  .reader h2 { font-size:1.15rem; line-height:1.25; margin:0 0 .3rem; letter-spacing:-.01em; }
+  .reader .byline { font:400 .68rem/1.5 var(--mono); color:var(--t3); padding-bottom:.7rem; border-bottom:1px solid var(--line); margin-bottom:.9rem; }
+  .reader p { font-size:.85rem; line-height:1.65; color:var(--t2); margin:0 0 .8rem; }
+  .reader .triage { display:flex; gap:.35rem; margin-bottom:1rem; flex-wrap:wrap; }
+
+  /* --- palette overlay (⌘K) --- */
+  .pal { position:absolute; inset:3rem auto auto 50%; transform:translateX(-50%); width:min(92%,30rem); background:#fff; border:1px solid var(--line-strong); border-radius:4px; box-shadow:0 12px 32px rgb(0 0 0/.14); overflow:hidden; }
+  .pal-in { display:flex; align-items:center; gap:.5rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); }
+  .pal-in input { border:0; outline:0; font:inherit; font-size:.85rem; flex:1; font-family:var(--mono); }
+  .pal-list { list-style:none; margin:0; padding:.3rem; }
+  .pal-list li { padding:.35rem .5rem; border-radius:var(--r); font-size:.78rem; display:flex; gap:.6rem; align-items:center; }
+  .pal-list li[aria-selected="true"] { background:var(--accent-bg); }
+  .pal-list .cmdname { color:var(--t1); }
+  .pal-list .cmddesc { color:var(--t3); margin-inline-start:auto; font-size:.7rem; }
+  .stage { position:relative; }
+
+  /* --- mobile --- */
+  @container (width < 40rem) {
+    .cmd { flex-wrap:wrap; }
+    .q { order:3; flex-basis:100%; }
+    .row { grid-template-columns:1.25rem 1fr; }
+    .rowacts { grid-column:2; margin-top:.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+  <a class="back" href="index.html">← all candidates</a>
+  <h1>Candidate A — Workbench</h1>
+  <p class="lede">The utility extreme. No sidebar and no persistent nav: a single command bar where search, quick-add, and navigation are all the same control. The list is paired with an always-open inspector so notes and collections are edited in place rather than behind popovers. Every row action is permanently visible — nothing hides behind a kebab. Hairline rules and monospace metadata do all the structural work; there are no cards, no shadows, no ornament.</p>
+  <p class="note">The bet: at 50 uses a day, chrome is a tax. What you want is information density, visible affordances, and the keyboard. The cost is honesty about calm — this screen is meant to be worked in, not read in.</p>
+
+  <!-- ============ 1. BOOKMARK LIST ============ -->
+  <h2>1 · Bookmark list</h2>
+  <p>Two panes: the list on the left, the selected row's full record on the right. Selection follows keyboard focus, so ↓/↑ moves through bookmarks and the inspector keeps up. Row actions — read, collections, archive — are always on screen. Notes are edited directly in the inspector; there's no modal, no edit page.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Desktop</b> · list + inspector</span><span>142 bookmarks</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input placeholder="tag:rust is:unread  ·  or plain words"></label>
+        <button class="btn">Feeds</button>
+        <button class="btn">Collections</button>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="ws">
+        <div class="col-list">
+          <div class="qa">
+            <div class="qa-line">
+              <input class="finput" placeholder="https://… or paste text">
+              <button class="btn primary">Save</button>
+              <button class="btn ghost">Queue</button>
+            </div>
+            <div class="qa-hint">
+              <span><b>#tag</b> inline</span><span><b>@collection</b> inline</span><span><b>!r</b> reading list</span><span><b>⏎</b> save · <b>⇧⏎</b> save + note</span>
+            </div>
+          </div>
+          <div class="bar">
+            <span class="tab" aria-current="page">All</span>
+            <span class="tab">Unread</span>
+            <span class="tab">Queue</span>
+            <span class="tab">Archived</span>
+            <span class="spacer"></span>
+            <span class="count">42 shown</span>
+            <span class="kbd">⌥⇧E</span>
+          </div>
+          <ul class="rows">
+            <li class="row" data-sel="true">
+              <span class="mark">1</span>
+              <div>
+                <a class="t" href="#">Rewriting SQLite's query planner for fun</a>
+                <div class="meta"><span>simonwillison.net</span><span>2d</span><span class="tag">sqlite</span><span class="tag">databases</span><span class="note-inline">good section on the B-tree rebalance…</span></div>
+              </div>
+              <div class="rowacts">
+                <button class="btn">Read</button>
+                <button class="btn">Coll</button>
+                <button class="btn ghost">Arch</button>
+                <button class="btn ghost danger">Del</button>
+              </div>
+            </li>
+            <li class="row">
+              <span class="mark">2</span>
+              <div>
+                <a class="t" href="#">A Tour of Go's Memory Management</a>
+                <div class="meta"><span>go.dev</span><span>3d</span><span class="tag">go</span></div>
+              </div>
+              <div class="rowacts">
+                <button class="btn">Read</button>
+                <button class="btn">Coll</button>
+                <button class="btn ghost">Arch</button>
+                <button class="btn ghost danger">Del</button>
+              </div>
+            </li>
+            <li class="row" data-read="true">
+              <span class="mark">3</span>
+              <div>
+                <a class="t" href="#">Why We Rejected Rust for the CLI</a>
+                <div class="meta"><span>blog.example.dev</span><span>5d</span><span class="tag">rust</span><span class="tag">postmortem</span></div>
+              </div>
+              <div class="rowacts">
+                <button class="btn ghost">↺ Unread</button>
+                <button class="btn ghost">Arch</button>
+                <button class="btn ghost danger">Del</button>
+              </div>
+            </li>
+            <li class="row">
+              <span class="mark">4</span>
+              <div>
+                <a class="t" href="#">The Design Philosophy Behind Alpine Linux</a>
+                <div class="meta"><span>wiki.alpinelinux.org</span><span>6d</span><span class="tag">linux</span></div>
+              </div>
+              <div class="rowacts">
+                <button class="btn">Read</button>
+                <button class="btn">Coll</button>
+                <button class="btn ghost">Arch</button>
+                <button class="btn ghost danger">Del</button>
+              </div>
+            </li>
+            <li class="row">
+              <span class="mark">5</span>
+              <div>
+                <a class="t" href="#">Postgres VACUUM, finally explained properly</a>
+                <div class="meta"><span>brandur.org</span><span>1w</span><span class="tag">postgres</span><span class="tag">perf</span><span class="note-inline">the multixact section is the one I need</span></div>
+              </div>
+              <div class="rowacts">
+                <button class="btn">Read</button>
+                <button class="btn">Coll</button>
+                <button class="btn ghost">Arch</button>
+                <button class="btn ghost danger">Del</button>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <aside class="inspector">
+          <div class="insp-head">
+            <span class="field-label" style="margin:0">Inspector</span>
+            <span class="kbd">j/k</span>
+          </div>
+          <div class="insp-body">
+            <div>
+              <h3 class="insp-title">Rewriting SQLite's query planner for fun</h3>
+              <div class="insp-url">https://simonwillison.net/2026/09/sqlite-planner/</div>
+            </div>
+            <div>
+              <label class="field-label" for="n">Note</label>
+              <textarea class="ftextarea" id="n">Good section on the B-tree rebalance heuristic. Revisit before touching the index planner.</textarea>
+            </div>
+            <div>
+              <span class="field-label">Tags</span>
+              <div class="chips">
+                <button class="chip" aria-pressed="true">sqlite</button>
+                <button class="chip" aria-pressed="true">databases</button>
+                <button class="chip">perf</button>
+                <button class="chip" aria-pressed="false">+ tag</button>
+              </div>
+            </div>
+            <div>
+              <span class="field-label">Collections</span>
+              <div class="chips">
+                <button class="chip" aria-pressed="true">@databases</button>
+                <button class="chip">@to-read</button>
+                <button class="chip" aria-pressed="false">+ collection</button>
+              </div>
+            </div>
+            <dl class="kv">
+              <dt>saved</dt><dd>2 days ago</dd>
+              <dt>host</dt><dd>simonwillison.net</dd>
+              <dt>state</dt><dd>unread · not queued</dd>
+            </dl>
+            <div style="display:flex;gap:.25rem;flex-wrap:wrap">
+              <button class="btn primary">Mark read</button>
+              <button class="btn">Open</button>
+              <button class="btn">Share link</button>
+              <button class="btn ghost">Archive</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <h3>Mobile</h3>
+  <p>The inspector becomes a full-screen push, reached by tapping a row. Quick-add stays pinned because it's the most frequent action.</p>
+  <div class="frame phone">
+    <div class="frame-label"><span><b>390px</b></span><span>list</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="qa">
+        <label class="q"><span class="prompt">/</span><input placeholder="search"></label>
+        <div class="qa-line">
+          <input class="finput" placeholder="https://…">
+          <button class="btn primary">Save</button>
+        </div>
+      </div>
+      <div class="bar"><span class="tab" aria-current="page">All</span><span class="tab">Unread</span><span class="tab">Queue</span><span class="count">42</span></div>
+      <ul class="rows">
+        <li class="row">
+          <span class="mark">1</span>
+          <div>
+            <a class="t" href="#">Rewriting SQLite's query planner for fun</a>
+            <div class="meta"><span>simonwillison.net</span><span>2d</span><span class="tag">sqlite</span></div>
+          </div>
+          <div class="rowacts"><button class="btn">Read</button><button class="btn">Coll</button></div>
+        </li>
+        <li class="row">
+          <span class="mark">2</span>
+          <div>
+            <a class="t" href="#">A Tour of Go's Memory Management</a>
+            <div class="meta"><span>go.dev</span><span>3d</span><span class="tag">go</span></div>
+          </div>
+          <div class="rowacts"><button class="btn">Read</button><button class="btn">Coll</button></div>
+        </li>
+        <li class="row">
+          <span class="mark">3</span>
+          <div>
+            <a class="t" href="#">The Design Philosophy Behind Alpine Linux</a>
+            <div class="meta"><span>wiki.alpinelinux.org</span><span>6d</span></div>
+          </div>
+          <div class="rowacts"><button class="btn">Read</button><button class="btn">Coll</button></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 2. QUICK ADD ============ -->
+  <h2>2 · Quick add</h2>
+  <p>One line, always visible, never a modal. Inline syntax in the field: <b>#tag</b> and <b>@collection</b> tokenize as you type so you never leave the keyboard to file something away. A second line is reserved for the note, revealed only on demand.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Quick add</b> · expanded, mid-capture</span><span>no JS required</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input placeholder="search"></label>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div style="padding:1.2rem;max-width:52rem">
+        <form class="qa" style="border:1px solid var(--line-strong); border-radius:var(--r); padding:.7rem">
+          <div class="qa-line">
+            <input class="finput" style="font-size:.9rem" value="https://go.dev/blog/memory-management/">
+            <button class="btn primary">Save</button>
+            <button class="btn ghost">Queue</button>
+          </div>
+          <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+            <span class="field-label" style="margin:0">Filed under</span>
+            <span class="chip" aria-pressed="true">#go</span>
+            <span class="chip">#memory</span>
+            <span class="chip" aria-pressed="true">@to-read</span>
+            <span class="chip" aria-pressed="false">+ tag</span>
+            <span class="chip" aria-pressed="false">+ collection</span>
+          </div>
+          <textarea class="ftextarea" style="min-height:3.2rem" placeholder="Note (optional) — ⇧⏎"></textarea>
+          <div class="qa-hint">
+            <span>Resolving title from <b>go.dev</b>…</span>
+            <span><b>⏎</b> save</span><span><b>⇧⏎</b> save + keep typing</span><span><b>esc</b> cancel</span>
+          </div>
+        </form>
+        <div style="margin-top:1rem;padding:.6rem .7rem;border:1px solid var(--line);border-radius:var(--r);background:#fdf1f0;color:var(--danger);font-size:.75rem">
+          <b>Already saved.</b> simonwillison.net/2026/09/sqlite-planner/ exists (2 days ago) — <a href="#" style="color:inherit">Save anyway</a> · <a href="#" style="color:inherit">Open existing</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. COLLECTIONS ============ -->
+  <h2>3 · Collections</h2>
+  <p>A table, not a card grid — counts, last-modified, and your role are comparable data and deserve aligned columns. Share links and member management live in the same row, so role-gating is visible rather than implied by whether a button is missing.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Collections</b></span><span>9 collections · 3 shared</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input placeholder="search"></label>
+        <button class="btn primary">New</button>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="bar"><span class="count">sorted by last modified</span><span class="spacer"></span><span class="kbd">/coll: to filter</span></div>
+      <table class="grid">
+        <thead>
+          <tr><th>Name</th><th>Bookmarks</th><th>Unread</th><th>Modified</th><th>Role</th><th>Share</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a class="plain" href="#">databases</a></td><td class="num">48</td><td class="num">12</td><td>2d ago</td>
+            <td><span class="role">owner</span></td><td><button class="btn ghost">link</button></td>
+            <td style="text-align:right"><button class="btn ghost">Edit</button><button class="btn ghost danger">Del</button></td>
+          </tr>
+          <tr>
+            <td><a class="plain" href="#">go-deep-dives</a></td><td class="num">22</td><td class="num">9</td><td>1w ago</td>
+            <td><span class="role">owner</span></td><td><button class="btn ghost">link</button></td>
+            <td style="text-align:right"><button class="btn ghost">Edit</button><button class="btn ghost danger">Del</button></td>
+          </tr>
+          <tr>
+            <td><a class="plain" href="#">rust-postmortems</a></td><td class="num">15</td><td class="num">0</td><td>3w ago</td>
+            <td><span class="role">editor</span></td><td><button class="btn ghost">link</button></td>
+            <td style="text-align:right"><button class="btn ghost">Edit</button><button class="btn ghost">—</button></td>
+          </tr>
+          <tr>
+            <td><a class="plain" href="#">perf-reading</a></td><td class="num">31</td><td class="num">20</td><td>1mo ago</td>
+            <td><span class="role">viewer</span></td><td><button class="btn ghost">link</button></td>
+            <td style="text-align:right"><button class="btn ghost">—</button><button class="btn ghost">—</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ 4. READING ============ -->
+  <h2>4 · Reading queue</h2>
+  <p>The same row component as the bookmark list — consistency is the whole point. What changes is the sort (strict FIFO) and the vocabulary: this is a queue, so the primary action is <i>advance</i>, not <i>read</i>. Triage from here is one keypress per item.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Reading</b> · 14 queued</span><span>FIFO</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input placeholder="search"></label>
+        <button class="btn">Feeds</button>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="bar">
+        <span class="tab" aria-current="page">Queue</span>
+        <span class="tab">All feeds</span>
+        <span class="tab">Saved for later</span>
+        <span class="spacer"></span><span class="count">14 queued · 3 new</span>
+      </div>
+      <ul class="rows">
+        <li class="row" data-sel="true">
+          <span class="mark">1</span>
+          <div>
+            <a class="t" href="#">Rewriting SQLite's query planner for fun</a>
+            <div class="meta"><span>simonwillison.net</span><span>queued 2d</span><span class="tag">sqlite</span></div>
+          </div>
+          <div class="rowacts"><button class="btn primary">Done</button><button class="btn">Skip</button><button class="btn ghost">Arch</button></div>
+        </li>
+        <li class="row">
+          <span class="mark">2</span>
+          <div>
+            <a class="t" href="#">A Tour of Go's Memory Management</a>
+            <div class="meta"><span>go.dev</span><span>queued 3d</span><span class="tag">go</span></div>
+          </div>
+          <div class="rowacts"><button class="btn primary">Done</button><button class="btn">Skip</button><button class="btn ghost">Arch</button></div>
+        </li>
+        <li class="row">
+          <span class="mark">3</span>
+          <div>
+            <a class="t" href="#">Postgres VACUUM, finally explained properly</a>
+            <div class="meta"><span>brandur.org</span><span>queued 1w</span><span class="tag">postgres</span></div>
+          </div>
+          <div class="rowacts"><button class="btn primary">Done</button><button class="btn">Skip</button><button class="btn ghost">Arch</button></div>
+        </li>
+      </ul>
+      <div class="bar" style="border-top:1px solid var(--line);border-bottom:0">
+        <span class="count">Press <b style="color:var(--t1)">j</b> then <b style="color:var(--t1)">d</b> to advance without leaving the keyboard.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5. READER / FEEDS ============ -->
+  <h2>5 · Feeds & reader</h2>
+  <p>Feeds are a subscription list with per-item triage. Auto-tagging proposes tags from the feed and shows them as toggleable chips — you accept or discard rather than edit, because feed items are low-stakes and plentiful. "Read" opens the original in a new tab; nothing is scraped or rendered in-app.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Feeds</b> · triage</span><span>27 items · 8 unread</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input placeholder="feed: or plain words"></label>
+        <button class="btn">Collections</button>
+        <button class="btn primary">Subscribe</button>
+      </div>
+      <div class="bar">
+        <span class="tab" aria-current="page">Unread</span>
+        <span class="tab">All feeds</span>
+        <span class="tab">Saved</span>
+        <span class="spacer"></span><span class="count">auto-tagging on</span>
+      </div>
+      <div class="feed-row">
+        <span class="feed-src">golang.blog<br>2h</span>
+        <div>
+          <h4><a href="#">What's new in Go 1.26: iterators everywhere</a></h4>
+          <div class="meta"><span class="tag">auto: go</span><span class="tag">auto: release</span><span class="note-inline">proposed tags — click to keep</span></div>
+        </div>
+        <div class="feed-actions">
+          <button class="btn primary">Save</button>
+          <button class="btn">Coll</button>
+          <button class="btn ghost">Mute</button>
+        </div>
+      </div>
+      <div class="feed-row">
+        <span class="feed-src">brandur.org<br>6h</span>
+        <div>
+          <h4><a href="#">Efficient pagination with Postgres</a></h4>
+          <div class="meta"><span class="tag">auto: postgres</span><span class="tag">auto: perf</span></div>
+        </div>
+        <div class="feed-actions">
+          <button class="btn primary">Save</button>
+          <button class="btn">Coll</button>
+          <button class="btn ghost">Mute</button>
+        </div>
+      </div>
+      <div class="feed-row">
+        <span class="feed-src">news.ycombinator<br>1d</span>
+        <div>
+          <h4><a href="#">Ask HN: what are you working on?</a></h4>
+          <div class="meta"><span class="tag">auto: hn</span></div>
+        </div>
+        <div class="feed-actions">
+          <button class="btn primary">Save</button>
+          <button class="btn">Coll</button>
+          <button class="btn ghost">Mute</button>
+        </div>
+      </div>
+      <div class="bar" style="border-top:1px solid var(--line);border-bottom:0">
+        <span class="count">Feeds</span>
+        <span class="chip" aria-pressed="true">golang.blog</span>
+        <span class="chip" aria-pressed="true">brandur.org</span>
+        <span class="chip" aria-pressed="false">simonwillison.net</span>
+        <span class="chip" aria-pressed="false">+ subscribe</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6. SEARCH ============ -->
+  <h2>6 · Search & query syntax</h2>
+  <p>Syntax is visible, not hidden. The bar is a mono field with a prefix prompt, and the current query is rendered as a chip row you can delete individual terms from — so you can see <i>what the query means</i> as well as type it. A permanently visible legend teaches the operators without a help modal.</p>
+  <div class="frame">
+    <div class="frame-label"><span><b>Search</b> · query syntax exposed</span><span>18 results</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input value='tag:postgres is:unread -tag:"write soon" after:2026-08'></label>
+        <span class="kbd">Enter</span>
+      </div>
+      <div class="bar" style="flex-wrap:wrap;gap:.25rem">
+        <span class="field-label" style="margin:0">Parsed as</span>
+        <span class="chip" aria-pressed="true">tag:postgres ×</span>
+        <span class="chip" aria-pressed="true">is:unread ×</span>
+        <span class="chip" aria-pressed="true">−tag:"write soon" ×</span>
+        <span class="chip" aria-pressed="true">after:2026-08 ×</span>
+        <span class="chip" aria-pressed="false">+ filter</span>
+      </div>
+      <ul class="rows">
+        <li class="row">
+          <span class="mark">1</span>
+          <div>
+            <a class="t" href="#">Postgres VACUUM, finally explained properly</a>
+            <div class="meta"><span>brandur.org</span><span>1w</span><span class="tag">postgres</span><span class="note-inline">the multixact section is the one I need</span></div>
+          </div>
+          <div class="rowacts"><button class="btn">Read</button><button class="btn">Coll</button></div>
+        </li>
+        <li class="row">
+          <span class="mark">2</span>
+          <div>
+            <a class="t" href="#">Efficient pagination with Postgres</a>
+            <div class="meta"><span>brandur.org</span><span>1d</span><span class="tag">postgres</span><span class="tag">perf</span></div>
+          </div>
+          <div class="rowacts"><button class="btn">Read</button><button class="btn">Coll</button></div>
+        </li>
+        <li class="row">
+          <span class="mark">3</span>
+          <div>
+            <a class="t" href="#">Row-level security in practice</a>
+            <div class="meta"><span>brandur.org</span><span>2w</span><span class="tag">postgres</span><span class="tag">security</span></div>
+          </div>
+          <div class="rowacts"><button class="btn">Read</button><button class="btn">Coll</button></div>
+        </li>
+      </ul>
+      <div class="bar" style="border-top:1px solid var(--line);border-bottom:0;gap:.9rem;flex-wrap:wrap">
+        <span class="field-label" style="margin:0">Operators</span>
+        <span class="kbd">tag:</span><span class="kbd">coll:</span><span class="kbd">host:</span><span class="kbd">is:unread</span><span class="kbd">is:archived</span><span class="kbd">after:</span><span class="kbd">before:</span><span class="kbd">site:</span><span class="kbd">-</span><span class="kbd">"exact"</span><span class="kbd">OR</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 7. COMMAND PALETTE ============ -->
+  <h2>7 · Command palette</h2>
+  <p>Because search, navigation, quick-add, and actions all share one vocabulary, they share one invocation surface too. Everything is reachable from ⌘K, which is what makes the visible-action-less design viable on mobile.</p>
+  <div class="frame" style="position:relative">
+    <div class="frame-label"><span><b>⌘K</b> · command palette over the list</span><span>dismiss with esc</span></div>
+    <div class="app">
+      <div class="cmd">
+        <span class="brand">Patchworks</span>
+        <label class="q"><span class="prompt">/</span><input placeholder="search"></label>
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="stage">
+        <div class="bar"><span class="tab" aria-current="page">All</span><span class="tab">Unread</span><span class="tab">Queue</span><span class="count">42 shown</span></div>
+        <ul class="rows" style="opacity:.35">
+          <li class="row"><span class="mark">1</span><div><a class="t" href="#">Rewriting SQLite's query planner for fun</a><div class="meta"><span>simonwillison.net</span><span>2d</span></div></div><div></div></li>
+          <li class="row"><span class="mark">2</span><div><a class="t" href="#">A Tour of Go's Memory Management</a><div class="meta"><span>go.dev</span><span>3d</span></div></div><div></div></li>
+        </ul>
+        <div class="pal">
+          <div class="pal-in"><span class="prompt" style="color:var(--accent);font-family:var(--mono)">⌘</span><input value="tag:"></div>
+          <ul class="pal-list">
+            <li aria-selected="true"><span class="cmdname">Add tag <b style="font-family:var(--mono);color:var(--accent)">go</b> to selected</span><span class="cmddesc">⏎</span></li>
+            <li><span class="cmdname">Search for <b style="font-family:var(--mono);color:var(--accent)">tag:go</b></span><span class="cmddesc">⏎</span></li>
+            <li><span class="cmdname">Filter to tag <b style="font-family:var(--mono);color:var(--accent)">go</b></span><span class="cmddesc">⇧⏎</span></li>
+            <li><span class="cmdname">Archive all matching (18)</span><span class="cmdesc">⌥⏎</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>What this direction is good and bad for</h2>
+  <p><b>Good for</b> — retrieval and triage. Search results, large bookmark counts, and keyboard-only flows are where this design is clearly strongest. Notes and collections are edited without ever leaving the list, which removes the whole class of "open modal, find the right row, close modal" friction. Role and state are always legible.</p>
+  <p><b>Bad for</b> — calm. Long notes are cramped in an inspector, and a 200-row hairline table is not somewhere you'd want to read for pleasure. The permanent action buttons cost visual budget on every row whether or not you use them, and the dense mono metadata is not a pleasant texture for skimming. Mobile loses the inspector entirely, which means the mobile experience is notably worse than desktop rather than merely different.</p>
+  <p class="note">The open question if you pick this direction: how much density can the compact-list aesthetic absorb before it stops feeling considered and starts feeling cramped? The current build is already fairly tight — A removes the sidebar and the kebab menu, which buys back two notches, but not infinite ones.</p>
+</div>
+</body>
+</html>

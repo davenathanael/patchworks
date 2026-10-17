@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Round 3</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:ui-sans-serif,system-ui,sans-serif; color:#231e1a; background:#f9f6f2; line-height:1.55; }
+  .wrap { width:min(100% - 2.5rem, 66rem); margin-inline:auto; padding-block:3rem 6rem; }
+  h1 { font-size:2rem; letter-spacing:-.025em; margin:0 0 .4rem; }
+  .lede { color:#5c534b; max-width:70ch; margin:0 0 1rem; }
+  h2 { font-size:.72rem; text-transform:uppercase; letter-spacing:.11em; color:#a1968b; margin:3rem 0 1.2rem; }
+  .card { display:block; text-decoration:none; color:inherit; border:1px solid #e4ddd2; border-radius:10px; padding:1.5rem 1.6rem; background:#fffdfa; transition:border-color .15s, transform .15s; }
+  .card:hover { border-color:#c9bfb0; transform:translateY(-1px); }
+  .card .k { font:500 .7rem/1 ui-monospace,monospace; letter-spacing:.1em; color:#a1968b; text-transform:uppercase; }
+  .card h3 { font-size:1.25rem; margin:.5rem 0 .15rem; letter-spacing:-.015em; }
+  .card .tag { font-size:.8rem; color:#8a7d70; font-style:italic; }
+  .card p { margin:.8rem 0 0; color:#4a423a; font-size:.93rem; }
+  .card ul { margin:.8rem 0 0; padding-left:1.1rem; color:#5c534b; font-size:.88rem; }
+  .card li { margin:.2rem 0; }
+  .back { font-size:.85rem; color:#a1968b; text-decoration:none; display:inline-block; margin-bottom:1rem; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th,td { text-align:left; padding:.55rem .7rem .55rem 0; border-bottom:1px solid #e4ddd2; vertical-align:top; }
+  th { font-weight:500; color:#8a7d70; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; }
+  td:first-child { white-space:nowrap; color:#a1968b; font-family:ui-monospace,monospace; font-size:.8rem; }
+  .dec { border:1px solid #e4ddd2; border-radius:10px; padding:1.4rem 1.6rem; background:#fffdfa; }
+  .dec dl { display:grid; grid-template-columns:13rem 1fr; gap:.55rem 1.2rem; margin:0; font-size:.9rem; }
+  .dec dt { color:#a1968b; font-family:ui-monospace,monospace; font-size:.78rem; }
+  .dec dd { margin:0; color:#4a423a; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1.5rem 0 0; color:#5c534b; font-size:.9rem; max-width:70ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← round 2</a>
+  <h1>Round 3 — one design, four skins</h1>
+  <p class="lede">The Ledger candidate is out. What remains from rounds 1 and 2 is a single converged design: Cards' information model (note-first, card on mobile, row on desktop) built on Split Sheet's interaction and visual language (inspection sheet, 2px corners, permanently visible row actions). This round builds that design completely and dresses it in four skins you can switch between live.</p>
+
+  <h2>Decisions carried into round 3</h2>
+  <div class="dec">
+    <dl>
+      <dt>Baseline</dt><dd>Mobile-first. Desktop shows more of the same thing, never a different design.</dd>
+      <dt>Item shape</dt><dd>Card on mobile, aligned row past ~54rem. Same data both ways.</dd>
+      <dt>Long notes</dt><dd>Excerpt of four lines in the list, expanding in place on tap. A note is a paragraph, not a caption — nothing is lost, and the list stays scannable.</dd>
+      <dt>Inspection</dt><dd>Selecting an item opens a bottom sheet on mobile with a top-edge shadow, or a docked side pane at desktop widths. The note is edited there as a real textarea.</dd>
+      <dt>Tags</dt><dd>Text <code>#hashtags</code> on items; small neutral pills in pickers, dashed border reserved for "create new". The glyph alternative is kept in section 6 for reference.</dd>
+      <dt>Collections</dt><dd>A display title and a separate <code>@handle</code>, both editable. "Databases" can be typed as <code>@databases</code>; "Project A" as <code>@project-a</code>.</dd>
+      <dt>Quick add</dt><dd>One <code>&lt;dialog&gt;</code>. Full-screen on mobile with the header inside the panel; a centred popover on desktop.</dd>
+      <dt>Reading</dt><dd>No in-app reader. The queue is a list; items open the original in a new tab. Current item pinned to the top.</dd>
+      <dt>Feeds</dt><dd>Path A, committed. Feed items are ephemeral until you act: added to the reading queue, saved as a bookmark, or dismissed.</dd>
+      <dt>Account</dt><dd>A fifth tab — Inbox, Queue, Feeds, Collections, You. Profile, settings, subscriptions, import/export and sign-out live there.</dd>
+      <dt>Share page</dt><dd>Public, read-only, one page per collection. Shows every bookmark with its tags and notes, regardless of your own reading or queue state.</dd>
+      <dt>Depth</dt><dd>Borders plus a button shadow. Floating surfaces get a real shadow. Nothing else is elevated.</dd>
+      <dt>Dark mode</dt><dd>Backgrounds sit at oklch L&asymp;0.27 rather than the usual 0.18&ndash;0.20. Body text lands at 13:1 against the background, secondary at 8:1, muted metadata at 5.5:1 &mdash; all passing WCAG AA.</dd>
+      <dt>Wide screens</dt><dd>Cap the width and grow the type. No extra columns, no docked panels.</dd>
+    </dl>
+  </div>
+
+  <h2>The two skins</h2>
+  <p class="lede" style="margin-bottom:0">Both share identical markup. The switcher at the top of the design file changes only tokens and typefaces — which is the point: you are judging the look against a structure that is already settled. Two skins × light/dark, all four combinations.</p>
+  <div style="margin-top:1.5rem">
+    <table>
+      <thead><tr><th>Skin</th><th>Palette</th><th>Display</th><th>Running text</th><th>UI</th><th>Metadata</th><th>Character</th></tr></thead>
+      <tbody>
+        <tr><td><b>Sepia</b></td><td>muted warm grey, low-chroma</td><td>Fraunces</td><td>Source Serif 4</td><td>Geist</td><td>Geist Mono</td><td>Default. Muted rather than saturated; the most document-like of the two.</td></tr>
+        <tr><td><b>Mocha</b></td><td>warmer brown, closer to the current app</td><td>Fraunces</td><td>Source Serif 4</td><td>Geist</td><td>JetBrains Mono</td><td>The original palette, desaturated a step.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What the design file covers</h2>
+  <table>
+    <thead><tr><th>Surface</th><th>Mobile</th><th>Desktop</th><th>New in round 3</th></tr></thead>
+    <tbody>
+      <tr><td>Bookmark list with long notes</td><td>card</td><td>row</td><td>excerpt + expand in place</td></tr>
+      <tr><td>Inspection sheet</td><td>bottom sheet, top shadow</td><td>docked pane</td><td>yes</td></tr>
+      <tr><td>Quick add dialog</td><td>full-screen</td><td>centred popover</td><td>yes — header moved inside</td></tr>
+      <tr><td>Reading queue</td><td>✓</td><td>✓</td><td>current item pinned to top</td></tr>
+      <tr><td>Feeds (path A)</td><td>✓</td><td>✓</td><td>committed</td></tr>
+      <tr><td>Search with parsed pills</td><td>✓</td><td>✓</td><td>operator legend now on mobile too</td></tr>
+      <tr><td>Collections index</td><td>✓</td><td>✓</td><td>title + @handle shown</td></tr>
+      <tr><td>Collection detail + share</td><td>✓</td><td>✓</td><td>share link + members</td></tr>
+      <tr><td>You / settings</td><td>fifth tab</td><td>top-strip menu</td><td>yes</td></tr>
+      <tr><td>Public share page</td><td>✓</td><td>✓</td><td>yes — notes as written for others</td></tr>
+      <tr><td>Picker feel-check</td><td colspan="2">glyph + text beside a corrected pills variant</td><td>yes</td></tr>
+      <tr><td>Empty / loading</td><td>✓</td><td>✓</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Reference material from earlier rounds is preserved separately in <code>../reference/</code> — the workbench inspector and the split-sheet patterns worth carrying forward, with a note on what not to reuse.</p>
+
+  <h2>Open them</h2>
+  <div style="display:grid;gap:.8rem">
+    <a class="card" href="design.html" style="padding:1rem 1.4rem">→ <strong>design.html</strong> — the converged design. Two skins × light/dark, live switcher.</a>
+    <a class="card" href="type.html" style="padding:1rem 1.4rem">→ <strong>type.html</strong> — is the dual-serif split necessary? The same note text in five type treatments.</a>
+  </div>
+</div>
+</body>
+</html>

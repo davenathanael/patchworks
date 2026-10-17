@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — single serif vs dual serif</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=source-serif-4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=spectral:ital,wght@0,400;0,600;1,400&family=geist:400,500&display=swap">
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Geist",system-ui,sans-serif; color:#2a251f; background:#f7f3ec; line-height:1.55; color-scheme:light; }
+  .doc { width:min(100% - 2.5rem, 80rem); margin-inline:auto; padding-block:2.5rem 6rem; }
+  h1 { font-size:1.9rem; letter-spacing:-.025em; margin:0 0 .3rem; }
+  .lede { color:#5f584e; max-width:76ch; margin:0 0 .5rem; }
+  .note { border-left:3px solid #d8cfc0; padding:.1rem 0 .1rem 1rem; margin:1.2rem 0 0; color:#5f584e; font-size:.92rem; max-width:76ch; }
+  .ctrl { display:flex; gap:1.4rem; align-items:center; padding:.9rem 1.1rem; border:1px solid #e4dccf; border-radius:10px; background:#fdfbf7; margin:1.4rem 0; position:sticky; top:0; z-index:20; }
+  .ctrl fieldset { border:1px solid #e4dccf; border-radius:6px; padding:.3rem .5rem .45rem; margin:0; display:flex; gap:.25rem; }
+  .ctrl legend { font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:#8d8577; padding:0 .3rem; }
+  .ctrl label { display:inline-flex; align-items:center; gap:.3rem; font-size:.83rem; color:#5f584e; cursor:pointer; padding:.22rem .5rem; border-radius:4px; }
+  .ctrl label:hover { background:#f2ece2; }
+  .ctrl label:has(input:checked) { background:#f4ecdd; color:#7d5322; font-weight:600; }
+  .swatch { display:inline-block; width:.85rem; height:.85rem; border-radius:2px; border:1px solid rgb(0 0 0/.15); }
+
+  /* the sample surface, matched to the design's Sepia light + dark tokens */
+  .stage { --bg:#f7f3ec; --panel:#fdfbf7; --sunk:#efe9df; --t1:#2a251f; --t2:#5f584e; --t3:#8d8577;
+           --line:#e4dccf; --line-strong:#d2c9b8; --accent:#7d5322; --accent-bg:#f4ecdd;
+           background:var(--bg); color:var(--t1); padding:1.4rem 1.6rem; border:1px solid var(--line-strong); border-radius:10px; }
+  body:has(#dark:checked) .stage {
+    --bg:#2b2823; --panel:#322f29; --sunk:#26231e; --t1:#f5f0e6; --t2:#cfc7b9; --t3:#b3aa9c;
+    --line:#4a463e; --line-strong:#5c574d; --accent:#c79a5c; --accent-bg:#3d382f; }
+
+  .spec { font-family:ui-monospace,monospace; font-size:.72rem; color:var(--t3); margin-bottom:.9rem; padding-bottom:.6rem; border-bottom:1px solid var(--line); }
+  .spec b { color:var(--accent); font-weight:500; }
+  h2.vh { font-size:1.25rem; line-height:1.2; margin:0 0 .5rem; color:var(--t1); }
+  .body-sample { font-size:.95rem; color:var(--t2); margin:0 0 1rem; max-width:40rem; }
+  .small-sample { font-size:.8rem; color:var(--t2); margin:0 0 .8rem; max-width:40rem; }
+  .ui-sample { font-family:"Geist",system-ui,sans-serif; font-size:.78rem; color:var(--t3); margin:0 0 1rem; }
+  .pick { display:flex; gap:.4rem; flex-wrap:wrap; margin:0 0 1rem; }
+  .pick span { font-family:ui-monospace,monospace; font-size:.72rem; padding:.16rem .4rem; border-radius:2px; border:1px solid var(--line-strong); background:var(--panel); color:var(--t2); }
+  .btn { font-family:"Geist",system-ui,sans-serif; font-size:.76rem; border:1px solid var(--line-strong); background:var(--panel); color:var(--t1); border-radius:2px; padding:.25rem .55rem; box-shadow:0 1px 0 var(--line-strong); }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+  @media (max-width:70rem){ .grid2 { grid-template-columns:1fr; } }
+  h3.sec { font-size:.7rem; text-transform:uppercase; letter-spacing:.11em; color:#8d8577; margin:2.5rem 0 .8rem; }
+
+  /* ---- the five candidates ---- */
+  /* 1. Fraunces, untuned — what round 3 does today for display */
+  .f-raw   { font-family:"Fraunces",Georgia,serif; }
+  .f-tuned { font-family:"Fraunces",Georgia,serif; font-optical-sizing:auto; font-variation-settings:"SOFT" 0,"WONK" 0; letter-spacing:-.012em; }
+  /* 3. Source Serif 4 — the current running-text face */
+  .s-src   { font-family:"Source Serif 4",Georgia,serif; }
+  /* 4. Newsreader — variable, purpose-built for screen reading */
+  .n-news  { font-family:"Newsreader",Georgia,serif; font-optical-sizing:auto; letter-spacing:-.004em; }
+  /* 5. Spectral — screen-first text serif, rarely seen in generated output */
+  .p-spec  { font-family:"Spectral",Georgia,serif; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<h1>One serif or two?</h1>
+<p class="lede">The question behind the dual-serif setup: Fraunces reads as too loosely fitted at small sizes, and the fix was to introduce a second serif for running text. But loose fit is a typographic problem, and typographic problems are often fixable with tracking, optical sizing, and variable axes rather than a whole extra font. Same note text, five ways.</p>
+
+<div class="ctrl">
+  <fieldset><legend>Theme</legend>
+    <input type="radio" name="t" id="light" checked><label for="light"><span class="swatch" style="background:#f7f3ec"></span>Light</label>
+    <input type="radio" name="t" id="dark"><label for="dark"><span class="swatch" style="background:#2b2823"></span>Dark</label>
+  </fieldset>
+  <span style="font-size:.8rem;color:#8d8577">Real note text, at the sizes it actually appears in the app.</span>
+</div>
+
+<p class="note">Fraunces is a variable font with four axes: <code>wght</code>, <code>opsz</code> (9–144), <code>SOFT</code> (0–100) and <code>WONK</code> (0–1). The wonky terminals and the wide default fit are the same features that make it good at 32px and bad at 14px. Candidate 2 switches <code>WONK</code> off, flattens <code>SOFT</code>, and pulls tracking in by 0.012em — three lines of CSS, no second font file.</p>
+
+<div class="grid2">
+
+  <div class="stage">
+    <div class="spec"><b>1 · Fraunces, untuned</b> — round 3's current display treatment</div>
+    <h2 class="vh f-raw">Rewriting SQLite's query planner for fun</h2>
+    <p class="body-sample f-raw">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it. The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it, which is rarer than it should be.</p>
+    <p class="small-sample f-raw">Shorter than it looks. The escape-analysis section is the reason to keep it.</p>
+    <div class="ui-sample">simonwillison.net · 2d</div>
+    <div class="pick"><span>#sqlite</span><span>#databases</span><span>#perf</span></div>
+    <button class="btn">Mark read</button>
+  </div>
+
+  <div class="stage">
+    <div class="spec"><b>2 · Fraunces, tuned</b> — WONK 0 · SOFT 0 · tracking −0.012em</div>
+    <h2 class="vh f-tuned">Rewriting SQLite's query planner for fun</h2>
+    <p class="body-sample f-tuned">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it. The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it, which is rarer than it should be.</p>
+    <p class="small-sample f-tuned">Shorter than it looks. The escape-analysis section is the reason to keep it.</p>
+    <div class="ui-sample">simonwillison.net · 2d</div>
+    <div class="pick"><span>#sqlite</span><span>#databases</span><span>#perf</span></div>
+    <button class="btn">Mark read</button>
+  </div>
+
+  <div class="stage">
+    <div class="spec"><b>3 · Source Serif 4</b> — round 3's current running-text face</div>
+    <h2 class="vh s-src">Rewriting SQLite's query planner for fun</h2>
+    <p class="body-sample s-src">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it. The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it, which is rarer than it should be.</p>
+    <p class="small-sample s-src">Shorter than it looks. The escape-analysis section is the reason to keep it.</p>
+    <div class="ui-sample">simonwillison.net · 2d</div>
+    <div class="pick"><span>#sqlite</span><span>#databases</span><span>#perf</span></div>
+    <button class="btn">Mark read</button>
+  </div>
+
+  <div class="stage">
+    <div class="spec"><b>4 · Newsreader</b> — variable, designed for screen reading</div>
+    <h2 class="vh n-news">Rewriting SQLite's query planner for fun</h2>
+    <p class="body-sample n-news">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it. The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it, which is rarer than it should be.</p>
+    <p class="small-sample n-news">Shorter than it looks. The escape-analysis section is the reason to keep it.</p>
+    <div class="ui-sample">simonwillison.net · 2d</div>
+    <div class="pick"><span>#sqlite</span><span>#databases</span><span>#perf</span></div>
+    <button class="btn">Mark read</button>
+  </div>
+
+  <div class="stage">
+    <div class="spec"><b>5 · Spectral</b> — screen-first, uncommon in generated output</div>
+    <h2 class="vh p-spec">Rewriting SQLite's query planner for fun</h2>
+    <p class="body-sample p-spec">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it. The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it, which is rarer than it should be.</p>
+    <p class="small-sample p-spec">Shorter than it looks. The escape-analysis section is the reason to keep it.</p>
+    <div class="ui-sample">simonwillison.net · 2d</div>
+    <div class="pick"><span>#sqlite</span><span>#databases</span><span>#perf</span></div>
+    <button class="btn">Mark read</button>
+  </div>
+
+  <div class="stage">
+    <div class="spec"><b>Reference</b> — what you're reading now (system sans)</div>
+    <h2 class="vh" style="font-family:system-ui,sans-serif;font-weight:600">Rewriting SQLite's query planner for fun</h2>
+    <p class="body-sample" style="font-family:system-ui,sans-serif">Everything before the multixact section is a rehash of the official documentation, so if you are only here for the vacuum behaviour you can skip most of it. The rebalance heuristic is the part worth the visit, and he measures it rather than asserting it.</p>
+    <p class="small-sample" style="font-family:system-ui,sans-serif">Shorter than it looks. The escape-analysis section is the reason to keep it.</p>
+    <div class="ui-sample">simonwillison.net · 2d</div>
+    <div class="pick"><span>#sqlite</span><span>#databases</span><span>#perf</span></div>
+    <button class="btn">Mark read</button>
+  </div>
+
+</div>
+
+<h3 class="sec">What each one costs</h3>
+<table style="width:100%;border-collapse:collapse;font-size:.88rem">
+  <thead><tr><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:#8d8577">Option</th><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:#8d8577">Families to ship</th><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:#8d8577">Heading character</th><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:#8d8577">Long-note comfort</th><th style="text-align:left;padding:.5rem .6rem .5rem 0;border-bottom:1px solid #e4dccf;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:#8d8577">How default it looks</th></tr></thead>
+  <tbody>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">Dual serif (today)</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">2</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">best</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">best</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">moderate</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">Fraunces tuned</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">1</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">good, slightly reduced</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">acceptable</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">moderate</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">Newsreader only</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">1</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">quiet</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">excellent</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">low</td></tr>
+    <tr><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">Spectral only</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">1</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">quiet, editorial</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">excellent</td><td style="padding:.55rem .6rem .55rem 0;border-bottom:1px solid #e4dccf">very low</td></tr>
+  </tbody>
+</table>
+
+<p class="note">The honest summary: tracking and axis changes fix roughly most of what you objected to, but not all of it. Fraunces tuned at 15px reads noticeably better than Fraunces raw — the spacing problem you identified is genuinely fixable. What doesn't go away is that a display face with high optical contrast is doing a job it wasn't drawn for once it has to carry four-line notes you'll actually reread. If the notes stay the centre of the app, the text face deserves to be chosen for that job specifically, and "one family everywhere" is only free if you're willing to spend some of that comfort.</p>
+
+</div>
+</body>
+</html>

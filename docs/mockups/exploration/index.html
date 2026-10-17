@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patchworks — Design Exploration</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #1c1917;
+    background: #faf8f5;
+    line-height: 1.55;
+  }
+  .wrap { width: min(100% - 2.5rem, 62rem); margin-inline: auto; padding-block: 3.5rem 6rem; }
+  h1 { font-size: 2rem; letter-spacing: -.02em; margin: 0 0 .5rem; }
+  .lede { color: #57534e; max-width: 68ch; margin: 0 0 .5rem; }
+  .meta { color: #a8a29e; font-size: .85rem; }
+  .grid { display: grid; gap: 1.25rem; margin-top: 2.5rem; }
+  .card {
+    display: block; text-decoration: none; color: inherit;
+    border: 1px solid #e7e5e4; border-radius: 10px; padding: 1.4rem 1.5rem;
+    background: #fff; transition: border-color .15s, transform .15s;
+  }
+  .card:hover { border-color: #a8a29e; transform: translateY(-1px); }
+  .card .k { font: 500 .72rem/1 ui-monospace, monospace; letter-spacing: .1em; color: #a8a29e; text-transform: uppercase; }
+  .card h2 { font-size: 1.2rem; margin: .5rem 0 .1rem; letter-spacing: -.01em; }
+  .card .tag { font-size: .78rem; color: #78716c; font-style: italic; }
+  .card p { margin: .7rem 0 0; color: #44403c; font-size: .93rem; }
+  .card ul { margin: .7rem 0 0; padding-left: 1.1rem; color: #57534e; font-size: .88rem; }
+  .card li { margin: .15rem 0; }
+  h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: #78716c; margin: 3rem 0 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { text-align: left; padding: .5rem .7rem .5rem 0; border-bottom: 1px solid #e7e5e4; vertical-align: top; }
+  th { font-weight: 500; color: #78716c; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+  td:first-child { white-space: nowrap; color: #a8a29e; font-family: ui-monospace, monospace; font-size: .82rem; }
+  .note { border-left: 3px solid #d6d3d1; padding: .1rem 0 .1rem 1rem; margin: 2.5rem 0 0; color: #57534e; font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Patchworks — design exploration</h1>
+  <p class="lede">Four divergent directions for the home screen, quick-add, collections, reading queue, feed reader, and search. Nothing from the current build is held constant on purpose — each candidate makes its own argument about information architecture, interaction model, and visual personality, so they can be compared fairly.</p>
+  <p class="meta">Mockups are self-contained HTML. Open a candidate directly in a browser. Each file shows wide (desktop) and phone (390px) frames.</p>
+
+  <h3>The candidates</h3>
+  <div class="grid">
+
+    <a class="card" href="a-workbench.html">
+      <span class="k">Candidate A</span>
+      <h2>Workbench</h2>
+      <span class="tag">dense · utilitarian · keyboard-first · two-pane</span>
+      <p>The utility extreme. No sidebar, a persistent command bar with a visible query-syntax search, and a list with an inspector pane. Every row action is permanently visible instead of hidden behind a kebab. Monospace metadata, hairline rules, no card chrome.</p>
+      <ul>
+        <li>Answers: "if this were a tool I use 50× a day, what would it be?"</li>
+        <li>Strongest at: retrieve, bulk triage, power search.</li>
+        <li>Weakest at: calm reading, showing off notes.</li>
+      </ul>
+    </a>
+
+    <a class="card" href="b-inbox.html">
+      <span class="k">Candidate B</span>
+      <h2>Inbox</h2>
+      <span class="tag">airy · calm · card-based · mobile-native composer</span>
+      <p>The calm extreme. One centered column, no persistent navigation chrome, generous cards with real presence. Quick-add is a bottom floating composer, the pattern your thumb already knows from every phone. Largetype, soft corners, quiet palette.</p>
+      <ul>
+        <li>Answers: "if this were a place to browse rather than operate, what would it be?"</li>
+        <li>Strongest at: read-heavy triage, notes, mobile.</li>
+        <li>Weakest at: scanning 200 results, dense metadata.</li>
+      </ul>
+    </a>
+
+    <a class="card" href="c-ledger.html">
+      <span class="k">Candidate C</span>
+      <h2>Ledger</h2>
+      <span class="tag">typographic · calm-dense · table-first · serif body</span>
+      <p>The reconciliation of "airy and calm" with "dense and utilitarian." A narrow column, rows aligned into real columns like a printed ledger, body text in a serif at generous measure, chrome stripped to a thin rail of labels. Dense in information, calm in texture.</p>
+      <ul>
+        <li>Answers: "can information density feel calm? what would that look like?"</li>
+        <li>Strongest at: organize-heavy work, seeing everything at once.</li>
+        <li>Weakest at: mobile, anything needing more than three columns.</li>
+      </ul>
+    </a>
+
+    <a class="card" href="d-deck.html">
+      <span class="k">Candidate D</span>
+      <h2>Split Deck</h2>
+      <span class="tag">interaction-first · three-pane · unified stream · palette</span>
+      <p>The interaction-model divergence. Folders, list, reader — three panes, all visible at once. Bookmarks and feed items become the same kind of object in one mixed stream, so triage is one action vocabulary. Command palette overlay for everything. On mobile it collapses list → reader.</p>
+      <ul>
+        <li>Answers: "what if feeds and bookmarks are one inbox?"</li>
+        <li>Strongest at: RSS/reader integration, keyboard flow, never losing your place.</li>
+        <li>Weakest at: mobile-first, simple add-and-forget.</li>
+      </ul>
+    </a>
+
+  </div>
+
+  <h3>Decision matrix</h3>
+  <table>
+    <thead>
+      <tr><th></th><th>Retrieve</th><th>Read</th><th>Organize</th><th>Mobile</th><th>Feeds</th><th>Calm</th><th>Density</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>A Workbench</td><td>strong</td><td>weak</td><td>good</td><td>fair</td><td>fair</td><td>weak</td><td>max</td></tr>
+      <tr><td>B Inbox</td><td>fair</td><td>strong</td><td>fair</td><td>strong</td><td>good</td><td>max</td><td>low</td></tr>
+      <tr><td>C Ledger</td><td>good</td><td>good</td><td>strong</td><td>weak</td><td>fair</td><td>strong</td><td>high</td></tr>
+      <tr><td>D Split Deck</td><td>good</td><td>strong</td><td>good</td><td>fair</td><td>strong</td><td>good</td><td>high</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Constraints fed into all four</h3>
+  <table>
+    <tbody>
+      <tr><td>Primary use</td><td>retrieve-heavy, read-heavy, organize-heavy — so no single-screen-only assumption; list, search, and collections all matter</td></tr>
+      <tr><td>Roadmap weight</td><td>visible query-syntax search, share links + a real mobile pass, and an RSS aggregator with per-feed triage + auto-tagging</td></tr>
+      <tr><td>Density</td><td>deliberately split — candidates were allowed to disagree rather than all landing in the middle</td></tr>
+      <tr><td>Fixed</td><td>nothing. Palette, type, corners, sidebar, and interaction model are all up for replacement</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Shared constraints that apply regardless of direction: the list <em>is</em> the interface (no bookmark detail page); collections carry owner/editor/viewer roles and need share links; archived is a distinct recoverable state; quick-add must survive with JS disabled; feeds add a subscription-management surface and per-item read state separate from bookmark read state.</p>
+
+</div>
+</body>
+</html>
