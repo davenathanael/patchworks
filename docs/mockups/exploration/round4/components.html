@@ -244,8 +244,8 @@
   .tbl td { padding:.4rem .6rem; border-bottom:1px solid var(--line); }
   .tbl tr:hover td { background:var(--sunk); }
   .tbl .num { text-align:right; font-family:var(--mono); font-size:.72rem; color:var(--t3); }
-  .sheethead { display:flex; align-items:center; gap:.5rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); background:var(--panel); }
-  .sheethead h3 { font-family:var(--display); font-size:.95rem; font-weight:600; margin:0; }
+  .sh-head { display:flex; align-items:center; gap:.5rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); background:var(--panel); }
+  .sh-head h3 { font-family:var(--display); font-size:.95rem; font-weight:600; margin:0; }
   .sheetfoot { display:flex; align-items:center; gap:.5rem; padding:.6rem .7rem; border-top:1px solid var(--line); }
   .grab { width:30px; height:3px; border-radius:2px; background:var(--line-strong); margin:.45rem auto .3rem; }
   .meta { font-family:var(--mono); font-size:.67rem; color:var(--t3); display:flex; gap:.4rem; flex-wrap:wrap; align-items:center; }
@@ -428,10 +428,10 @@
 <h2>6 · Alerts</h2>
 <p>Permanent, in-flow, for something the user must deal with. Never colour alone — each carries a glyph and a word.</p>
 <div class="frame"><div class="app"><div class="stack" style="padding:.8rem">
-  <div class="alert err"><span class="ai" aria-hidden="true">✕</span><span class="ab"><b>Couldn't save</b><p>The link timed out while fetching its title. Your note and tags weren't lost.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
-  <div class="alert warn"><span class="ai" aria-hidden="true">!</span><span class="ab"><b>One feed hasn't updated in 6 days</b><p>simonwillison.net may have moved or stopped publishing.</p><p style="margin-top:.3rem"><a href="#">Open subscriptions</a></p></span><button class="ax" aria-label="Dismiss">×</button></div>
-  <div class="alert ok"><span class="ai" aria-hidden="true">✓</span><span class="ab"><b>Imported 248 bookmarks</b><p>12 were skipped as duplicates.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
-  <div class="alert info"><span class="ai" aria-hidden="true">i</span><span class="ab"><b>Notes are included in this shared collection</b><p>Turn them off in Share settings if you'd rather visitors saw titles only.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert err" role="alert"><span class="ai" aria-hidden="true">✕</span><span class="ab"><b>Couldn't save</b><p>The link timed out while fetching its title. Your note and tags weren't lost.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert warn" role="alert"><span class="ai" aria-hidden="true">!</span><span class="ab"><b>One feed hasn't updated in 6 days</b><p>simonwillison.net may have moved or stopped publishing.</p><p style="margin-top:.3rem"><a href="#">Open subscriptions</a></p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert ok" role="alert"><span class="ai" aria-hidden="true">✓</span><span class="ab"><b>Imported 248 bookmarks</b><p>12 were skipped as duplicates.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
+  <div class="alert info" role="alert"><span class="ai" aria-hidden="true">i</span><span class="ab"><b>Notes are included in this shared collection</b><p>Turn them off in Share settings if you'd rather visitors saw titles only.</p></span><button class="ax" aria-label="Dismiss">×</button></div>
 </div></div></div>
 
 <!-- ============ TOASTS ============ -->
@@ -449,7 +449,7 @@
 <div class="grid2">
   <div class="frame" style="margin:0"><div class="app">
     <div class="grab"></div>
-    <div class="sheethead"><h3>Details</h3><span style="flex:1"></span><button class="btn g sm">Close</button></div>
+    <div class="sh-head"><h3>Details</h3><span style="flex:1"></span><button class="btn g sm">Close</button></div>
     <div style="padding:.7rem">
       <div class="t-d3">Rewriting SQLite's query planner</div>
       <div class="t-mono" style="margin-top:.2rem">simonwillison.net/2026/09/sqlite-planner/</div>
@@ -457,12 +457,12 @@
       <div class="t-mono-sm">note</div>
       <textarea class="inp" style="min-height:4rem;font-family:var(--text);line-height:1.6;margin-top:.25rem">He measures the heuristic instead of asserting it.</textarea>
       <hr class="hr">
-      <div class="row" style="border:0;padding:.2rem 0"><button class="btn sm p">Save</button><button class="btn sm g">Archive</button><span style="flex:1"></span><span class="t-mono-sm">esc</span></div>
+      <div class="row" style="border:0;padding:.2rem 0"><button class="btn sm g">Archive</button><span style="flex:1"></span><span class="t-mono-sm">esc</span></div>
     </div>
   </div>
   <div style="font-size:.8rem;color:#8a7d70"><b>Bottom sheet.</b> Grab handle, header with a close affordance, scrollable body, actions in the content flow rather than pinned. On desktop this same content docks as a side pane and the grab handle disappears.</div></div>
   <div class="frame" style="margin:0"><div class="app">
-    <div class="sheethead"><h3>Add bookmark</h3><span style="flex:1"></span><span class="t-mono-sm">esc</span></div>
+    <div class="sh-head"><h3>Add bookmark</h3><span style="flex:1"></span><span class="t-mono-sm">esc</span></div>
     <div style="padding:.7rem" class="stack">
       <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="hint">✓ title fetched from go.dev</span></div>
       <div class="fld"><label>Tags</label><div class="row" style="border:0;padding:0"><button class="pill" aria-pressed="true"><span class="pg">✓</span>#go</button><button class="pill add"><span class="pg">+</span>new tag</button></div></div>
@@ -487,7 +487,7 @@
   </div>
   <div style="font-size:.8rem;color:#8a7d70"><b>Loading.</b> Skeletons match the real row geometry. Pagination uses an inline spinner rather than more skeletons.</div></div>
   <div class="frame" style="margin:0"><div class="app">
-    <div style="padding:.7rem"><div class="alert err"><span class="ai" aria-hidden="true">✕</span><span class="ab"><b>Couldn't load your bookmarks</b><p>The database didn't respond.</p><p style="margin-top:.3rem"><a href="#">Try again</a></p></span></div></div>
+    <div style="padding:.7rem"><div class="alert err" role="alert"><span class="ai" aria-hidden="true">✕</span><span class="ab"><b>Couldn't load your bookmarks</b><p>The database didn't respond.</p><p style="margin-top:.3rem"><a href="#">Try again</a></p></span></div></div>
     <div class="rowfail" style="padding:.4rem .7rem"><span class="ri">!</span><span>Couldn't fetch the title.</span><button>Retry</button><button>Edit manually</button></div>
   </div>
   <div style="font-size:.8rem;color:#8a7d70"><b>Error.</b> Whole-region failure gets an alert; single-item failure gets an inline row error with a retry.</div></div>
@@ -533,7 +533,7 @@
   </tbody>
 </table>
 
-<p class="note">Still open from earlier rounds, and worth resolving before build: the note editor's commit path (autosave vs explicit save), and whether the "Show note" expander survives now that the sheet exists.</p>
+<p class="note">Both open questions from earlier rounds are resolved: notes commit by debounced autosave (no Save button), and the "Show note" expander is removed — the four-line excerpt is the only list route to the note, the full text lives in the inspection sheet.</p>
 </div>
 </body>
 </html>

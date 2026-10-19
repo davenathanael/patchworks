@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Patchworks — Round 3 design (4 skins)</title>
-<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600&family=source-serif-4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=geist:400,500,600&family=jetbrains-mono:400,500&family=geist-mono:400,500&family=ibm-plex-mono:400,500&display=swap">
+<title>Patchworks — Round 4</title>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=fraunces:400,500,600&family=source-serif-4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=geist:400,500,600&family=jetbrains-mono:400,500&family=geist-mono:400,500&display=swap">
 <style>
   /* =====================================================================
      DOC CHROME — scoped to direct children so it can never leak into the app
@@ -82,7 +82,7 @@
     --r:2px;
   }
   /* --- SKIN 2 · MOCHA — warmer, closer to the original app, now muted --- */
-  body:has(#sk-moka:checked) .app {
+  body:has(#sk-mocha:checked) .app {
     color-scheme:light;
     --display:"Fraunces", Georgia, serif;
     --text:"Source Serif 4", Georgia, serif;
@@ -153,7 +153,7 @@
   .btn { border:1px solid var(--line-strong); background:var(--panel); color:var(--t1); border-radius:var(--r); padding:.25rem .55rem; font-size:.76rem; cursor:pointer; box-shadow:var(--elev); white-space:nowrap; }
   .btn:hover { background:var(--sunk); }
   .btn:active { box-shadow:none; transform:translateY(1px); }
-  .btn.p { background:var(--accent); border-color:var(--accent); color:light-dark(white, oklch(0.16 0.02 50)); box-shadow:0 1px 0 color-mix(in oklch, var(--accent) 68%, black); }
+  .btn.p { background:var(--accent); border-color:var(--accent); color:var(--on-accent); box-shadow:0 1px 0 color-mix(in oklch, var(--accent) 68%, black); }
   .btn.g { border-color:transparent; background:none; box-shadow:none; color:var(--t2); }
   .btn.g:hover { background:var(--sunk); color:var(--t1); }
   .btn.danger { color:var(--danger); }
@@ -168,7 +168,7 @@
   .item[data-unread="true"] .bul { background:var(--accent); }
   .item[data-sel="true"] { background:var(--accent-bg); box-shadow:inset 2px 0 0 var(--accent); }
   .bul { width:.45rem; height:.45rem; border-radius:50%; background:transparent; margin-top:.42rem; }
-  .ttl { font-size:.86rem; font-weight:500; line-height:1.35; color:var(--t1); text-decoration:none; display:block; }
+  .ttl { font-size:.86rem; font-weight:500; line-height:1.35; color:var(--t1); text-decoration:none; display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .ttl:hover { color:var(--accent); }
   .item[data-unread="true"] .ttl { font-weight:600; }
   .item[data-unread="false"] .ttl { color:var(--t2); font-weight:400; }
@@ -179,9 +179,6 @@
 
   /* the note — long by default; excerpt + expand in place */
   .note-e { font-family:var(--text); font-size:.82rem; line-height:1.6; color:var(--t2); margin-top:.35rem; display:-webkit-box; -webkit-line-clamp:4; line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-  .note-e.open { -webkit-line-clamp:unset; line-clamp:unset; }
-  .more { font-family:var(--mono); font-size:.67rem; color:var(--accent); background:none; border:0; cursor:pointer; padding:.1rem 0 0; display:inline-flex; gap:.25rem; align-items:center; }
-  .more:hover { text-decoration:underline; }
   .acts { grid-column:2; display:flex; gap:.25rem; margin-top:.4rem; flex-wrap:wrap; }
   .st { flex:0 0 auto; font-size:.59rem; text-transform:uppercase; letter-spacing:.07em; padding:.1rem .28rem; border-radius:var(--r); border:1px solid transparent; }
   .st.q { background:var(--ok); color:light-dark(white,oklch(0.16 0.02 60)); }
@@ -198,7 +195,7 @@
   @container (width < 54rem) { .item .side { display:none; } }
 
   /* tabs (mobile) */
-  .tabs { display:flex; border-top:1px solid var(--line-strong); background:var(--panel); position:sticky; bottom:0; }
+  .tabs { display:flex; border-top:1px solid var(--line-strong); background:var(--panel); position:sticky; bottom:0; padding-block-end:calc(.5rem + env(safe-area-inset-bottom)); }
   .tabs a { flex:1; text-align:center; font-size:.63rem; color:var(--t3); text-decoration:none; padding:.4rem .1rem .45rem; display:grid; justify-items:center; gap:.1rem; }
   .tabs a .ic { font-size:.98rem; line-height:1; }
   .tabs a[aria-current="page"] { color:var(--accent); box-shadow:inset 0 2px 0 var(--accent); }
@@ -214,6 +211,9 @@
   @container (width >= 54rem) { .sheet { border-top:0; border-inline-start:1px solid var(--line); height:100%; overflow:auto; } }
   .sh-head { display:flex; align-items:center; gap:.4rem; padding:.45rem .75rem; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); }
   .sh-head .k { font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:var(--t3); }
+  .asave { font-family:var(--mono); font-size:.66rem; color:var(--t3); }
+  .asave.saving { color:var(--accent); animation:pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
   .sh-body { padding:.7rem .75rem 1rem; display:grid; gap:.75rem; }
   .sh-title { font-family:var(--display); font-size:1rem; font-weight:600; line-height:1.3; margin:0; }
   .sh-url { font:400 .65rem/1.45 var(--mono); color:var(--t3); word-break:break-all; }
@@ -327,6 +327,13 @@
   .skrow { padding:.55rem .8rem; border-bottom:1px solid var(--line); display:grid; gap:.24rem; }
   .skrow .a { height:.62rem; width:58%; } .skrow .b { height:.5rem; width:36%; }
 
+  /* ---- prefers-reduced-motion: disable shimmer and spin animations ---- */
+  @media (prefers-reduced-motion: reduce) {
+    .sk { animation:none; background:var(--sunk); }
+    .spin { animation:none; }
+    .asave.saving { animation:none; }
+  }
+
   /* ---- FIX 6 — errors are never signalled by colour alone. Every one of these
      carries a glyph AND a word, so they survive greyscale and colour blindness. ---- */
   .alert { display:flex; gap:.55rem; align-items:flex-start; padding:.6rem .7rem;
@@ -404,7 +411,7 @@
   <fieldset>
     <legend>Skin</legend>
     <input type="radio" name="sk" id="sk-sepia" checked><label for="sk-sepia"><span class="swatch" style="background:#7d5322"></span>Sepia</label>
-    <input type="radio" name="sk" id="sk-moka"><label for="sk-moka"><span class="swatch" style="background:#8a5320"></span>Mocha</label>
+    <input type="radio" name="sk" id="sk-mocha"><label for="sk-mocha"><span class="swatch" style="background:#8a5320"></span>Mocha</label>
   </fieldset>
   <fieldset>
     <legend>Theme</legend>
@@ -436,7 +443,6 @@
             <div class="meta"><span>simonwillison.net</span><span>2d</span><span class="st q">queued</span></div>
             <div class="tags"><a href="#">#sqlite</a><a href="#">#databases</a></div>
             <p class="note-e">Simon walks through the rebalance heuristic and then does the thing everyone skips: he measures it. The tradeoff discussion near the end maps almost exactly onto our cursor pagination work — he picks stability over peak throughput and explains what that costs. Worth sending to whoever reviews the PR.</p>
-            <button class="more">Show note <span aria-hidden="true">↓</span></button>
             <div class="acts"><button class="btn sm">Mark read</button><button class="btn sm">Queue</button><button class="btn g sm">Tags</button><button class="btn g sm danger">Archive</button></div>
           </div>
         </li>
@@ -447,7 +453,6 @@
             <div class="meta"><span>go.dev</span><span>3d</span></div>
             <div class="tags"><a href="#">#go</a></div>
             <p class="note-e">Shorter than it looks. The escape-analysis section is the reason to keep it; the rest is a refresher I could have got from any blog post.</p>
-            <button class="more">Show note <span aria-hidden="true">↓</span></button>
             <div class="acts"><button class="btn sm">Mark read</button><button class="btn sm">Queue</button><button class="btn g sm danger">Archive</button></div>
           </div>
         </li>
@@ -526,7 +531,7 @@
           </ul>
         </div>
         <aside class="sheet">
-          <div class="sh-head"><span class="k">Details</span><span class="spacer"></span><span class="kbd">esc</span></div>
+          <div class="sh-head"><span class="k">Details</span><span class="asave">Saved</span><span class="spacer"></span><span class="kbd">esc</span></div>
           <div class="sh-body">
             <div><h3 class="sh-title">Rewriting SQLite's query planner for fun</h3><div class="sh-url">https://simonwillison.net/2026/09/sqlite-planner/</div></div>
             <div><span class="lbl">Note</span><textarea class="ta">Simon walks through the rebalance heuristic and then does the thing everyone skips: he measures it. The tradeoff discussion near the end maps almost exactly onto our cursor pagination work — he picks stability over peak throughput and explains what that costs. Worth sending to whoever reviews the PR.</textarea></div>
@@ -560,7 +565,7 @@
       <a class="skip" href="#main">Skip to content</a>
       <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="tag:"></label></div>
       <div style="padding:1rem"><div class="empty" style="padding:1.5rem 0"><div class="ic">◈</div><h3>Add bookmark</h3></div></div>
-      <div class="dlg">
+      <dialog class="dlg" open>
         <div class="dlg-head"><h2>Add bookmark</h2><span class="spacer"></span><button class="btn g sm">Close</button></div>
         <div class="dlg-body">
           <div class="fld"><label>URL</label><input value="https://go.dev/blog/memory-management/"><span class="fetched">✓ title fetched from go.dev</span></div>
@@ -580,7 +585,7 @@
           <div style="font-size:.79rem;color:var(--t2);background:var(--accent-bg);border-radius:var(--r);padding:.45rem .6rem">Similar to <a href="#" style="color:var(--accent)">“Go GC tuning in practice”</a>, saved 3 days ago. <a href="#" style="color:var(--accent)">Save anyway</a></div>
           <div style="display:flex;gap:.4rem;align-items:center"><button class="btn p">Save</button><button class="btn g">Save and add another</button><span class="spacer"></span><span class="hintl">⏎ save · esc close</span></div>
         </div>
-      </div>
+      </dialog>
     </div>
   </div>
 
@@ -590,7 +595,7 @@
       <a class="skip" href="#main">Skip to content</a>
       <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="tag: rust"></label><span class="spacer"></span><button class="btn sm p">+ Add</button></div>
       <div style="padding:.8rem 1.4rem;opacity:.4"><ul class="list"><li class="item" data-unread="true"><span class="bul"></span><div><a class="ttl" href="#">Rewriting SQLite's query planner for fun</a><div class="meta"><span>simonwillison.net</span><span>2d</span></div></div></li><li class="item"><span class="bul"></span><div><a class="ttl" href="#">A Tour of Go's Memory Management</a><div class="meta"><span>go.dev</span><span>3d</span></div></div></li></ul></div>
-      <div class="dlg">
+      <dialog class="dlg" open>
         <div class="dlg-head"><h2>Add bookmark</h2><span class="spacer"></span><span class="hintl">esc</span></div>
         <div class="dlg-body">
           <div class="fld" data-invalid="true"><label for="qa-url">URL</label><input id="qa-url" value="not a url" aria-invalid="true" aria-describedby="qa-url-err"><span class="ferr" id="qa-url-err"><span class="fi">!</span>That doesn't look like a URL — it needs to start with http:// or https://</span></div>
@@ -601,7 +606,7 @@
           <button class="rlt" aria-pressed="true"><span class="g">✓</span><span><span class="lb">Add to reading list</span><span class="hint">Puts it at the end of your queue</span></span></button>
           <div style="display:flex;gap:.4rem;align-items:center"><button class="btn p">Save</button><span class="spacer"></span><span class="hintl">⏎ save · esc close</span></div>
         </div>
-      </div>
+      </dialog>
     </div>
   </div>
 </div>
@@ -1031,7 +1036,7 @@
       <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="tag: rust"></label><span class="avatar">DE</span></div>
       <div class="head"><h1>Inbox</h1><div class="stat">142 bookmarks · <b>38</b> unread</div></div>
       <div style="padding:0 .8rem .7rem">
-        <div class="alert err">
+        <div class="alert err" role="alert">
           <span class="ai" aria-hidden="true">✕</span>
           <span class="ab"><b>Couldn't save</b><p>The link timed out while fetching its title. Your note and tags weren't lost.</p></span>
           <button class="ax" aria-label="Dismiss">×</button>
@@ -1069,12 +1074,12 @@
       <div class="topbar"><span class="brand">Patch<b>works</b></span><label class="q"><span class="op">/</span><input placeholder="feed:"></label><span class="avatar">DE</span></div>
       <div class="head"><h1>Feeds</h1><div class="stat">4 subscribed · <b>8</b> unread</div></div>
       <div style="padding:0 .8rem .7rem;display:grid;gap:.5rem">
-        <div class="alert warn">
+        <div class="alert warn" role="alert">
           <span class="ai" aria-hidden="true">!</span>
           <span class="ab"><b>One feed hasn't updated in 6 days</b><p>simonwillison.net may have moved or stopped publishing.</p></span>
           <button class="ax" aria-label="Dismiss">×</button>
         </div>
-        <div class="alert err">
+        <div class="alert err" role="alert">
           <span class="ai" aria-hidden="true">✕</span>
           <span class="ab"><b>Could not subscribe</b><p>That address didn't return a feed. Check the URL, or paste the site's feed URL directly.</p><p style="margin-top:.35rem"><a href="#">Try again</a></p></span>
         </div>

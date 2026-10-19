@@ -54,7 +54,7 @@
     <dl>
       <dt>Baseline</dt><dd>Mobile-first. Desktop shows more of the same thing, never a different design. Item is a card on mobile and a row past 54rem.</dd>
       <dt>Type</dt><dd>Fraunces (display) · Source Serif 4 (prose) · Geist (chrome) · Geist Mono or JetBrains Mono (metadata).</dd>
-      <dt>Long notes</dt><dd>Four-line excerpt in the list, expanding in place. The note editor lives in the inspection sheet as a real textarea.</dd>
+      <dt>Long notes</dt><dd>Four-line excerpt in the list, no expander. The full note is edited in the inspection sheet as a real textarea.</dd>
       <dt>Inspection</dt><dd>Bottom sheet on mobile with a top-edge shadow; docked side pane at 54rem and up.</dd>
       <dt>Tags</dt><dd>Plain <code>#hashtags</code> on items. Small neutral pills in pickers, with a dashed border reserved for "creates something new".</dd>
       <dt>Collections</dt><dd>Separate display title and <code>@handle</code>, both editable.</dd>
@@ -73,11 +73,11 @@
   <table>
     <thead><tr><th>Gap</th><th>Note</th></tr></thead>
     <tbody>
-      <tr><td>Note commit path</td><td>Autosave on blur or explicit save is still undecided. The sheet currently shows a textarea with no commit control.</td></tr>
-      <tr><td>Filter &amp; sort</td><td>Round 3 dropped the filter sheet in favour of query syntax. Sorting has no equivalent at all. Probably a convergence accident rather than a decision.</td></tr>
+      <tr><td>Note commit path</td><td>Resolved: debounced autosave (~800ms) plus blur and sheet close. Small "Saving…/Saved" indicator in the sheet header. No explicit Save button.</td></tr>
+      <tr><td>Filter &amp; sort</td><td>Resolved: query syntax is the only filter. Sorting gets a small control in the list header bar: newest, oldest, queue order, most tagged.</td></tr>
       <tr><td>Long-title overflow</td><td>No truncation rule or max-height has been tested against a 120-character title.</td></tr>
-      <tr><td>"Show note" vs sheet</td><td>Two routes to the same content with different affordances. One should probably go.</td></tr>
-      <tr><td>Safe-area insets</td><td>Bottom tabs and the composer need <code>env(safe-area-inset-bottom)</code> on iOS.</td></tr>
+      <tr><td>"Show note" vs sheet</td><td>Resolved: expander removed. Four-line excerpt only; the full note is the sheet's job. One route to the content.</td></tr>
+      <tr><td>Safe-area insets</td><td>Resolved: bottom tabs and pinned composer use <code>padding-block-end: calc(<padding> + env(safe-area-inset-bottom))</code>.</td></tr>
       <tr><td>No-JS quick add</td><td>The round-1 constraint that quick-add works without scripting has not been re-verified against the <code>&lt;dialog&gt;</code> approach.</td></tr>
       <tr><td>Bulk selection</td><td>Dropped in the convergence. Deliberately, or lost — worth confirming.</td></tr>
       <tr><td>Archived view</td><td>Present in desktop navigation, never designed.</td></tr>
